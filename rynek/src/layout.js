@@ -60,6 +60,20 @@ export function buildLayout(W) {
   if (!ctx.flags.notower2) fitToTower(houses, towerPlacement(CONFIG), H);   // motyw #2: pierzeja N-W kończy się przed obrysem okrągłej wieży
   // domy zamykające ulice (widok w głąb ulicy kończy się fasadą)
   for (let s = 0; s < 4; s++) { const h = { side: s, along: 0, w: sw + 2 * H.depth, floors: 3, plaster: R.int(0, P.plaster.length - 1), roof: R.int(0, P.roof.length - 1), gableFront: false, jetty: true, seedLocal: R.int(1, 1e6), setback: sl }; varyHouse(h, null); houses.push(h); } // 3 piętra stałe; wysokość kondygnacji i spadek per dom
+  if (!ctx.flags.nopalette) assignRoofs(houses, CONFIG.paletteOKLCH.slateShare);
+  // Motyw #9 (paleta, §4.4): dom z plaster3 (róż H 15) zawsze pod roof2 (łupek) — roof0 H 44 / roof1 H 47 pod tynkiem H 43 to jedna barwa; udział łupku
+  // = kwota round(slateShare·N) domów (przy losowaniu jednostajnym R.int(0,2) wychodziło 13/28 = 46 %): brakujące k = kwota − n(plaster3) domy to te
+  // o najniższym Rs() ze strumienia rng(seedLocal + 5) (osobny strumień: R domu bez zmian → reszta sceny bez przetasowania); pozostałe roof0/roof1 z Rs.int.
+  // Policzone dla seed 7: N 28, plaster3 3, kwota 8 → 5 losowych; roof2 = 8 (29 %). Losowanie R.int(0,2) w pętli zostaje (te same wywołania R), wynik nadpisany.
+  function assignRoofs(houses, share) {
+    const n3 = houses.filter(h => h.plaster === 3).length, quota = Math.round(share * houses.length), k = Math.max(0, quota - n3);
+    const draws = new Map(houses.map(h => [h, rng(h.seedLocal + 5)]));
+    const extra = new Set(houses.filter(h => h.plaster !== 3).map(h => [h, draws.get(h)()]).sort((a, b) => a[1] - b[1]).slice(0, k).map(x => x[0]));
+    for (const h of houses) h.roof = h.plaster === 3 || extra.has(h) ? 2 : draws.get(h).int(0, 1);
+    const n2 = houses.filter(h => h.roof === 2).length;
+    check(houses.every(h => h.plaster !== 3 || h.roof === 2), 'dom plaster3 bez łupku');
+    check(Math.abs(n2 / houses.length - share) <= 0.1, 'udział łupku poza slateShare ± 0,1', { n2, N: houses.length, share }); // 0.1: kwota zaokrąglona (1/28 = 0,036) + n3 > kwoty przy innym ziarnie
+  }
 
   // Motyw #2: pierzeja N-W (side 0, along < 0) kończy się na krawędzi houseEdgeMax = tx − rBot − 0,3 = −10,5 (nie −3): ostatnie domy od strony
   // ulicy są odcinane — dom, który po odcięciu byłby węższy niż widthMin, znika, a poprzedni domyka pierzeję do tej krawędzi (ta sama reguła,

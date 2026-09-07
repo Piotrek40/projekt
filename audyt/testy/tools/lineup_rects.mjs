@@ -10,8 +10,8 @@
 // Kolejność kluczy = Object.keys(W.mat) z materials.js (MAT_KEYS w lineup.js) albo --results=<results.json renderu lineupu> (pole lineup.keys).
 // Użycie: node lineup_rects.mjs [--views=../views_lineup.json] [--out=../lineup_rects.json] [--w=1280] [--h=720] [--sun=x,y,z] [--results=…]
 //         [--overlay=<row0.png>] rysuje prostokąty na kopii PNG (<nazwa>_rects.png) do obejrzenia.
-// Wynik: JSON [{name, view, key, kind, x, y, w, h, dotNL, tint, set, ao, env}] — measure_render.mjs mierzy tylko wpisy z view == nazwa PNG (row0.png → row0)
-// i liczy cel z pól tint (hex z CONFIG.paletteOKLCH.tint[key] przez oklch()), set (zestaw tekstur), ao (AO zestawu z agx_predict.mjs), env ('wall' = sfera).
+// Wynik: JSON [{name, view, key, kind, x, y, w, h, dotNL, normal, tint, set, ao}] — measure_render.mjs mierzy tylko wpisy z view == nazwa PNG (row0.png → row0)
+// i liczy cel z pól tint (hex z CONFIG.paletteOKLCH.tint[key] przez oklch()), set (zestaw tekstur), ao (AO zestawu z agx_predict.mjs), normal (→ irradiancja otoczenia z HDRI, hdr_env.mjs).
 import fs from 'node:fs';
 import { registerHooks } from 'node:module';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -35,7 +35,7 @@ const { oklchToHex } = await import(pathToFileURL(resolve(TOOLS_DIR, 'rynek/src/
 const { AO } = await import(pathToFileURL(resolve(here, 'agx_predict.mjs')).href);
 const keys = args.results ? JSON.parse(fs.readFileSync(args.results, 'utf8')).at(-1).lineup.keys : MAT_KEYS;
 // pola koloru prostokąta: tint (hex) i zestaw z CONFIG.paletteOKLCH.tint[key] = [L, C, H, zestaw]; klucze bez wpisu (banner*, glassLit, flame) bez celu
-const colorOf = k => { const t = CONFIG.paletteOKLCH?.tint?.[k]; return t ? { tint: oklchToHex(t[0], t[1], t[2]).hexStr, set: t[3], ao: AO[t[3]] ?? 1, env: 'wall' } : {}; };
+const colorOf = k => { const t = CONFIG.paletteOKLCH?.tint?.[k]; return t ? { tint: oklchToHex(t[0], t[1], t[2]).hexStr, set: t[3], ao: AO[t[3]] ?? 1 } : {}; };
 const views = JSON.parse(fs.readFileSync(args.views || resolve(here, '../views_lineup.json'), 'utf8'));
 
 // --- sunDir jak w sky.js (brightestDirection + rotation + minElevation) -------------------------------------------------
@@ -80,8 +80,9 @@ keys.forEach((k, i) => {
   const sPerp = sun.clone().sub(v.clone().multiplyScalar(sun.dot(v))); const hasPerp = sPerp.length() > 1e-6; sPerp.normalize();
   const normalToward = s => { const ang = Math.acos(THREE.MathUtils.clamp(s.dot(v), -1, 1)); return ang <= th || !hasPerp ? (ang <= th ? s.clone() : v.clone()) : v.clone().multiplyScalar(Math.cos(th)).addScaledVector(sPerp.clone().multiplyScalar(Math.sign(s.dot(sPerp))), Math.sin(th)); };
   const nSun = normalToward(sun), nShade = normalToward(sun.clone().negate());
-  for (const [kind, n] of [['sun', nSun], ['shade', nShade]]) rects.push({ name: `${k}_${kind}`, view: view.name, key: k, kind, ...rectAt(proj(center.clone().addScaledVector(n, LINEUP.r), cam)), dotNL: +Math.max(0, n.dot(sun)).toFixed(2), ...colorOf(k) });
-  rects.push({ name: `${k}_cube`, view: view.name, key: k, kind: 'cube', ...rectAt(proj(new THREE.Vector3(x, LINEUP.yCube, z + LINEUP.cube / 2), cam)), dotNL: +Math.max(0, sun.z).toFixed(2), ...colorOf(k) });
+  const nf = n => n.toArray().map(v => +v.toFixed(3));   // normalna plamy → measure_render liczy z niej irradiancję otoczenia z HDRI (hdr_env.mjs)
+  for (const [kind, n] of [['sun', nSun], ['shade', nShade]]) rects.push({ name: `${k}_${kind}`, view: view.name, key: k, kind, ...rectAt(proj(center.clone().addScaledVector(n, LINEUP.r), cam)), dotNL: +Math.max(0, n.dot(sun)).toFixed(2), normal: nf(n), ...colorOf(k) });
+  rects.push({ name: `${k}_cube`, view: view.name, key: k, kind: 'cube', ...rectAt(proj(new THREE.Vector3(x, LINEUP.yCube, z + LINEUP.cube / 2), cam)), dotNL: +Math.max(0, sun.z).toFixed(2), normal: [0, 0, 1], ...colorOf(k) });
 });
 const out = args.out || resolve(here, '../lineup_rects.json');
 fs.writeFileSync(out, JSON.stringify(rects, null, 1).replace(/\n\s+("|\d|-)/g, ' $1').replace(/\n }/g, ' }'));

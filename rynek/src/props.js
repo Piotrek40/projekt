@@ -84,7 +84,7 @@ export function buildLanterns(W) {
     const flame = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat.flame); flame.position.set(lx, 2.4, lz); scene.add(flame);
     lanternLights.push({ x: lx, z: lz });
   }
-  const lights = Array.from({ length: ctx.flags.nolights ? 0 : 4 }, () => { const l = new THREE.PointLight(0xffa452, 5, 12, 2); scene.add(l); return l; });
+  const lights = Array.from({ length: ctx.flags.nolights ? 0 : 4 }, () => { const l = new THREE.PointLight(W.hex.lanternLight, 5, 12, 2); scene.add(l); return l; }); // kolor z palety (CONFIG.paletteOKLCH.lanternLight)
   ctx.updaters.push((dt, t, p) => {
     // cztery najbliższe latarnie świecą (koszt świateł punktowych rośnie z ich liczbą)
     const near = lanternLights.map(l => ({ l, d: (l.x - p.x) ** 2 + (l.z - p.z) ** 2 })).sort((a, b) => a.d - b.d).slice(0, 4);
@@ -162,7 +162,7 @@ export function buildBanners(W) {
   {
     const tav = houses.find(h => h.side === 2 && h.along > 0 && !h.setback) || houses[0];
     const t = sideTransform(tav.side, tav.along - tav.w / 2 + 2.0, -H.depth / 2 - 0.5);
-    mat.sign = new THREE.MeshStandardMaterial({ map: signTexture('Pod Złotym Gryfem'), roughness: 0.8, side: THREE.DoubleSide });
+    mat.sign = new THREE.MeshStandardMaterial({ map: signTexture('Pod Złotym Gryfem', W.hex), roughness: 0.8, side: THREE.DoubleSide }); // kolory szyldu z palety (W.hex)
     B.add('iron', box(0.05, 0.05, 1.1), M4(t.x, 3.6, t.z, t.ry).multiply(new THREE.Matrix4().makeTranslation(0, 0, 0.3)));
     B.add('sign', plane(1.3, 0.8, 1), M4(t.x, 3.05, t.z, t.ry).multiply(new THREE.Matrix4().makeTranslation(0, 0, 0.8)).multiply(new THREE.Matrix4().makeRotationY(Math.PI / 2)));
   }
@@ -176,7 +176,7 @@ export function buildSmoke(W) {
   for (const c of smokers) {
     const N = 28, pos = new Float32Array(N * 3), seeds = Array.from({ length: N }, (_, i) => ({ t0: R() * 9, dx: R() - 0.5, dz: R() - 0.5 }));
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const pm = new THREE.PointsMaterial({ map: smokeTex, size: 1.6, transparent: true, opacity: 0.28, depthWrite: false, color: 0xd8d2c8, sizeAttenuation: true });
+    const pm = new THREE.PointsMaterial({ map: smokeTex, size: 1.6, transparent: true, opacity: 0.28, depthWrite: false, color: W.hex.smoke, sizeAttenuation: true }); // kolor z palety (CONFIG.paletteOKLCH.smoke)
     const pts = new THREE.Points(geo, pm); pts.frustumCulled = false; scene.add(pts);
     ctx.updaters.push((dt, t) => {
       for (let i = 0; i < N; i++) {

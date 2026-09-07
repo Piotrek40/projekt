@@ -26,14 +26,16 @@ export const CONFIG = {
     door: { w: 1.6, h: 2.8, frameW: 0.3, frameOut: 0.25, archH: 3.3 }, // portal S: drzwi (słownik: wieża 2,8 × 1,6), oprawa 0,3 wystająca 0,25, łuk do 3,3 m
     flag: { w: 1.2, h: 0.8 },                           // chorągiew u szczytu iglicy (banner2)
     yardWall: { h: 2.6, t: 0.4, zOff: -4.3 },           // mur zamykający przerwę za wieżą (od krawędzi domu do 0,2 m przed ulicą), z = tz − 4,3 = −27,5 (za obrysem podstawy −26,7)
-    roofOKLCH: [0.75, 0.085, 200],                      // miedź z patyną na zestawie slates (§4.4 (c): na slates tylko [0.75, 0.085, 200] = #66bec3); tor „paleta" przepina na stone_tiles_02
-    roofParams: { roughness: 0.55, metalness: 0.2 },    // §1: nowy klucz miedzi = slates.material({ params: { roughness: 0.55, metalness: 0.2 } })
+    // dach: klucz W.mat.roofTower z materials.js — tint i zestaw w paletteOKLCH.tint.roofTower (motyw #9: [0.72, 0.085, 185] na stone_tiles_02), parametry w paletteOKLCH.params
   },
   fountain: { radius: 3.2, rim: 0.75, columnHeight: 1.6, blockScale: 1.1 },
   stalls: { count: 7, ringRadius: 11.5 },
   lanterns: { count: 8, ringRadius: 15.5 },
-  sky: { file: 'sky_1k.hdr', environmentIntensity: 0.6, sunIntensity: 5.0, sunColor: 0xffd6a6, minElevationDeg: 30, rotation: -0.25, shadowExtent: 22 },
-  // paleta: ciepłe tynki, ciemny dąb, dachówka; baldachimy i chorągwie w barwach heraldycznych
+  // sunColor: motyw #9, hipoteza (a) §4.4 zaliczona na lineupie (lineup_v1_sunA, 2026-09-07): przy 0xfff1e0 (C 0,027) plaster4 w słońcu H 219 (≥ 180), roof2 H 231 (≥ 200),
+  // plaster0 C 0,025 (≥ 0,025), tynk słońce/cień 0,803/0,589 = 1,36 (≥ 1,3); przy 0xffd6a6 chłodne tynki żółkły (plaster4 H 145 C 0,006). Predyktor: agx_predict.mjs SUN.
+  sky: { file: 'sky_1k.hdr', environmentIntensity: 0.6, sunIntensity: 5.0, sunColor: 0xfff1e0, minElevationDeg: 30, rotation: -0.25, shadowExtent: 22 }, // reszta jak HEAD
+  // STARA paleta (heksy sprzed motywu #9) — tylko ?nopalette=1 (materials.js/props.js czytają ją zamiast paletteOKLCH); długości tablic plaster/roof/cloth
+  // = liczba wariantów (layout.js losuje indeksy). Heksy sprzed motywu przeniesione tu z materials.js:9-27, :53-67 i props.js:87,179 (dług §4.3.6).
   palette: {
     plaster: [0xe3d3b2, 0xd6c39d, 0xe8dfcf, 0xc9b58f, 0xdcc7b4],
     roof: [0xb8734f, 0xa0654a, 0x8d5a45],
@@ -41,10 +43,64 @@ export const CONFIG = {
     timber: 0x5a4030,
     stone: 0xcfc6b8,
     water: 0x2f5a63,
+    cobble: 0xb9b3aa, slates: 0xb8b4ae, door: 0x6b4a33, planks: 0xffffff, blocks: 0xffffff, glass: 0x1a222c, glassLit: 0x3a2a14, glassLitEmissive: 0xffb257, iron: 0x2b2b2e, flame: 0xffc070,
+    roofTowerOKLCH: [0.75, 0.085, 200],                  // stan po motywie #2 (miedź z patyną na slates, roughness/metalness jak paletteOKLCH.params.roofTower)
+    gold: 0xd9b34a, signBg: 0x3a2718, signBoard: 0x5a4030, // pas/emblemat chorągwi (heraldry), tło i deska szyldu (signTexture)
+    lanternLight: 0xffa452, smoke: 0xd8d2c8,             // PointLight latarni, cząstki dymu
   },
   // ---- sekcje Etapu 2 (każdy tor pracy wypełnia TYLKO swoją; kolory jako OKLCH [L, C, H] przez oklch() z color.js) ----
 
-  paletteOKLCH: {},   // tor „paleta": rodziny barw z rolami (tynki, dachy, drewno malowane, tkaniny, kamień, woda, emisja)
+  // tor „paleta" — motyw #9 „Złota godzina nad Rynkiem Srebrnych Liści" (rynek/PROMPT.md §4.4; ?nopalette=1 = stara paleta wyżej).
+  // Każdy tint jako [L, C, H, zestaw tekstur] (zestaw = klucz CONFIG.textures albo 'none' dla materiałów bez mapy); hex TYLKO przez oklch() z color.js
+  // (materials.js), predykcja ekranu: audyt/testy/tools/palette_predict.mjs (czyta tę tabelę), pomiar: measure_render.mjs na lineupie (?lineup=1).
+  // Cele ekranowe z predyktora (kula dotNL 1 / fasada N 0,71 / cień z AO) i reguły §4.2: rodzin 6 (≤ 7), tynki fasada N L 0,70–0,73 (ΔL 0,035),
+  // mediana tynków − dachówek 0,213 (≥ 0,15), dach − belki 0,109 (≥ 0,08); chłód w cieniu plaster4 C 0,035 H 238, roof2 C 0,036 H 244.
+  paletteOKLCH: {
+    tint: {
+      cobble:    [0.80, 0.010, 240, 'cobble'],   // bruk: neutralny z chłodnym H (na ochrowym bruku ekran H ~73; hipoteza (f): wrócić do H 80, jeśli zielonkawy)
+      stone:     [0.82, 0.015, 80,  'stone'],    // parter kamienny (fasada N L 0,56)
+      blocks:    [0.80, 0.012, 85,  'blocks'],   // fontanna, pasy i przypory wieży, schodki szczytów (L 0,59)
+      slates:    [0.80, 0.012, 85,  'slates'],   // trzon wieży (jak blocks — jedna rodzina kamienia)
+      timber:    [0.60, 0.045, 55,  'timber'],   // belki dębowe: albedo L 0,28 (HEAD 0x5a4030: 0,19 — czarne); §4.4 dawał 0,70, ale walor dach − belki wychodził 0,055 < 0,08 (predyktor z env HDRI) → 0,60: fasada N L 0,48, dach połać 0,58 − 0,48 = 0,10
+      planks:    [1.00, 0.000, 0,   'planks'],   // deski wozu i lad bez tintu (jak na HEAD)
+      door:      [0.55, 0.045, 55,  'planks'],   // drzwi: ciemniejszy dąb na weathered_planks (albedo L 0,22 ≥ 0,20)
+      plaster0:  [0.90, 0.030, 85,  'plaster'],  // kremowy
+      plaster1:  [0.92, 0.012, 90,  'plaster'],  // biel wapienna (wariant po L, nie po H)
+      plaster2:  [0.86, 0.060, 145, 'plaster'],  // szałwiowy (limit C 0,06 dla H 130–260; w słońcu H ~104, w cieniu 148)
+      plaster3:  [0.87, 0.050, 15,  'plaster'],  // różany (C 0,05 = limit tynku; dom z plaster3 dostaje zawsze roof2 — layout.js)
+      plaster4:  [0.86, 0.060, 240, 'plaster'],  // gołębi (w słońcu neutralny H ~130, w cieniu C 0,035 H 238)
+      roof0:     [0.70, 0.100, 40,  'roof'],     // dachówka ciepła (połać 0,86: L 0,55)
+      roof1:     [0.64, 0.070, 45,  'roof'],     // dachówka zgaszona (połać 0,86: L 0,50)
+      roof2:     [0.70, 0.050, 250, 'tiles'],    // łupek chłodny na stone_tiles_02 (neutralny w słońcu, cień C 0,036 H 244; udział slateShare)
+      roofTower: [0.72, 0.085, 185, 'tiles'],    // miedź z patyną na stone_tiles_02 (kula H 157, cień H 191; na slates wychodziła oliwka)
+      paint0:    [0.62, 0.070, 170, 'timber'],   // okiennice: zieleń butelkowa (rodzina patyny), na old_planks_02 (mnożnik 0,459)
+      paint1:    [0.62, 0.090, 25,  'timber'],   // okiennice: bordo
+      paint2:    [0.64, 0.060, 255, 'timber'],   // okiennice: indygo-szary
+      cloth0:    [0.45, 0.130, 320, 'none'],     // purpura (akcent chłodny)
+      cloth1:    [0.58, 0.100, 190, 'none'],     // morski turkus (max gamutu C 0,101)
+      cloth2:    [0.72, 0.150, 78,  'none'],     // szafran
+      cloth3:    [0.50, 0.170, 25,  'none'],     // karmazyn
+      water:     [0.50, 0.070, 200, 'none'],     // woda fontanny (odbicie nieba przez environmentIntensity — §4.1.9)
+      glass:     [0.25, 0.020, 250, 'none'],     // szkło ciemne (= #1a222b, jak HEAD 0x1a222c)
+      iron:      [0.30, 0.005, 250, 'none'],     // żelazo (= #2c2e30 ≈ HEAD 0x2b2b2e)
+    },
+    params: { roofTower: { roughness: 0.55, metalness: 0.2 } },   // miedź: lekko metaliczna, matowa patyna (jak po motywie #2)
+    // emisja (wprost do AgX, §4.1.6): płomień = nasycony pomarańcz × 1,6 (pred. ekran #e9a878 C 0,10; #ffc070 ×1 dawało beż #d2b691); okna świecące bez zmian
+    emit: { flame: { color: [0.72, 0.185, 49], intensity: 1.6 }, glassLit: { color: [0.30, 0.042, 74], emissive: [0.82, 0.139, 68], intensity: 1.6 } }, // = #fd7a1b (≈ #ff7a1a z §4.4, który jest 0,002 poza gamutem), #3a2a14, #ffb257
+    // kolory canvasów (CanvasTexture, sRGB): złoty pas/emblemat chorągwi i ramka szyldu (= #d9b34a), tło i deska szyldu (= #3a2718, #5a4030)
+    canvas: { gold: [0.78, 0.129, 89], signBg: [0.29, 0.038, 59], signBoard: [0.40, 0.045, 53] },   // OKLCH z hexToOklch dawnych heksów (materials.js HEAD)
+    lanternLight: [0.80, 0.145, 60],   // PointLight latarni (= #ffa452)
+    smoke: [0.87, 0.015, 81],          // cząstki dymu (= #d8d2c8)
+    slateShare: 0.3,   // udział domów z roof2 (łupek): kwota round(slateShare·N) z ziarna (layout.js assignRoofs); dla seed 7: 8 z 28 domów (3 plaster3 + 5 losowych)
+  },
+
+  // tor „paleta" — motyw #9 okiennice (?noshutters=1; buildings.js shutters()): skrzydła box(wing, wh, t) w paint0..2 (jeden kolor na dom, strumień
+  // rng(seedLocal + 6)), uchylone OD ściany o kąt open (ry = −s·open: s=−1 → ry=+0,25: zewnętrzny koniec (−0.125,0,0) → (−0.121, 0, +0.031), zawias → z −0.031 — policzone),
+  // środek x = cx ± (ww/2 + gap + wing/2·cos open) (0,516 przy ww 0,75), z = lico ramy + t/2 + gap/2 + wing/2·sin open (= front + 0,131): tył przy zawiasie na front + 0,08,
+  // wolny koniec na front + 0,162. Piętra: tylko okna w polach BEZ zastrzału i polach szerszych niż 2·(ww/2 + gap + wing/2·cos open + wing/2 + postClear)
+  // = 1,442 m (|sx − postX| ≥ 0,125 + 0,08: 0,234 przy polu 1,50; pole 1,44 przy w 7,2 m odpada); okno zwężone do ww. Parter: ww/wing z `ground`,
+  // tylko gdy zewnętrzny skraj skrzydła + edgeGap mieści się w szerokości domu. Udział share okien (osobny strumień → r() domu bez zmian).
+  shutters: { share: 0.6, ww: 0.75, wing: 0.25, t: 0.04, gap: 0.02, open: 0.25, postClear: 0.08, ground: { ww: 0.9, wing: 0.45, edgeGap: 0.03 } }, // metry/rad; §5.2 #9 (ww NIE do strojenia — przelicz |sx − postX|)
 
   houseDetail: {      // tor „kamienice": wykusze, kroksztyny, portale, okiennice, lukarny, gzymsy, sterczyny, typy dachów
     // motyw #12a „lukarny NA połaci" (?nodormer=1 przywraca pudełko HEAD; buildings.js dormer()): lico ściany czołowej fromEave m przed okapem

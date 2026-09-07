@@ -1,13 +1,13 @@
 // Wieża ratusza — landmark placu (motyw #2, ?notower2=1 przywraca starą kwadratową z buildSquareTower). Okrągły trzon-walec zbieżny 24 m
 // w slates, 3 pasy i 6 przypór blocks, okna łukowe w 4 rzędach, tarcza zegara (klucz clock), gzyms, stożek 9 m (klucz roofTower = miedź
-// z patyną na slates), iglica 3 m z kulą i chorągwią → 36 m. Stoi na osi start→fontanna, na zachód od ulicy N, podstawą 2,3 m w placu.
+// z patyną na stone_tiles_02, materials.js), iglica 3 m z kulą i chorągwią → 36 m. Stoi na osi start→fontanna, na zachód od ulicy N, podstawą 2,3 m w placu.
 // Układ lokalny: początek na środku podstawy (tx, 0, tz), +y w górę, +z = FRONT (do placu, na południe). Element „na promieniu" stawia
 // LR(a, r, y, …) = M4(0, y, r, …).premultiply(M4(tx, 0, tz, a)): lokalne +z po obrocie a to (sin a, 0, cos a) — policzone: a = π/6 →
 // (0.5, 0, 0.866), a = π/2 → (1, 0, 0) — więc front każdego elementu patrzy radialnie na zewnątrz. Metry. Do świata tylko przez LR()/M4.
 import * as THREE from 'three';
 import { box, plane, cylinder, M4 } from '../../engine/src/geometry.js';
 import { check, checkInFrontOfWall, checkCollisionCovers, bboxOf } from '../../engine/src/check.js';
-import { oklch, oklchToHex } from './color.js';
+import { oklchToHex } from './color.js';
 
 // Stara kwadratowa wieża 7 × 7 × 15 m + dach ostrosłupowy 6 m za pierzeją N-E — tylko ?notower2=1 (stan sprzed motywu #2); kod bez zmian.
 function buildSquareTower(W) {
@@ -81,8 +81,7 @@ export function buildTower(W) {
   const LR = (a, r, y, ry = 0, rx = 0, rz = 0) => M4(0, y, r, ry, rx, rz).premultiply(M4(tx, 0, tz, a)); // na promieniu r pod kątem a, front (+z) radialnie na zewnątrz
   const P = m => new THREE.Vector3().setFromMatrixPosition(m);
   const radialN = a => new THREE.Vector3(0, 0, 1).transformDirection(M4(0, 0, 0, a));   // normalna radialna = lokalne +z po obrocie a
-  if (W.sets) {   // materiały tylko w przeglądarce (test geometrii buduje bryły bez tekstur i DOM); PRZED W.B.build
-    W.mat.roofTower = W.sets.slates.material({ color: oklch(...t.roofOKLCH), params: t.roofParams });
+  if (W.sets) {   // materiały tylko w przeglądarce (test geometrii buduje bryły bez tekstur i DOM); PRZED W.B.build; roofTower z materials.js (paletteOKLCH.tint.roofTower na stone_tiles_02 — motyw #9)
     W.mat.clock = new THREE.MeshStandardMaterial({ map: clockTexture(t.clock), roughness: 0.7 }); // roughness 0.7: malowana blacha tarczy, bez metaliczności
   }
   // trzon + kolizja

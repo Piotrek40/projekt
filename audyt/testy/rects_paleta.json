@@ -1,0 +1,14 @@
+[
+ { "name": "plaster3_N", "view": "paleta_N", "x": 300, "y": 640, "w": 50, "h": 40, "tint": "#f3c8ca", "set": "plaster", "dotNL": 0.71, "normal": [0, 0, 1] },
+ { "name": "plaster1_N", "view": "paleta_N", "x": 655, "y": 470, "w": 60, "h": 40, "tint": "#e8e4dc", "set": "plaster", "dotNL": 0.71, "normal": [0, 0, 1] },
+ { "name": "plaster2_N", "view": "elew0", "x": 640, "y": 600, "w": 20, "h": 20, "tint": "#b9dcb9", "set": "plaster", "dotNL": 0.71, "normal": [0, 0, 1] },
+ { "name": "plaster1_N2", "view": "elew0", "x": 40, "y": 470, "w": 40, "h": 30, "tint": "#e8e4dc", "set": "plaster", "dotNL": 0.71, "normal": [0, 0, 1] },
+ { "name": "roof0_polac_z", "view": "elew0", "x": 760, "y": 520, "w": 30, "h": 30, "tint": "#d4896e", "set": "roof", "dotNL": 0.86, "normal": [0, 0.66, 0.751] },
+ { "name": "roof2_polac_z", "view": "elew0", "x": 880, "y": 540, "w": 80, "h": 60, "tint": "#87a1bd", "set": "tiles", "dotNL": 0.86, "normal": [0, 0.66, 0.751] },
+ { "name": "slates_wieza_N", "view": "elew0", "x": 300, "y": 200, "w": 40, "h": 40, "tint": "#c1bdb5", "set": "slates", "dotNL": 0.71, "normal": [0, 0, 1] },
+ { "name": "bruk_slonce", "view": "top", "x": 200, "y": 200, "w": 60, "h": 60, "tint": "#b8bfc4", "set": "cobble", "dotNL": 0.5, "normal": [0, 1, 0] },
+ { "name": "bruk_cien", "view": "top", "x": 200, "y": 700, "w": 60, "h": 60, "tint": "#b8bfc4", "set": "cobble", "dotNL": 0, "normal": [0, 1, 0] },
+ { "name": "roofTower_stozek", "view": "start_plac", "x": 250, "y": 150, "w": 36, "h": 30, "tint": "#61b6ab", "set": "tiles", "dotNL": 0.85, "normal": [0, 0.415, 0.91] },
+ { "name": "cloth2_baldachim_cien", "view": "start_plac", "x": 60, "y": 760, "w": 120, "h": 50, "tint": "#d79700", "set": "none", "dotNL": 0, "normal": [0, 1, 0] },
+ { "name": "bruk_cien2", "view": "start_plac", "x": 300, "y": 1480, "w": 220, "h": 120, "tint": "#b8bfc4", "set": "cobble", "dotNL": 0, "normal": [0, 1, 0] }
+]

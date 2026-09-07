@@ -1,13 +1,17 @@
 // Paleta „Złota godzina nad Rynkiem Srebrnych Liści" (rynek/PROMPT.md §4.4): OKLCH tint → hex → albedo (tint × tekstura) → kolor na ekranie.
 // Źródło tabeli: CONFIG.paletteOKLCH.tint z rynek/src/config.js (klucz W.mat → [L, C, H, zestaw tekstur]) — ta sama tabela, z której
 // materials.js robi materiały; gdy sekcja jest pusta (HEAD przed motywem #9), tabela PALETA niżej = §4.4. Stałe oświetlenia w agx_predict.mjs
-// (słońce 5,0 × ffd6a6, env 0,6, AgX 1,15; mnożniki TEX i AO z map arm). Kolumny: kula lineupu (dotNL 1) / fasada N (0,71) / cień z AO (sun 0).
+// (słońce 5,0 × CONFIG.sky.sunColor = fff1e0, env 0,6 × irradiancja HDRI dla normalnej, AgX 1,15; mnożniki TEX, AO i ROUGH z map arm). Kolumny: kula lineupu (dotNL 1,
+// normalna ku słońcu) / fasada N (+z, 0,71) / cień = fasada S (−z, sun 0, AO).
 // Sprawdza zasady §4.2: rodziny odcieni ≤ 7 (łańcuch tintów z ΔH ≤ 15° po sortowaniu, cyklicznie), C tintu wg roli, ΔL ≤ 0,06 w roli
 // (tynki na fasadzie N; roof0/roof1 na połaci 0,86), walory (mediana L tynków − mediana L dachów ≥ 0,15; L dach − L belki ≥ 0,08).
 // Użycie: node palette_predict.mjs [--sun=fff1e0] [--env=0.8]   (nadpisanie słońca/otoczenia jak ?sun=&env= w world.js — do hipotez (a)/(d)).
 import { oklchToHex, linToOklch, srgbToLin } from './oklch.mjs';
-import { predict, agx, TEX, AO, setSun, setEnv } from './agx_predict.mjs';
+import { predict, agx, TEX, AO, ROUGH, setSun, setEnv } from './agx_predict.mjs';
 import { CONFIG } from '../../../rynek/src/config.js';
+import { irradiance } from './hdr_env.mjs';
+// irradiancja otoczenia z HDRI (hdr_env.mjs) dla normalnych: ku słońcu (kula, dotNL 1), fasada N (+z, dotNL 0,71), fasada S w cieniu (−z, sun 0), połać ku +z (pitch 0,85)
+const SUNDIR = [0.498, 0.5, 0.709], E_SUN = irradiance(SUNDIR), E_N = irradiance([0, 0, 1]), E_S = irradiance([0, 0, -1]), E_ROOF = irradiance([0, Math.cos(0.85), Math.sin(0.85)]);
 
 const args = Object.fromEntries(process.argv.slice(2).map(a => { const m = a.match(/^--([^=]+)=(.*)$/); return m ? [m[1], m[2]] : [a, true]; }));
 if (args.sun) setSun('#' + args.sun.replace('#', ''));
@@ -33,14 +37,14 @@ const roleOf = k => /^plaster/.test(k) ? 'tynk' : /^(stone|blocks|slates|cobble)
 const cMax = { tynk: 0.05, 'kamień': 0.02, 'dach/drewno mal.': 0.10, belki: 0.05 };
 const pad = (s, n) => String(s).padEnd(n);
 const fmt = o => `L${o.outOKLCH.L.toFixed(2)} C${o.outOKLCH.C.toFixed(3)} H${Math.round(o.outOKLCH.H)}`;
-console.log(pad('klucz', 10), pad('OKLCH tint', 17), pad('hex', 8), pad('zestaw', 8), pad('albedo L/C/H', 20), pad('kula (dotNL 1)', 22), pad('fasada N (0,71)', 22), 'cień (sun 0, AO)');
+console.log(pad('klucz', 10), pad('OKLCH tint', 17), pad('hex', 8), pad('zestaw', 8), pad('albedo L/C/H', 20), pad('kula (dotNL 1)', 22), pad('fasada N (0,71)', 22), 'cień fasada S (sun 0, AO)');
 export const out = {};
 let bad = 0;
 for (const [k, L, C, H, set] of rows) {
   const { hex, inGamut } = oklchToHex(L, C, H);
-  const tex = TEX[set] || TEX.none, ao = AO[set] ?? 1;
-  const kula = predict(hex, tex, { sun: 1, ao }), fasN = predict(hex, tex, { sun: 0.71, ao }), cien = predict(hex, tex, { sun: 0, ao });
-  const polac = predict(hex, tex, { sun: 0.86, ao });
+  const tex = TEX[set] || TEX.none, ao = AO[set] ?? 1, rough = ROUGH[set] ?? 1;
+  const kula = predict(hex, tex, { sun: 1, ao, rough, env: E_SUN }), fasN = predict(hex, tex, { sun: 0.71, ao, rough, env: E_N }), cien = predict(hex, tex, { sun: 0, ao, rough, env: E_S });
+  const polac = predict(hex, tex, { sun: 0.86, ao, rough, env: E_ROOF });
   out[k] = { L, C, H, set, hex, inGamut, kula: kula.outOKLCH, fasN: fasN.outOKLCH, cien: cien.outOKLCH, polac: polac.outOKLCH, albedo: kula.albedoOKLCH };
   const role = roleOf(k), flags = [];
   if (!inGamut) flags.push('!GAMUT');

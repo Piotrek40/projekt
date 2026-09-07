@@ -1,6 +1,6 @@
 // Pomiar koloru na renderze: średni kolor prostokątów (px, uśrednianie W LINIOWYM) → sRGB hex + OKLCH; porównanie z celem.
 // Użycie: node measure_render.mjs <render.png> <prostokaty.json> [--sunk=1] [--sun=fff1e0] [--env=0.8]
-//   JSON = [{name, x, y, w, h, view?, target?:{L,C,H}, tint?:'#rrggbb', set?:'plaster', dotNL?, ao?, env?:'wall'|'up'}]
+//   JSON = [{name, x, y, w, h, view?, target?:{L,C,H}, tint?:'#rrggbb', set?:'plaster', dotNL?, ao?, normal?:[x,y,z] | env?:'wall'|'up'|[r,g,b]}]
 // Prostokąty z polem `view` (np. z lineup_rects.json) są mierzone tylko, gdy `view` == nazwa pliku PNG bez rozszerzenia (row0.png → row0).
 // Cel liczony NA MIEJSCU z pól prostokąta: predict(tint, TEX[set], {sun: dotNL·sunk, env, ao}) (agx_predict.mjs); `target` {L,C,H} tylko, gdy nie ma `tint`.
 // --sunk: mnożnik intensywności słońca względem 5,0 (render z ?sunint=0 → --sunk=0); --sun/--env jak ?sun=&env= w world.js (hipotezy §4.4).
@@ -8,8 +8,9 @@
 // więc „ΔH ≤ 15°" oblewałoby fałszywie). Exit 1 = są niezaliczone.
 import fs from 'node:fs';
 import { srgbToLin, linToOklch, linToOklab, oklabToLin } from './oklch.mjs';
-import { predict, TEX, AO, setSun, setEnv } from './agx_predict.mjs';
+import { predict, TEX, AO, ROUGH, setSun, setEnv } from './agx_predict.mjs';
 import { sharp } from './_sharp.mjs';
+import { irradiance } from './hdr_env.mjs';
 import { basename } from 'node:path';
 const pos = process.argv.slice(2).filter(a => !a.startsWith('--')), [png, rectsFile] = pos;
 const args = Object.fromEntries(process.argv.slice(2).filter(a => a.startsWith('--')).map(a => { const m = a.match(/^--([^=]+)=(.*)$/); return m ? [m[1], m[2]] : [a.slice(2), true]; }));
@@ -28,7 +29,8 @@ for (const r of rects) {
   R /= n; G /= n; B /= n;
   const lab = linToOklch(R, G, B), [Lp, ap, bp] = linToOklab(R, G, B);
   let verdict = '', target = null;
-  if (r.tint) { const p = predict(r.tint, TEX[r.set] ?? TEX.none, { sun: (r.dotNL ?? 1) * sunk, env: r.env ?? 'wall', ao: r.ao ?? AO[r.set] ?? 1 }); target = { L: p.outOKLCH.L, C: p.outOKLCH.C, H: p.outOKLCH.H, lin: p.outLin }; }
+  // env: jawne 'wall'|'up'|[r,g,b] albo z normalnej plamy (irradiancja HDRI, hdr_env.mjs)
+  if (r.tint) { const p = predict(r.tint, TEX[r.set] ?? TEX.none, { sun: (r.dotNL ?? 1) * sunk, env: r.env ?? (r.normal ? irradiance(r.normal) : 'wall'), ao: r.ao ?? AO[r.set] ?? 1, rough: r.rough ?? ROUGH[r.set] ?? 1 }); target = { L: p.outOKLCH.L, C: p.outOKLCH.C, H: p.outOKLCH.H, lin: p.outLin }; }
   else if (r.target) { const h = r.target.H * Math.PI / 180; target = { ...r.target, lin: oklabToLin(r.target.L, r.target.C * Math.cos(h), r.target.C * Math.sin(h)) }; }
   if (target) {
     const [Lt, at, bt] = linToOklab(...target.lin);
