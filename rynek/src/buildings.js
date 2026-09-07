@@ -3,6 +3,15 @@ import * as THREE from 'three';
 import { box, plane, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
 import { check, checkInFrontOfWall, checkCollisionCovers, checkAboveSurface, facadeNormal } from '../../engine/src/check.js';
 
+// Graniastosłup z dowolnego wielokąta (Shape w XY, punkty [[x, y], …]), grubość t wzdłuż z (wyśrodkowana), UV w metrach — jak gable(); do naczółka (#12c)
+function prism(points, t, mpt = 2) {
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(points.map(([x, y]) => new THREE.Vector2(x, y))), { depth: t, bevelEnabled: false });
+  g.translate(0, 0, -t / 2);
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / mpt, uv.getY(i) / mpt);
+  return g;
+}
+
 export function buildHouses(W) {
   const { ctx, CONFIG, P, T, H, B, houses, sideTransform } = W;
   const chimneys = [];
@@ -98,13 +107,36 @@ export function buildHouses(W) {
       const rise = (topD / 2) * Math.tan(pitch), slope = Math.hypot(topD / 2 + ov, rise), a = Math.atan2(rise, topD / 2 + ov), s = rise / (topD / 2 + ov);
       const eaveZ = jet / 2 + topD / 2 + ov, roofT = 0.14; // z okapu (koniec +z płyty przedniej); grubość płyty
       const roofY = z => y + (eaveZ - z) * s, roofTopY = z => roofY(z) + roofT / 2 * slope / (topD / 2 + ov); // oś płyty / wierzch płyty: +roofT/2 / cos(a) = ·slope/(topD/2+ov) (nad połacią liczy się wierzch — K9)
-      for (const sz of [-1, 1]) B.add(roofKey, box(w + 2 * ov, roofT, slope, T.roof.mpt, off), L(0, y + rise / 2, jet / 2 + sz * (topD / 4 + ov / 2), 0, sz * a)); // rot: rx=+a (sz=+1, połać przednia) opuszcza koniec +z: okap (0, y, eaveZ), kalenica (0, y+rise, jet/2) — policzone (0, 9, 5.25) / (0, 13.952, 0.35) dla y 9, jet 0.7, pitch 0.85
-      // szczyty boczne (trójkąty) — widoczne między domami różnej wysokości
-      for (const sx of [-1, 1]) B.add(plasterKey, gable(topD, rise, 0.3, T.plaster.mpt), L(sx * (w / 2 - 0.15), y, jet / 2, Math.PI / 2));
-      B.add('timber', box(w + 2 * ov, 0.2, 0.2, T.timber.mpt), L(0, y + rise, jet / 2));
+      // Motyw #12c „naczółek" (?nohip=1 = pełny szczyt HEAD): decyzja z osobnego strumienia rng(seedLocal + 3); hipIn > 0 = kalenica krótsza o hipIn z każdej strony
+      const Hp = CONFIG.houseDetail.hip, hipIn = (!ctx.flags.nohip && rng(h.seedLocal + 3)() < Hp.share) ? Hp.inset : 0;
+      if (!hipIn) {
+        for (const sz of [-1, 1]) B.add(roofKey, box(w + 2 * ov, roofT, slope, T.roof.mpt, off), L(0, y + rise / 2, jet / 2 + sz * (topD / 4 + ov / 2), 0, sz * a)); // rot: rx=+a (sz=+1, połać przednia) opuszcza koniec +z: okap (0, y, eaveZ), kalenica (0, y+rise, jet/2) — policzone (0, 9, 5.25) / (0, 13.952, 0.35) dla y 9, jet 0.7, pitch 0.85
+        // szczyty boczne (trójkąty) — widoczne między domami różnej wysokości
+        for (const sx of [-1, 1]) B.add(plasterKey, gable(topD, rise, 0.3, T.plaster.mpt), L(sx * (w / 2 - 0.15), y, jet / 2, Math.PI / 2)); // HEAD: ściana 0,3 w licu ściany bocznej
+        B.add('timber', box(w + 2 * ov, 0.2, 0.2, T.timber.mpt), L(0, y + rise, jet / 2)); // HEAD: belka kalenicy 0,2 na całej długości z okapami
+      } else hipRoof(hipIn);
+      // naczółek: trójkąt dachu o podstawie 2hw na wysokości yb (przy x = ±(w/2+ov)) i wierzchołku na kalenicy w x = ±(w/2 − hipIn); połacie = sześciokąty
+      // w płaszczyźnie stoku (okap w + 2ov, kalenica w − 2·hipIn, ukośny styk z naczółkiem); ściany szczytowe ścięte trapezem na wysokości osi naczółka przy licu zewnętrznym
+      function hipRoof(hipIn) {
+        const drop = (hipIn + ov) * Math.tan(pitch), yb = y + rise - drop, hw = drop / s, slant = Math.hypot(hipIn + ov, drop), tilt = Math.atan2(hipIn + ov, drop);
+        const vS = slope * (1 - hw / (topD / 2 + ov)); // styk naczółka z połacią przy x = ±(w/2+ov), mierzony wzdłuż stoku od okapu
+        const hexa = [[-(w / 2 + ov), 0], [w / 2 + ov, 0], [w / 2 + ov, vS], [w / 2 - hipIn, slope], [-(w / 2 - hipIn), slope], [-(w / 2 + ov), vS]]; // u wzdłuż x, v od okapu (0) do kalenicy (slope)
+        for (const sz of [-1, 1]) B.add(roofKey, prism(hexa, roofT, T.roof.mpt), L(0, y, jet / 2 + sz * (topD / 2 + ov), 0, -sz * (Math.PI / 2 - a))); // rot: rx=−sz·(π/2−a) → lokalne +y (0,1,0) → (0, sin a, −sz·cos a): od okapu w górę stoku do kalenicy (0, y+rise, jet/2) — policzone s0 along 13.9: (0, 13.3, 0.35) dla obu sz
+        for (const sx of [-1, 1]) {
+          const m = L(sx * (w / 2 + ov), yb, jet / 2, -sx * Math.PI / 2, tilt); // rot: ry=−sx·π/2, rx=+tilt → wierzchołek (0, slant, 0) → (sx·(w/2−hipIn), y+rise, jet/2), podstawa (±hw, 0, 0) → z = jet/2 ± hw — policzone s0 along 13.9: apex (±3.61, 13.3, 0.35), podstawa (±5.16, 11.8, −1.4 / 2.1)
+          B.add(roofKey, gable(2 * hw, slant, roofT, T.roof.mpt), m);
+          const apex = new THREE.Vector3(0, slant, 0).applyMatrix4(m), base = new THREE.Vector3(0, 0, 0).applyMatrix4(m);
+          check(apex.y > base.y + 0.5, `${id} naczółek odwrócony`, { apex: apex.toArray(), base: base.toArray() });                 // 0.5: drop ≥ 1,34 przy pitch ≥ 0,7
+          check(apex.distanceTo(LP(sx * (w / 2 - hipIn), y + rise, jet / 2)) < 0.01, `${id} naczółek nie na kalenicy`, { apex: apex.toArray() }); // 0.01: arytmetyka float
+          const hCut = rise - hipIn * Math.tan(pitch); // wysokość ścięcia ściany szczytowej = oś naczółka przy licu zewnętrznym x = ±w/2 (wierzch ściany 0,07/cos w płycie)
+          B.add(plasterKey, prism([[-topD / 2, 0], [topD / 2, 0], [hipIn, hCut], [-hipIn, hCut]], 0.3, T.plaster.mpt), L(sx * (w / 2 - 0.15), y, jet / 2, Math.PI / 2)); // trapez jak gable(topD, rise, 0.3) HEAD
+        }
+        B.add('timber', box(w - 2 * hipIn, 0.2, 0.2, T.timber.mpt), L(0, y + rise, jet / 2)); // belka kalenicy między wierzchołkami naczółków
+      }
       // lukarna (te same 2 wywołania r() co na HEAD → komin bez zmian)
       if (r() < 0.5) {
-        const dx = (r() - 0.5) * (w - 3);
+        let dx = (r() - 0.5) * (w - 3); // HEAD: pozycja lukarny (2. wywołanie r())
+        if (hipIn) { const dxMax = w / 2 - hipIn - CONFIG.houseDetail.dormer.w / 2 - 0.3; dx = Math.max(-dxMax, Math.min(dxMax, dx)); } // lukarna poza naczółkiem (0,3 m luzu)
         if (ctx.flags.nodormer) { // HEAD: pudełko zakopane w połaci (okno 0,26–0,74 m pod wierzchem płyty — KNOWN_B5B w teście)
           B.add(plasterKey, box(1.4, 1.2, 1.2, T.plaster.mpt), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.9)); // HEAD bez zmian
           B.add(roofKey, box(1.8, 0.12, 1.4, T.roof.mpt, off), L(dx, y + 1.5, topD / 2 + jet / 2 - 0.9, 0, 0.5)); // rot: rx=+0.5 → przód (+z, okap lukarny) niżej niż tył: (0,0,1) → (0, −0.479, 0.878)

@@ -72,7 +72,10 @@ for (const h of allHouses) {
     else { const ridge = ridgeAxis === 'x' ? 0 : (h.jetty ? (h.floors - 1) * H.jetty / 2 : 0); const da = Math.abs(a[ridgeAxis] - ridge), db = Math.abs(b[ridgeAxis] - ridge); [ridgeEnd, eaveEnd] = da < db ? [a, b] : [b, a]; }
     const what = isDormer ? 'LUKARNA' : thinZ ? (r.bb.max.x < 3 ? 'naczółek' : 'połać przy naczółku') : ridgeAxis === 'x' ? 'szczyt' : 'połać';
     if (ridgeEnd.y <= eaveEnd.y) fails.push(`B2 dom side=${h.side} along=${h.along.toFixed(1)} ${what}: kalenica y=${ridgeEnd.y.toFixed(2)} <= okap y=${eaveEnd.y.toFixed(2)} (środek ${f2(c)}) — ODWRÓCONY ZNAK OBROTU`);
-    if (ridgeAxis === 'z' && !isDormer && r.bb.max.x > 1) roofTops.push({ a: thinZ ? V(0, r.bb.min.y, 0.07).applyMatrix4(r.ml) : V(0, 0.07, r.bb.min.z).applyMatrix4(r.ml), b: thinZ ? V(0, r.bb.max.y, 0.07).applyMatrix4(r.ml) : V(0, 0.07, r.bb.max.z).applyMatrix4(r.ml) }); // wierzch płyty (oś + 0,07 wzdłuż normalnej) — do B5b
+    if (ridgeAxis === 'z' && !isDormer && r.bb.max.x > 1) { // wierzch płyty (oś + 0,07 wzdłuż normalnej; dla płyty z Extrude normalna może patrzeć w dół → wyższy z ±0,07) — do B5b
+      const ends = off => thinZ ? [V(0, r.bb.min.y, off).applyMatrix4(r.ml), V(0, r.bb.max.y, off).applyMatrix4(r.ml)] : [V(0, off, r.bb.min.z).applyMatrix4(r.ml), V(0, off, r.bb.max.z).applyMatrix4(r.ml)];
+      const [pa, pb] = [ends(0.07), ends(-0.07)].sort((u, v) => v[0].y - u[0].y)[0]; roofTops.push({ a: pa, b: pb });
+    }
   }
   // B5) podparcie: element z dolną krawędzią > 0,05 nad ziemią ma inny element TEGO SAMEGO domu, którego AABB rozszerzone o 0,05 przecina jego AABB
   //     (w układzie domu; AABB bryły obróconej = zachowawcze). NIE dotyczy elementów nad połacią (AABB pochylonej płyty obejmuje cały strych —
