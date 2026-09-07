@@ -12,6 +12,10 @@ import { buildTower } from './tower.js';
 import { buildFountain } from './fountain.js';
 import { buildStalls, placeGoods } from './stalls.js';
 import { initProps, placeStatue, buildLanterns, scatterProps, buildCart, buildBanners, buildSmoke } from './props.js';
+import { buildTrees } from './trees.js';
+import { buildGreenery } from './greenery.js';
+import { buildSkyline } from './skyline.js';
+import { initUI } from './ui.js';
 import { checksEnabled, checkNoCoplanar } from '../../engine/src/check.js';
 import { initDebug } from './debug.js';
 import { buildLineup } from './lineup.js';
@@ -47,6 +51,9 @@ export async function buildWorld(ctx) {
   scatterProps(W);
   buildCart(W);
   buildBanners(W);
+  buildTrees(W);      // lipy (W.B)
+  buildGreenery(W);   // zieleń z modeli (W.put) — po initProps, przed flushInstances
+  buildSkyline(W);    // panorama za pierzejami (W.B)
 
   W.flushInstances();
   // PRZED B.build (po scaleniu nie ma osobnych brył): koplanarne płaszczyzny tego samego materiału = z-fighting. Tylko klucze z cienkimi
@@ -54,4 +61,5 @@ export async function buildWorld(ctx) {
   for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign)/.test(key)) checkNoCoplanar(key, geos);
   W.B.build(W.mat, W.scene);
   buildSmoke(W);
+  initUI(W);          // UI po zbudowaniu świata (podpisy miejsc czytają W)
 }

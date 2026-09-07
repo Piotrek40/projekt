@@ -17,6 +17,28 @@ export const CONFIG = {
     stone: 0xcfc6b8,
     water: 0x2f5a63,
   },
+  // ---- sekcje Etapu 2 (każdy tor pracy wypełnia TYLKO swoją; kolory jako OKLCH [L, C, H] przez oklch() z color.js) ----
+
+  paletteOKLCH: {},   // tor „paleta": rodziny barw z rolami (tynki, dachy, drewno malowane, tkaniny, kamień, woda, emisja)
+
+  houseDetail: {},    // tor „kamienice": wykusze, kroksztyny, portale, okiennice, lukarny, gzymsy, sterczyny, typy dachów
+
+  skyline: {},        // tor „wieża i panorama": druga linia dachów, wieże w oddali, bramy na końcach ulic, mgła, ptaki
+
+  ground: {},         // tor „wieża i panorama": medalion, krawężniki, gradient wilgoci bruku, kałuże
+
+  trees: {},          // tor „plac": lipy proceduralne przy fontannie
+
+  greenery: {},       // tor „plac": krzewy w donicach, rabatki, skrzynki kwiatowe (na parapetach z W.sills)
+
+  bunting: {},        // tor „kramy i rekwizyty": girlandy chorągiewek, lampiony, sznury
+
+  props: {},          // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
+
+  pois: [],           // tor „UI": podpisy miejsc {name, x, z, r}
+
+  ui: {},             // tor „UI": nazwa miejsca, zdanie nastroju, kolory HUD
+
   textures: {
     cobble:  { name: 'cobblestone_floor_04', mpt: 2.5 },
     plaster: { name: 'plastered_wall',       mpt: 2.0 },
