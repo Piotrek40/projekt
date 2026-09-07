@@ -33,7 +33,10 @@ export const CONFIG = {
 
   bunting: {},        // tor „kramy i rekwizyty": girlandy chorągiewek, lampiony, sznury
 
-  props: {},          // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
+  props: {            // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
+    // modele bez cienia (rzucanie cienia = drugi raz ta sama geometria w przebiegu cieni); props.js: NO_SHADOW = new Set(CONFIG.props.noShadow)
+    noShadow: ['grass_medium_02', 'fern_02', 'food_apple_01', 'wooden_bowl_01', 'ceramic_vase_01', 'ceramic_vase_02', 'wine_bottles_01', 'potted_plant_02'],
+  },
 
   pois: [],           // tor „UI": podpisy miejsc {name, x, z, r}
 

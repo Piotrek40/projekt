@@ -6,14 +6,14 @@ import { checkHeight, checkAboveGround, checkCollisionCovers } from '../../engin
 
 // Ładuje modele i przygotowuje put()/flushInstances() dla reszty modułów.
 export async function initProps(W) {
-  const { ctx, scene, loaders } = W;
+  const { ctx, scene, loaders, CONFIG } = W;
   const names = ['wooden_crate_01', 'wine_barrel_01', 'Barrel_01', 'wicker_basket_01', 'wooden_bucket_02', 'ceramic_vase_01', 'ceramic_vase_02', 'wooden_bowl_01', 'food_apple_01', 'treasure_chest', 'wooden_stool_02', 'wooden_lantern_01', 'horse_statue_01', 'grass_medium_02', 'fern_02', 'tree_stump_01', 'rock_moss_set_02', 'potted_plant_02', 'wine_bottles_01', 'Lantern_01'];
   const models = new Map(await Promise.all(names.map(async n => [n, await loaders.loadModel(n)])));
   const bounds = new Map();
   for (const [n, g] of models) { g.scene.updateMatrixWorld(true); bounds.set(n, new THREE.Box3().setFromObject(g.scene)); }
   // Rekwizyty są instancjonowane: jeden draw call na (model × materiał) zamiast jednego na kopię.
   const placements = new Map();
-  const NO_SHADOW = new Set(['grass_medium_02', 'fern_02', 'food_apple_01', 'wooden_bowl_01', 'ceramic_vase_01', 'ceramic_vase_02', 'wine_bottles_01', 'potted_plant_02']);
+  const NO_SHADOW = new Set(CONFIG.props.noShadow);
   function put(name, x, y, z, ry = 0, scale = 1, opts = {}) {
     const b = bounds.get(name);
     const m = M4(x, y - b.min.y * scale, z, ry, 0, 0, scale);
