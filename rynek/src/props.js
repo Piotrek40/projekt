@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { box, plane, cylinder, M4 } from '../../engine/src/geometry.js';
 import { signTexture, smokeTexture } from './materials.js';
+import { checkHeight, checkAboveGround, checkCollisionCovers } from '../../engine/src/check.js';
 
 // Ładuje modele i przygotowuje put()/flushInstances() dla reszty modułów.
 export async function initProps(W) {
@@ -18,12 +19,21 @@ export async function initProps(W) {
     const m = M4(x, y - b.min.y * scale, z, ry, 0, 0, scale);
     if (!placements.has(name)) placements.set(name, []);
     placements.get(name).push(m);
-    if (opts.collide !== false) { const r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * scale / 2; if (r > 0.3 && y < 0.5) ctx.addCircle(x, z, r * 0.9); }
+    W.dbgBox?.(b.clone().applyMatrix4(m)); // ?boxes=1: obrys bryły w świecie (AABB po obrocie)
+    // Asercje liczone na bryle w układzie własnym modelu przesuniętej na (x,z), BEZ obrotu ry: koło kolizji jest niezmiennicze względem obrotu
+    // wokół (x,z), a AABB bryły obróconej o ~45° byłby o √2 większy i dawałby fałszywe alarmy; obrót wokół y nie zmienia zakresu y.
+    const wb = b.clone().applyMatrix4(M4(x, y - b.min.y * scale, z, 0, 0, 0, scale));
+    checkAboveGround(name, wb); // put() sam podnosi o -min.y*scale, więc pilnuje głównie ujemnego y z wywołania
+    if (opts.collide !== false) {
+      const r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * scale / 2;
+      if (r > 0.3 && y < 0.5) { ctx.addCircle(x, z, r * 0.9); W.dbgCircle?.(x, z, r * 0.9); checkCollisionCovers(name, wb, { x, z, r: r * 0.9 }); }
+    }
   }
   function flushInstances() {
     for (const [name, mats] of placements) {
       const root = models.get(name).scene;
-      if (ctx.flags.noinst) { for (const m of mats) { const c = root.clone(true); c.applyMatrix4(m); c.traverse(o => { if (o.isMesh) { o.castShadow = !NO_SHADOW.has(name); o.receiveShadow = true; } }); scene.add(c); } continue; }
+      // tryb noinst (Xclipse): klony zamiast instancji; nazwy = nazwa modelu, żeby __stats grupował po modelu tak samo jak dla InstancedMesh
+      if (ctx.flags.noinst) { for (const m of mats) { const c = root.clone(true); c.applyMatrix4(m); c.name = name; c.traverse(o => { if (o.isMesh) { o.castShadow = !NO_SHADOW.has(name); o.receiveShadow = true; o.name = name; } }); scene.add(c); } continue; }
       root.traverse(o => {
         if (!o.isMesh) return;
         // niektóre skany mają morph targets (nieużywane) — InstancedMesh bez influences wywala renderer, więc je usuwamy
@@ -42,7 +52,7 @@ export async function initProps(W) {
 
 export function placeStatue(W) {
   const { R, CONFIG, bounds, put } = W;
-  { const b = bounds.get('horse_statue_01'); const sc = 2.6 / (b.max.y - b.min.y); put('horse_statue_01', 0, CONFIG.fountain.rim + CONFIG.fountain.columnHeight + 0.35, 0, R.range(0, 6.28), sc, { collide: false }); }
+  { const b = bounds.get('horse_statue_01'); const sc = 2.6 / (b.max.y - b.min.y); checkHeight('horse_statue_01', b, sc, 2.4, 2.8); put('horse_statue_01', 0, CONFIG.fountain.rim + CONFIG.fountain.columnHeight + 0.35, 0, R.range(0, 6.28), sc, { collide: false }); } // posąg 2.6 m
 }
 
 export function buildLanterns(W) {
@@ -53,7 +63,7 @@ export function buildLanterns(W) {
     const x = Math.sin(a) * CONFIG.lanterns.ringRadius, z = Math.cos(a) * CONFIG.lanterns.ringRadius;
     B.place('timber', box(0.16, 2.8, 0.16, T.timber.mpt), x, 1.4, z);
     B.place('timber', box(0.6, 0.1, 0.1, T.timber.mpt), x + Math.cos(a) * 0.3, 2.75, z - Math.sin(a) * 0.3, a);
-    const lb = bounds.get('wooden_lantern_01'); const sc = 0.55 / (lb.max.y - lb.min.y);
+    const lb = bounds.get('wooden_lantern_01'); const sc = 0.55 / (lb.max.y - lb.min.y); checkHeight('wooden_lantern_01', lb, sc, 0.45, 0.65); // latarnia 0.55 m
     const lx = x + Math.cos(a) * 0.52, lz = z - Math.sin(a) * 0.52;
     put('wooden_lantern_01', lx, 2.15, lz, a, sc, { collide: false });
     ctx.addCircle(x, z, 0.25);

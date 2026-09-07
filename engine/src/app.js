@@ -40,6 +40,18 @@ export async function createApp(opts) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(opts.fov ?? 70, 1, 0.05, opts.far ?? 300);
+  let renderCam = camera; // kamera rysowana przez pętlę; widok diagnostyczny podmienia ją (__setView({ortho}) albo ?top=1 / ?side=N)
+  // Kamera ortograficzna do diagnostyki. o.top: rzut z góry (północ = góra kadru), o.size = wysokość kadru w metrach, o.x/o.z = środek.
+  // o.side = 0..3 jak w layout.js (0 północ, 1 wschód, 2 południe, 3 zachód): elewacja pierzei z kamery w (x,z); near odcina fontannę i kramy.
+  // MUSI być kamerą pętli loop() i __renderOnce (a nie osobnym renderer.render z zewnątrz): po __pause() ostatni zaplanowany rAF
+  // rysuje jeszcze jedną klatkę i nadpisałby obraz kamerą perspektywiczną. Niebo w rzucie ortho jest czarne — nie oceniać tła.
+  function orthoCam(o) {
+    const s = o.size || 60, a = renderer.domElement.width / renderer.domElement.height, cx = o.x ?? 0, cz = o.z ?? 0;
+    const c = new THREE.OrthographicCamera(-s / 2 * a, s / 2 * a, s / 2, -s / 2, o.near ?? 0.1, 500);
+    if (o.side !== undefined) { const [dx, dz] = [[0, -1], [1, 0], [0, 1], [-1, 0]][o.side], y = s / 2 - 2; c.position.set(cx, y, cz); c.lookAt(cx + dx * 100, y, cz + dz * 100); c.near = o.near ?? 16; }
+    else { c.position.set(cx, 150, cz); c.up.set(0, 0, -1); c.lookAt(cx, 0, cz); }
+    c.updateProjectionMatrix(); return c;
+  }
 
   const manager = new THREE.LoadingManager();
   const loaders = createLoaders(manager, renderer);
@@ -63,7 +75,7 @@ export async function createApp(opts) {
     updaters: [], // funkcje (dt, t) wywoływane co klatkę (woda, płomienie itp.)
   };
 
-  const state = { x: player.start.x, z: player.start.z, yaw: player.start.yaw, pitch: 0 };
+  const state = { x: player.start.x, z: player.start.z, yaw: player.start.yaw, pitch: player.start.pitch ?? 0 };
   const move = { x: 0, y: 0 };
   const keys = new Set();
 
@@ -155,6 +167,7 @@ export async function createApp(opts) {
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix();
+    if (renderCam.isOrthographicCamera) { renderCam.left = -renderCam.top * w / h; renderCam.right = renderCam.top * w / h; renderCam.updateProjectionMatrix(); } // kadr ortho: wysokość stała, szerokość wg proporcji
   }
   window.addEventListener('resize', resize);
   document.getElementById('q')?.addEventListener('click', () => {
@@ -169,7 +182,7 @@ export async function createApp(opts) {
     const dt = Math.min((now - last) / 1000, 0.1); last = now;
     updatePlayer(dt);
     for (const u of ctx.updaters) { try { u(dt, (now - t0) / 1000, state); } catch (e) { console.error('updater', e); } }
-    renderer.render(scene, camera);
+    renderer.render(scene, renderCam);
     frames++; acc += dt; frameTimes.push(dt * 1000);
     if (acc >= 1) {
       frameTimes.sort((a, b) => a - b);
@@ -182,17 +195,39 @@ export async function createApp(opts) {
     if (!window.__paused) requestAnimationFrame(loop);
   }
   // hooki testowe (headless)
-  window.__setView = v => { state.x = v.x; state.z = v.z; state.yaw = v.yaw; state.pitch = v.pitch ?? 0; };
+  // v.ortho = {top:true,size,x,z} albo {side:0..3,size,near}: widok diagnostyczny kamerą ortograficzną (cienie tylko w promieniu shadowExtent od x/z)
+  window.__setView = v => { state.x = v.x; state.z = v.z; state.yaw = v.yaw; state.pitch = v.pitch ?? 0; renderCam = v.ortho ? orthoCam(v.ortho) : camera; };
   window.__pause = () => { window.__paused = true; };
   window.__resume = () => { if (window.__paused) { window.__paused = false; last = performance.now(); requestAnimationFrame(loop); } };
-  window.__renderOnce = () => { updatePlayer(0); for (const u of ctx.updaters) u(0, (performance.now() - t0) / 1000, state); renderer.render(scene, camera); };
+  window.__renderOnce = () => { updatePlayer(0); for (const u of ctx.updaters) u(0, (performance.now() - t0) / 1000, state); renderer.render(scene, renderCam); };
   window.__dbg = { scene, renderer, camera, THREE, ctx };
+  // __stats(n): rysuje jedną klatkę z hookami onBefore/AfterRender i zwraca {total, shadow, top:[{name, calls, tris}]}.
+  // Hooki działają tylko w przebiegu głównym (WebGLShadowMap woła renderBufferDirect bez nich), więc total − suma = koszt przebiegu cieni.
+  // Obiekty poza frustum nie są rysowane → wynik zależy od widoku (wywołuj po __setView + __renderOnce). Nazwy: klucze Batch.build i modele z put().
+  window.__stats = (n = 15) => {
+    const rows = new Map(), hooked = [];
+    scene.traverse(o => {
+      if (!o.isMesh && !o.isPoints && !o.isLine) return;
+      const key = o.name || o.parent?.name || o.material?.name || o.type; let c0 = 0, t0 = 0;
+      hooked.push([o, o.onBeforeRender, o.onAfterRender]);
+      o.onBeforeRender = r => { c0 = r.info.render.calls; t0 = r.info.render.triangles; };
+      o.onAfterRender = r => { const e = rows.get(key) || { name: key, calls: 0, tris: 0 }; e.calls += r.info.render.calls - c0; e.tris += r.info.render.triangles - t0; rows.set(key, e); };
+    });
+    renderer.render(scene, renderCam);
+    for (const [o, b, a] of hooked) { o.onBeforeRender = b; o.onAfterRender = a; }
+    const i = renderer.info.render, top = [...rows.values()].sort((a, b) => b.tris - a.tris);
+    const sum = top.reduce((s, r) => ({ calls: s.calls + r.calls, tris: s.tris + r.tris }), { calls: 0, tris: 0 });
+    return { total: { calls: i.calls, tris: i.triangles }, shadow: { calls: i.calls - sum.calls, tris: i.triangles - sum.tris }, top: top.slice(0, n) };
+  };
 
   const loadingEl = document.getElementById('loading');
   try {
     await opts.buildWorld(ctx);
     if (flags.basic) scene.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; const conv = ms.map(m => new THREE.MeshBasicMaterial({ map: m.map || null, color: m.color || 0xffffff, side: m.side, transparent: m.transparent, opacity: m.opacity })); o.material = Array.isArray(o.material) ? conv : conv[0]; } });
     applyQuality(qualityName);
+    // widok diagnostyczny z URL (telefon / URLQUERY): ?top=1 (rzut z góry, kadr 60 m) albo ?top=90; ?side=1&ssize=30 (elewacja pierzei wschodniej)
+    if (flags.top) renderCam = orthoCam({ top: true, size: +flags.top > 1 ? +flags.top : 60 });
+    else if (flags.side !== undefined) renderCam = orthoCam({ side: +flags.side, size: +(flags.ssize || 30) });
     const gpu = document.getElementById('gpu');
     if (gpu) { const gl = renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); gpu.textContent = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); }
     if (loadingEl) loadingEl.hidden = true;

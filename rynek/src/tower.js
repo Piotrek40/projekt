@@ -9,6 +9,7 @@ export function buildTower(W) {
     const tx = sw / 2 + tw / 2 + 0.5, tz = -half - tw / 2 - 0.2;
     B.place('slates', box(tw, th, tw, T.slates.mpt), tx, th / 2, tz);
     ctx.addRect(tx, tz, tw / 2, tw / 2);
+    W.dbgRect?.(tx, tz, tw / 2, tw / 2); // ?boxes=1: obrys kolizji wieży
     // gzyms, okna strzelnicze, zegar-tarcza, dach ostrosłupowy
     B.place('blocks', box(tw + 0.6, 0.5, tw + 0.6, T.blocks.mpt), tx, th - 0.25, tz);
     for (let i = 0; i < 4; i++) {

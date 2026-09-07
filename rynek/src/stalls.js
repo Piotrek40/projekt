@@ -23,6 +23,7 @@ export function buildStalls(W) {
     stalls.push({ x, z, ry, cw, ch, L, cloth });
     // kolizja: prostokąt przybliżony kołem (kramy są obrócone)
     ctx.addCircle(x, z, 1.6);
+    W.dbgCircle?.(x, z, 1.6); W.dbgAxes?.(x, 0.05, z, ry, 1.2); // ?boxes=1: L(0,0,0) kramu, niebieska oś +z = front (do fontanny)
   }
   W.stalls = stalls;
 }

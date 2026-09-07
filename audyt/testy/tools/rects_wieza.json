@@ -1,0 +1,11 @@
+[
+  { "name": "bruk_slonce",  "x": 300, "y": 1660, "w": 250, "h": 80 },
+  { "name": "bruk_cien",    "x": 320, "y": 1565, "w": 250, "h": 40 },
+  { "name": "tynk_slonce",  "x": 640, "y": 900,  "w": 100, "h": 50 },
+  { "name": "tynk_cien",    "x": 330, "y": 1170, "w": 100, "h": 25 },
+  { "name": "dach_slonce",  "x": 250, "y": 780,  "w": 200, "h": 60 },
+  { "name": "kamien_parter","x": 60,  "y": 1300, "w": 100, "h": 100 },
+  { "name": "belka",        "x": 300, "y": 1215, "w": 200, "h": 14 },
+  { "name": "okno_lit",     "x": 80,  "y": 1080, "w": 50,  "h": 60 },
+  { "name": "okno_ciemne",  "x": 350, "y": 1080, "w": 50,  "h": 60 }
+]

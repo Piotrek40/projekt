@@ -1,0 +1,6 @@
+[
+  { "name": "top_60",      "x": 0, "z": 0,   "yaw": 0, "ortho": { "top": true, "size": 60 } },
+  { "name": "top_wieza",   "x": 7, "z": -26, "yaw": 0, "ortho": { "top": true, "size": 20 } },
+  { "name": "elew_polnoc", "x": 0, "z": 0,   "yaw": 0, "ortho": { "side": 0, "size": 30 } },
+  { "name": "elew_wschod", "x": 0, "z": 0,   "yaw": 0, "ortho": { "side": 1, "size": 30 } }
+]

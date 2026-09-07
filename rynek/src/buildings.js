@@ -1,6 +1,7 @@
 // Kamienice szachulcowe (parter kamienny, piętra z wykuszem, belki, okna, dach, komin).
 import * as THREE from 'three';
 import { box, plane, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
+import { checkInFrontOfWall, checkCollisionCovers, facadeNormal } from '../../engine/src/check.js';
 
 export function buildHouses(W) {
   const { ctx, CONFIG, P, T, H, B, houses, sideTransform } = W;
@@ -9,6 +10,8 @@ export function buildHouses(W) {
     const r = rng(h.seedLocal);
     const tr = sideTransform(h.side, h.along, h.setback);
     const L = (x, y, z, ry = 0, rx = 0, rz = 0) => M4(x, y, z, ry, rx, rz).premultiply(M4(tr.x, 0, tr.z, tr.ry)); // lokalny → świat
+    const LP = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry)); // punkt lokalny → świat (do asercji)
+    const nrm = facadeNormal(tr.ry), id = `dom s${h.side} along${h.along.toFixed(1)}`; // normalna fasady w świecie (fasada w lokalnym +z); NIE `n` — w pętli pięter `n` to liczba słupków
     const w = h.w, d = H.depth, gf = H.groundFloor, fh = H.floorHeight;
     const off = [r(), r()];
     // parter kamienny
@@ -16,6 +19,8 @@ export function buildHouses(W) {
     // kolizja: obrys domu (osiowy w świecie — domy stoją wzdłuż osi)
     const wx = (h.side % 2 === 0) ? w : d, wz = (h.side % 2 === 0) ? d : w;
     ctx.addRect(tr.x, tr.z, wx / 2, wz / 2);
+    checkCollisionCovers(id, new THREE.Box3().setFromPoints([LP(-w / 2, 0, -d / 2), LP(w / 2, gf, d / 2)]), { x: tr.x, z: tr.z, hw: wx / 2, hd: wz / 2 }); // prostokąt kolizji pokrywa parter
+    W.dbgRect?.(tr.x, tr.z, wx / 2, wz / 2); W.dbgAxes?.(tr.x, 0.05, tr.z, tr.ry, 2); // ?boxes=1: L(0,0,0) domu, niebieska oś +z = fasada
     // piętra z wykuszem (jetty): każde wyższe piętro wysunięte do przodu
     let y = gf, jet = 0;
     const plasterKey = 'plaster' + h.plaster;
@@ -45,6 +50,7 @@ export function buildHouses(W) {
         const cx = -fw / 2 + (i + 0.5) * fw / n, ww = Math.min(1.0, fw / n - 0.5), wh = 1.3;
         const lit = r() < 0.35;
         B.add(lit ? 'glassLit' : 'glass', box(ww, wh, 0.04), L(cx, y + fh * 0.55, front + 0.01));
+        checkInFrontOfWall(`${id} okno p${f}`, LP(cx, y + fh * 0.55, front + 0.01), LP(cx, y + fh * 0.55, front), nrm); // środek okna 1 cm przed licem (d=0.01 ≥ 0.005)
         B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 - wh / 2, front + 0.02));
         B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 + wh / 2, front + 0.02));
         B.add('timber', box(0.06, wh, 0.1), L(cx, y + fh * 0.55, front + 0.02));
@@ -58,6 +64,7 @@ export function buildHouses(W) {
     for (const sx of [-1, 1]) {
       const cx = doorX + sx * 2.2; if (Math.abs(cx) > w / 2 - 0.9) continue;
       B.add(r() < 0.3 ? 'glassLit' : 'glass', box(0.9, 1.1, 0.04), L(cx, 1.8, d / 2 + 0.01));
+      checkInFrontOfWall(`${id} okno parteru`, LP(cx, 1.8, d / 2 + 0.01), LP(cx, 1.8, d / 2), nrm);
       B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 - 0.55, d / 2 + 0.02));
       B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 + 0.55, d / 2 + 0.02));
     }

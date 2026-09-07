@@ -1,0 +1,14 @@
+[
+  { "name": "tynk_prawy",   "x": 600, "y": 795, "w": 180, "h": 14 },
+  { "name": "tynk_lewy",    "x": 240, "y": 745, "w": 50,  "h": 30 },
+  { "name": "dach_ceglasty","x": 600, "y": 572, "w": 200, "h": 30 },
+  { "name": "dach_wiezy",   "x": 650, "y": 430, "w": 120, "h": 50 },
+  { "name": "kamien_wiezy", "x": 600, "y": 625, "w": 200, "h": 50 },
+  { "name": "bruk_slonce",  "x": 300, "y": 1300, "w": 300, "h": 200 },
+  { "name": "bruk_daleki",  "x": 500, "y": 1120, "w": 250, "h": 40 },
+  { "name": "fontanna_kam", "x": 280, "y": 900, "w": 120, "h": 60 },
+  { "name": "baldachim_zol","x": 40,  "y": 780, "w": 120, "h": 80 },
+  { "name": "baldachim_cz", "x": 520, "y": 905, "w": 100, "h": 12 },
+  { "name": "niebo",        "x": 100, "y": 400, "w": 300, "h": 200 },
+  { "name": "posag",        "x": 315, "y": 760, "w": 30,  "h": 60 }
+]
