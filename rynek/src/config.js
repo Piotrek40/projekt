@@ -57,6 +57,12 @@ export const CONFIG = {
     // motyw #12c „naczółek" (?nohip=1 = pełny szczyt HEAD; buildings.js hipRoof()): udział domów ∥ x („co 4. dom"), inset = o ile kalenica krótsza
     // z każdej strony (m; ścięcie w poziomie inset + okap, w pionie (inset + okap)·tan(pitch))
     hip: { share: 0.25, inset: 1.0 }, // policzone dla seed 7: 8 z 22 domów ∥ x, drop 1,34–2,37 m, +320 tri
+    // motyw #6 „wykusz wieloboczny + kroksztyny" (?nooriel=1; buildings.js orielBay()): domy szersze niż minW i ze środkiem bliżej osi pierzei niż half − edgeGap
+    // (= 16; |along| to środek domu), z kondygnacją nad piętrem floor (daszek chowa wierzchołek w jej bryle; na ostatniej kondygnacji przebijałby połać o 0,15 m — policzone).
+    // Sześciobok o promieniu opisanym r (= bok; apotema r·cos 30° = 0,953 = wysięg przed lico piętra), seg ścian, środek na licu piętra (połowa w fasadzie);
+    // okno win na 3 ścianach zewnętrznych (udział świecących litShare); stożek capR/capH (apotema podstawy 1,126 → okap 0,17 przed ścianami); pozycja |cx| ≤ min(w/2 − r − edge, cxMax);
+    // kroksztyny: trójkąt prostokątny w × h, grubość t, co step pod wykuszem (2 szt. przy r 1,1), wierzch pod podwaliną piętra, pionowy bok na licu kondygnacji niżej
+    oriel: { minW: 7, edgeGap: 6, floor: 1, r: 1.1, seg: 6, win: [0.6, 1.3], litShare: 0.35, capR: 1.3, capH: 0.8, edge: 0.3, cxMax: 2.5, corbel: { w: 0.35, h: 0.35, t: 0.14, step: 1.2 } }, // policzone dla seed 7: 11 domów (7 przy placu + 4 zamykające ulice), ≈ +330 tri/dom
   },
 
   skyline: {},        // tor „wieża i panorama": druga linia dachów, wieże w oddali, bramy na końcach ulic, mgła, ptaki

@@ -33,7 +33,7 @@ for (const side of [0, 1, 2, 3]) {
 }
 // B) domy pojedynczo (izolacja: buildHouses na liście z jednym domem)
 const allHouses = W.houses;
-let nWin = 0, nRoof = 0, nSupp = 0, nDormer = 0, nWalk = 0, known = 0;
+let nWin = 0, nWinO = 0, nRoof = 0, nSupp = 0, nDormer = 0, nWalk = 0, known = 0;
 for (const h of allHouses) {
   const n0 = rec.length; W.houses = [h]; buildHouses(W);
   const items = rec.slice(n0);
@@ -52,6 +52,19 @@ for (const h of allHouses) {
     const fl = floors.find(fl => c.y > fl.y0 + 0.05 && c.y < fl.y1 - 0.05 && Math.abs(c.z - fl.face) < 0.3);
     if (!fl) continue; nWin++;
     if (c.z + depth / 2 < fl.face + 0.005) fails.push(`B1 dom side=${h.side} along=${h.along.toFixed(1)}: ${r.key} lico ${(c.z + depth / 2).toFixed(3)} < ściana ${fl.face.toFixed(3)}`);
+  }
+  // B1b) okna i ramy WYKUSZA (motyw #6; ściany obrócone o k·60°, więc B1 je pomija): lico przednie elementu wzdłuż WŁASNEJ normalnej ≥ apotema wielokąta + 0,005
+  //      od osi wykusza (wykusz = plaster o typie CylinderGeometry; apotema = r·cos(π/seg) = 0,953 przy r 1,1, seg 6). Element wykusza = cienki (≤ 0,12) i niski (< 2 m)
+  //      glass/timber ze środkiem w promieniu r + 0,3 od osi i w zakresie wysokości bryły — ramy 0,1, szkło 0,04; słupki (fh) i belki (0,16) nie.
+  for (const o of L.filter(r => r.key.startsWith('plaster') && r.type === 'CylinderGeometry')) {
+    const oc = V(0, 0, 0).applyMatrix4(o.ml), R = o.params.radiusTop, ap = R * Math.cos(Math.PI / o.params.radialSegments), y0 = oc.y + o.bb.min.y, y1 = oc.y + o.bb.max.y;
+    for (const r of L) {
+      if (!(r.key.startsWith('glass') || r.key === 'timber')) continue;
+      const depth = r.bb.max.z - r.bb.min.z; if (depth > 0.12 || r.bb.max.y - r.bb.min.y > 2) continue;
+      const c = V(0, 0, 0).applyMatrix4(r.ml); if (Math.hypot(c.x - oc.x, c.z - oc.z) > R + 0.3 || c.y < y0 || c.y > y1) continue;
+      const n = V(0, 0, 1).transformDirection(r.ml), face = V(c.x - oc.x, 0, c.z - oc.z).dot(n) + depth / 2; nWinO++;
+      if (face < ap + 0.005) fails.push(`B1b dom side=${h.side} along=${h.along.toFixed(1)}: ${r.key} wykusza lico ${face.toFixed(3)} < apotema ${ap.toFixed(3)} + 0.005 (n=${f2(n)})`);
+    }
   }
   // B2) połacie: krawędź płyty przy kalenicy ma być WYŻEJ niż przy okapie. Oś spadku Z MACIERZY, nie z gableFront/szerokości (naczółek #12 to
   //     płyta obrócona o rz na domu ∥ x — z osi „z szerokości" dostałby końce wzdłuż z na tej samej wysokości = fałszywy „ODWRÓCONY ZNAK"):
@@ -171,7 +184,7 @@ buildCart(W);
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);

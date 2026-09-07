@@ -1,4 +1,5 @@
-// Kamienice szachulcowe (parter kamienny, piętra z wykuszem, belki, okna, dach, komin).
+// Kamienice szachulcowe (parter kamienny, piętra z jetty, belki, okna, wykusz wieloboczny na kroksztynach, dach, komin).
+// Układ lokalny: początek na środku podstawy, +x wzdłuż pierzei, +y w górę, +z = FRONT (do placu). Metry. Do świata tylko przez L().
 import * as THREE from 'three';
 import { box, plane, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
 import { check, checkInFrontOfWall, checkCollisionCovers, checkAboveSurface, facadeNormal } from '../../engine/src/check.js';
@@ -13,7 +14,7 @@ function prism(points, t, mpt = 2) {
 }
 
 export function buildHouses(W) {
-  const { ctx, CONFIG, P, T, H, B, houses, sideTransform } = W;
+  const { ctx, CONFIG, P, T, H, B, houses, sideTransform, half } = W;
   const chimneys = [];
   for (const h of houses) {
     const r = rng(h.seedLocal);
@@ -30,9 +31,16 @@ export function buildHouses(W) {
     ctx.addRect(tr.x, tr.z, wx / 2, wz / 2);
     checkCollisionCovers(id, new THREE.Box3().setFromPoints([LP(-w / 2, 0, -d / 2), LP(w / 2, gf, d / 2)]), { x: tr.x, z: tr.z, hw: wx / 2, hd: wz / 2 }); // prostokąt kolizji pokrywa parter
     W.dbgRect?.(tr.x, tr.z, wx / 2, wz / 2); W.dbgAxes?.(tr.x, 0.05, tr.z, tr.ry, 2); // ?boxes=1: L(0,0,0) domu, niebieska oś +z = fasada
-    // piętra z wykuszem (jetty): każde wyższe piętro wysunięte do przodu
-    let y = gf, jet = 0;
+    // piętra z jetty: każde wyższe piętro wysunięte do przodu
+    let y = gf, jet = 0, frontBelow = d / 2; // frontBelow: lico kondygnacji niżej (parter d/2) — ściana, na której wiszą kroksztyny wykusza
     const plasterKey = 'plaster' + h.plaster;
+    // Motyw #6 „wykusz wieloboczny + kroksztyny" (?nooriel=1): domy szersze niż minW, bliżej osi pierzei niż half − edgeGap (|along| = środek domu; przy krawędzi
+    // ulicy wykusz wchodziłby w narożnik) i z kondygnacją NAD piętrem wykusza (daszek chowa wierzchołek w jej bryle). Pozycja i światło okien z osobnego strumienia
+    // rng(seedLocal + 4) — wywołania r() domu bez zmian, więc reszta domu (okna, zastrzały, lukarna, komin) jak bez motywu.
+    const O = CONFIG.houseDetail.oriel, Ro = rng(h.seedLocal + 4);
+    const oriel = (!ctx.flags.nooriel && w > O.minW && Math.abs(h.along) < half - O.edgeGap && h.floors > O.floor + 1)
+      ? { f: O.floor, cx: (Ro() - 0.5) * 2 * Math.min(w / 2 - O.r - O.edge, O.cxMax), lit: [0, 1, 2].map(() => Ro() < O.litShare) } : null; // cx równomiernie w ±min(…); 3 okna: świecące z udziałem litShare
+    const inOriel = (f, x) => !!oriel && (f === oriel.f || f === oriel.f + 1) && Math.abs(x - oriel.cx) < O.r + 0.1; // 0.1: zapas, słupek/belka 0,16 przy wierzchołku ±90° wystawałaby z bryły
     for (let f = 1; f < h.floors; f++) {
       if (h.jetty) jet += H.jetty;
       const fw = w, fd = d + jet;
@@ -43,28 +51,73 @@ export function buildHouses(W) {
       B.add('timber', box(fw + bt, bt, bt, T.timber.mpt), L(0, y + bt / 2, zf));
       B.add('timber', box(fw + bt, bt, bt, T.timber.mpt), L(0, y + fh - bt / 2, zf));
       const n = Math.max(2, Math.round(fw / 1.6));
+      const orielHere = !!oriel && f === oriel.f, hidden = (x, halfW) => orielHere && Math.abs(x - oriel.cx) < O.r + halfW; // element piętra wykusza (środek x, półszerokość halfW) nachodzący na bryłę wykusza: geometria pominięta, r() bez zmian
       for (let i = 0; i <= n; i++) {
         const x = -fw / 2 + i * fw / n;
-        B.add('timber', box(bt, fh, bt, T.timber.mpt), L(x, y + fh / 2, zf));
+        if (!hidden(x, 0.2)) B.add('timber', box(bt, fh, bt, T.timber.mpt), L(x, y + fh / 2, zf)); // 0.2: pół słupka 0,08 + luz — słupek fasady nie zlewa się ze słupkiem narożnym wykusza (na ±1,11)
         if (i < n && r() < 0.5) { // zastrzał w polu
-          const len = Math.hypot(fw / n, fh) * 0.7;
-          B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * (r() < 0.5 ? 1 : -1))); // rot: rz=±atan2(fw/n, fh) → góra zastrzału (0,1,0) ku ∓x: rz=+0.5 → (−0.479, 0.878, 0) (policzone); znak losowy = kierunek zastrzału
+          const len = Math.hypot(fw / n, fh) * 0.7, sgn = r() < 0.5 ? 1 : -1; // HEAD: zastrzał 0,7 przekątnej pola, znak losowy pół na pół
+          if (!hidden(x + fw / n / 2, 0.7 * fw / n / 2 + 0.1)) B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * sgn)); // rot: rz=±atan2(fw/n, fh) → góra zastrzału (0,1,0) ku ∓x: rz=+0.5 → (−0.479, 0.878, 0) (policzone); znak losowy = kierunek zastrzału; zasięg zastrzału w x = 0,7·pół pola + luz 0,1
         }
       }
-      // belki stropowe wystające pod wykuszem
-      if (h.jetty) for (let i = 0; i <= n; i++) B.add('timber', box(bt, bt, H.jetty + 0.3, T.timber.mpt), L(-fw / 2 + i * fw / n, y - bt / 2, front - (H.jetty + 0.3) / 2 - 0.05));
+      // belki stropowe wystające pod jetty (nie w zasięgu wykusza: pod nim kroksztyny, nad nim daszek)
+      if (h.jetty) for (let i = 0; i <= n; i++) { const x = -fw / 2 + i * fw / n; if (!inOriel(f, x)) B.add('timber', box(bt, bt, H.jetty + 0.3, T.timber.mpt), L(x, y - bt / 2, front - (H.jetty + 0.3) / 2 - 0.05)); } // HEAD: belka jetty + 0,3 w ścianie, koniec 0,05 za licem
       // okna piętra: w polach między słupkami
       for (let i = 0; i < n; i++) {
         if (r() < 0.25) continue;
         const cx = -fw / 2 + (i + 0.5) * fw / n, ww = Math.min(1.0, fw / n - 0.5), wh = 1.3;
         const lit = r() < 0.35;
+        if (hidden(cx, ww / 2 + 0.16 + 0.1)) continue; // pół okna + rama 0,08 z każdej strony (box ww + 0,16) + luz 0,1: rama okna fasady nie wchodzi w słupek narożny wykusza
         B.add(lit ? 'glassLit' : 'glass', box(ww, wh, 0.04), L(cx, y + fh * 0.55, front + 0.01));
         checkInFrontOfWall(`${id} okno p${f}`, LP(cx, y + fh * 0.55, front + 0.01), LP(cx, y + fh * 0.55, front), nrm); // środek okna 1 cm przed licem (d=0.01 ≥ 0.005)
         B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 - wh / 2, front + 0.02));
         B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 + wh / 2, front + 0.02));
         B.add('timber', box(0.06, wh, 0.1), L(cx, y + fh * 0.55, front + 0.02));
       }
+      if (orielHere) orielBay(y, front, frontBelow, front + (h.jetty ? H.jetty : 0), bt);
+      frontBelow = front;
       y += fh;
+    }
+    // Wykusz sześcioboczny (motyw #6): graniastosłup cylinder(r, r, fh, seg) obrócony o pół ściany (ry = π/seg → ŚCIANA, nie wierzchołek, na +z; policzone dla r 1,1:
+    // wierzchołki (±0.55, ±0.953), (±1.1, 0)) ze środkiem NA licu piętra → połowa w fasadzie, 3 ściany na zewnątrz (k = −1/0/+1, normalne (∓0.866, 0, 0.5) / (0,0,1)),
+    // każda z oknem i ramą timber; apotema ap = r·cos(π/seg) = 0,953 = wysięg. Daszek: stożek seg-boczny w kluczu dachu, podstawa na wierzchu wykusza, wierzchołek w bryle
+    // piętra wyżej. Kroksztyny: trójkąty prostokątne pod wykuszem, pionowy bok na licu kondygnacji niżej (faceZBelow), wierzch pod podwaliną piętra (styk — B5).
+    function orielBay(y, faceZ, faceZBelow, faceZAbove, bt) {
+      const { cx, lit } = oriel, R = O.r, sect = 2 * Math.PI / O.seg, idO = `${id} wykusz`;
+      const apOf = rad => new THREE.Vector3(0, 0, rad).applyMatrix4(M4(0, 0, 0, sect / 2)).z, ap = apOf(R); // apotema = z wierzchołka (0,0,r) obróconego o pół ściany (= r·cos(π/seg) = 0,953; macierzą, nie ręcznym cos — §3.1)
+      const F = (k, x, y, z, ry = 0) => M4(x, y, z, ry).premultiply(L(cx, 0, faceZ, k * sect)); // układ ściany k (obrót o k·60° wokół osi wykusza; k połówkowe = wierzchołki) → świat
+      const FP = (k, x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(L(cx, 0, faceZ, k * sect)); // punkt w układzie ściany k → świat (do asercji)
+      B.add(plasterKey, cylinder(R, R, fh + 0.01, O.seg, T.plaster.mpt), L(cx, y + fh / 2 - 0.005, faceZ, sect / 2)); // 0.01/0.005: spód 1 cm pod spodem bryły piętra — nie koplanarny (K5), wierzch na y + fh
+      const [ww, wh] = O.win, wy = y + fh * 0.55; // okna na wysokości okien piętra
+      for (const k of [-1, 0, 1]) {
+        const nK = new THREE.Vector3(0, 0, 1).transformDirection(M4(0, 0, 0, tr.ry + k * sect)); // normalna ściany k w świecie — policzone dla ry 0: (−0.866,0,0.5) / (0,0,1) / (0.866,0,0.5)
+        B.add(lit[k + 1] ? 'glassLit' : 'glass', box(ww, wh, 0.04), F(k, 0, wy, ap + 0.01));                    // szkło 1 cm przed licem ściany wykusza (jak okna pięter)
+        checkInFrontOfWall(`${idO} okno ${k}`, FP(k, 0, wy, ap + 0.01), FP(k, 0, wy, ap), nK);               // d = 0,010 ≥ 0,005 wzdłuż WŁASNEJ normalnej ściany k
+        B.add('timber', box(ww + 0.16, 0.08, 0.1), F(k, 0, wy - wh / 2, ap + 0.02));                          // parapet / nadproże / słupek ramy jak okna pięter
+        B.add('timber', box(ww + 0.16, 0.08, 0.1), F(k, 0, wy + wh / 2, ap + 0.02));                          // nadproże (wymiary ram jak okna pięter)
+        B.add('timber', box(0.06, wh, 0.1), F(k, 0, wy, ap + 0.02));                                          // słupek ramy
+        B.add('timber', box(R + bt, bt, bt, T.timber.mpt), F(k, 0, y + bt / 2, ap + 0.01));                    // podwalina i oczep ściany k (długość bok + bt → końce w słupkach narożnych)
+        B.add('timber', box(R + bt, bt, bt, T.timber.mpt), F(k, 0, y + fh - bt / 2, ap + 0.01));               // oczep ściany k
+      }
+      checkInFrontOfWall(`${idO} przód`, FP(0, 0, wy, ap + 0.01), LP(cx, wy, faceZ), nrm, ap);                 // środek okna przedniego ap + 0,01 = 0,963 przed licem piętra (wysięg = apotema)
+      for (const kv of [-1.5, -0.5, 0.5, 1.5]) B.add('timber', box(bt, fh, bt, T.timber.mpt), F(kv, 0, y + fh / 2, R + 0.01)); // słupki narożne na wierzchołkach ±30°, ±90° (±90° = na licu piętra)
+      // daszek: stożek; podstawa 1 cm pod wierzchem wykusza (w bryle wykusza; nie koplanarna ze spodem piętra wyżej — K5); wierzchołek za licem piętra wyżej
+      const capM = L(cx, y + fh - 0.01 + O.capH / 2, faceZ, sect / 2); // 0.01: podstawa 1 cm pod wierzchem wykusza
+      B.add('roof' + h.roof, cylinder(0, O.capR, O.capH, O.seg, T.roof.mpt), capM); // klucz dachu domu (roofKey niżej jest const w TDZ w chwili wywołania)
+      const apex = new THREE.Vector3(0, O.capH / 2, 0).applyMatrix4(capM);
+      check(apex.clone().sub(LP(cx, apex.y, faceZAbove)).dot(nrm) <= 0.005, `${idO} daszek przebija lico piętra wyżej`, { apex: apex.toArray(), faceZAbove }); // 0.005: bez jetty wierzchołek leży NA licu (d = 0)
+      check(apOf(O.capR) >= ap + 0.1, `${idO} daszek bez okapu`, { capAp: apOf(O.capR), ap });                                 // 0.1: minimalny okap daszka przed ścianą wykusza (1,126 − 0,953 = 0,17)
+      // kroksztyny co step pod wykuszem (2 przy r 1,1): prism (trójkąt prostokątny w XY: (0,0) ściana-góra, (w,0) zewnętrzny-góra, (0,−h) ściana-dół), grubość t
+      const C = O.corbel, nC = Math.max(2, Math.round(2 * R / C.step));
+      for (let i = 0; i < nC; i++) {
+        const xc = cx + (i - (nC - 1) / 2) * C.step;
+        const mC = L(xc, y, faceZBelow, -Math.PI / 2); // ry=−π/2: lokalne +x (wysięg) → +z domu, policzone (0.35,0,0) → (0,0,0.35); wierzch na y = spód podwaliny
+        B.add('timber', prism([[0, 0], [C.w, 0], [0, -C.h]], C.t, T.timber.mpt), mC);
+        const inner = new THREE.Vector3(0, 0, 0).applyMatrix4(mC), outer = new THREE.Vector3(C.w, 0, 0).applyMatrix4(mC);
+        checkInFrontOfWall(`${idO} kroksztyn ${i}`, outer, LP(xc, y, faceZBelow), nrm, C.w - 0.005);          // zewnętrzny górny róg w przed ścianą niżej (orientacja; 0.005: float)
+        const back = LP(xc, y, faceZ + 0.01 - bt / 2), dIn = inner.clone().sub(back).dot(nrm), dOut = outer.clone().sub(back).dot(nrm); // rzut wierzchu kroksztynu na normalną od tyłu podwaliny
+        check(Math.abs(inner.y - y) < 0.005 && Math.min(dOut, bt) - Math.max(dIn, 0) >= 0.05, `${idO} kroksztyn ${i} nie styka się z podwaliną`, { dIn, dOut, top: inner.y, y }); // nakładanie w rzucie ≥ 0,05 (0,07 z jetty / 0,09 bez), ten sam y
+      }
     }
     // parter: drzwi i okna
     const doorX = (r() - 0.5) * (w - 3);
