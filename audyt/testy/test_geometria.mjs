@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildSkyline, skylinePlan, buntingCurves, buildBunting, fountainPlan, buildFountain, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildSkyline, skylinePlan, buntingCurves, buildBunting, fountainPlan, buildFountain, poiPlan, checkFailures } from './geo/scene.bundle.mjs';
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {
@@ -204,6 +204,21 @@ for (const r of rec.slice(n1).filter(r => r.key.startsWith('glass'))) {
   if (wetR <= stepR + 0.5 || Math.abs(wetR - F.wet.r) > 1e-3) fails.push(`F5 wet zasięg r=${wetR.toFixed(2)} (schodek ${stepR.toFixed(2)}, CONFIG ${F.wet.r})`);
   for (const r of wet) { const b = wb(r), n = V(0, 0, 1).transformDirection(r.m); if (b.min.y <= 0 || b.min.y > 0.01 || n.y < 0.99) fails.push(`F5 wet y=${b.min.y.toFixed(3)} n=${f2(n)}`); }
   console.log(`fontanna: spód posągu ${plan.statueY.toFixed(2)} m, misy krawędź ${plan.bowls.map(b => b.top.toFixed(2)).join('/')}, lustra y ${plan.waters.map(w => w.y.toFixed(2)).join('/')} r ${plan.waters.map(w => w.r.toFixed(2)).join('/')}, strumieni ${plan.jets.length} (apex ${plan.jets.map(j => j.apex.toFixed(2)).filter((v, i, a) => a.indexOf(v) === i).join('/')}), elementów blocks ${keys.blocks}, water ${keys.water}, jet ${keys.jet}, ripple ${keys.ripple}, wet ${keys.wet}, najniższy ${lowest.toFixed(2)} m`);
+}
+// U) podpisy miejsc (ui.js poiPlan, motyw #15): POI z CONFIG.pois, pozycje liczone z W — wieża = prostokąt kolizji z tower.js, karczma = dom szyldu
+// (side 2, along > 0, pierwszy), kram = jeden z W.stalls, fontanna = koło (0,0); start gracza (jak main.js) poza r każdego; asercje check() z poiPlan liczą się w E
+{
+  W.ctx.player = { start: { x: 4, z: CONFIG.plaza.size / 2 - 3, yaw: 0.15 } }; // = rynek/src/main.js
+  const pois = poiPlan(W), byAt = Object.fromEntries(pois.map(p => [p.at, p]));
+  if (pois.length !== CONFIG.pois.length || pois.length < 4) fails.push(`U: POI ${pois.length} (CONFIG ${CONFIG.pois.length})`);
+  const tr = col.rects.find(r => Math.abs(r.hw - CONFIG.tower.size / 2) < 1e-6 && Math.abs(r.hd - CONFIG.tower.size / 2) < 1e-6);
+  if (!tr || Math.hypot(tr.x - byAt.tower.x, tr.z - byAt.tower.z) > 0.01) fails.push(`U: POI wieży (${byAt.tower.x.toFixed(2)}, ${byAt.tower.z.toFixed(2)}) ≠ kolizja wieży ${tr ? `(${tr.x}, ${tr.z})` : 'brak'}`);
+  const tav = allHouses.find(h => h.side === 2 && h.along > 0 && !h.setback);
+  if (Math.abs(byAt.tavern.x + tav.along) > 0.01 || Math.abs(byAt.tavern.z - CONFIG.plaza.size / 2) > 0.01) fails.push(`U: POI karczmy (${byAt.tavern.x.toFixed(2)}, ${byAt.tavern.z.toFixed(2)}) ≠ lico domu szyldu (${-tav.along}, ${CONFIG.plaza.size / 2})`);
+  if (!W.stalls.some(s => Math.hypot(s.x - byAt.stall.x, s.z - byAt.stall.z) < 1e-6)) fails.push('U: POI kramu nie leży na żadnym kramie');
+  if (!col.circles.some(c => Math.abs(c.x) < 1e-6 && Math.abs(c.z) < 1e-6) || byAt.fountain.x !== 0 || byAt.fountain.z !== 0) fails.push('U: POI fontanny poza (0,0)');
+  for (const p of pois) { const d = Math.hypot(p.x - 4, p.z - (CONFIG.plaza.size / 2 - 3)); if (d <= p.r) fails.push(`U: start w promieniu POI ${p.name} (d ${d.toFixed(2)} ≤ r ${p.r.toFixed(2)})`); }
+  console.log(`POI: ${pois.map(p => `${p.at} (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) r ${p.r.toFixed(2)} d(start) ${Math.hypot(p.x - 4, p.z - (CONFIG.plaza.size / 2 - 3)).toFixed(2)}`).join('; ')}`);
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
