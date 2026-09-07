@@ -207,7 +207,7 @@ export async function createApp(opts) {
       const origWarn = console.warn; console.warn = (...a) => { errs.push('warn: ' + a.map(String).join(' ').slice(0, 200)); origWarn(...a); };
       const update = () => {
         const i = renderer.info;
-        d.textContent = JSON.stringify({ precision: renderer.capabilities.precision, flags, ...loaders.info, ...diag, cam: camera.position.toArray().map(v => +v.toFixed(2)), rot: [camera.rotation.x, camera.rotation.y].map(v => +v.toFixed(2)), move: [move.x, move.y].map(v => +v.toFixed(2)), frame: i.render.frame, precision: renderer.capabilities.precision, glError: gl.getError(), textures: i.memory.textures, geometries: i.memory.geometries, programs: i.programs?.length, errors: errs.slice(-6) }, null, 1);
+        d.textContent = JSON.stringify({ precision: renderer.capabilities.precision, flags, ...loaders.info, ...diag, cam: camera.position.toArray().map(v => +v.toFixed(2)), rot: [camera.rotation.x, camera.rotation.y].map(v => +v.toFixed(2)), move: [move.x, move.y].map(v => +v.toFixed(2)), frame: i.render.frame, glError: gl.getError(), textures: i.memory.textures, geometries: i.memory.geometries, programs: i.programs?.length, errors: errs.slice(-6) }, null, 1);
       };
       update(); setInterval(update, 2000); document.body.appendChild(d);
     }

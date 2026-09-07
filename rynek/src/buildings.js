@@ -1,0 +1,123 @@
+// Kamienice szachulcowe (parter kamienny, piętra z wykuszem, belki, okna, dach, komin) i wieża ratusza.
+import * as THREE from 'three';
+import { box, plane, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
+
+export function buildHouses(W) {
+  const { ctx, CONFIG, P, T, H, B, houses, sideTransform } = W;
+  const chimneys = [];
+  for (const h of houses) {
+    const r = rng(h.seedLocal);
+    const tr = sideTransform(h.side, h.along, h.setback);
+    const L = (x, y, z, ry = 0, rx = 0, rz = 0) => M4(x, y, z, ry, rx, rz).premultiply(M4(tr.x, 0, tr.z, tr.ry)); // lokalny → świat
+    const w = h.w, d = H.depth, gf = H.groundFloor, fh = H.floorHeight;
+    const off = [r(), r()];
+    // parter kamienny
+    B.add('stone', box(w, gf, d, T.stone.mpt, off), L(0, gf / 2, 0));
+    // kolizja: obrys domu (osiowy w świecie — domy stoją wzdłuż osi)
+    const wx = (h.side % 2 === 0) ? w : d, wz = (h.side % 2 === 0) ? d : w;
+    ctx.addRect(tr.x, tr.z, wx / 2, wz / 2);
+    // piętra z wykuszem (jetty): każde wyższe piętro wysunięte do przodu
+    let y = gf, jet = 0;
+    const plasterKey = 'plaster' + h.plaster;
+    for (let f = 1; f < h.floors; f++) {
+      if (h.jetty) jet += H.jetty;
+      const fw = w, fd = d + jet;
+      B.add(plasterKey, box(fw, fh, fd, T.plaster.mpt, off), L(0, y + fh / 2, jet / 2));
+      // belki: narożne, poziome (podwalina/oczep), słupki co ~1.6 m, zastrzały ukośne
+      const front = jet / 2 + fd / 2; // lico fasady w układzie domu (bryła piętra jest przesunięta o jet/2)
+      const bt = 0.16, zf = front + 0.01;
+      B.add('timber', box(fw + bt, bt, bt, T.timber.mpt), L(0, y + bt / 2, zf));
+      B.add('timber', box(fw + bt, bt, bt, T.timber.mpt), L(0, y + fh - bt / 2, zf));
+      const n = Math.max(2, Math.round(fw / 1.6));
+      for (let i = 0; i <= n; i++) {
+        const x = -fw / 2 + i * fw / n;
+        B.add('timber', box(bt, fh, bt, T.timber.mpt), L(x, y + fh / 2, zf));
+        if (i < n && r() < 0.5) { // zastrzał w polu
+          const len = Math.hypot(fw / n, fh) * 0.7;
+          B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * (r() < 0.5 ? 1 : -1)));
+        }
+      }
+      // belki stropowe wystające pod wykuszem
+      if (h.jetty) for (let i = 0; i <= n; i++) B.add('timber', box(bt, bt, H.jetty + 0.3, T.timber.mpt), L(-fw / 2 + i * fw / n, y - bt / 2, front - (H.jetty + 0.3) / 2 - 0.05));
+      // okna piętra: w polach między słupkami
+      for (let i = 0; i < n; i++) {
+        if (r() < 0.25) continue;
+        const cx = -fw / 2 + (i + 0.5) * fw / n, ww = Math.min(1.0, fw / n - 0.5), wh = 1.3;
+        const lit = r() < 0.35;
+        B.add(lit ? 'glassLit' : 'glass', box(ww, wh, 0.04), L(cx, y + fh * 0.55, front + 0.01));
+        B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 - wh / 2, front + 0.02));
+        B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 + wh / 2, front + 0.02));
+        B.add('timber', box(0.06, wh, 0.1), L(cx, y + fh * 0.55, front + 0.02));
+      }
+      y += fh;
+    }
+    // parter: drzwi i okna
+    const doorX = (r() - 0.5) * (w - 3);
+    B.add('door', box(1.2, 2.3, 0.1, 1.2), L(doorX, 1.15, d / 2 + 0.02));
+    B.add('timber', box(1.5, 0.14, 0.2, T.timber.mpt), L(doorX, 2.4, d / 2 + 0.02));
+    for (const sx of [-1, 1]) {
+      const cx = doorX + sx * 2.2; if (Math.abs(cx) > w / 2 - 0.9) continue;
+      B.add(r() < 0.3 ? 'glassLit' : 'glass', box(0.9, 1.1, 0.04), L(cx, 1.8, d / 2 + 0.01));
+      B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 - 0.55, d / 2 + 0.02));
+      B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 + 0.55, d / 2 + 0.02));
+    }
+    // dach
+    const roofKey = 'roof' + h.roof, ov = H.overhang, pitch = H.roofPitch;
+    const topD = d + jet;
+    if (h.gableFront) {
+      // kalenica wzdłuż z: szczyt widoczny od placu
+      const span = w + 2 * ov, rise = (w / 2) * Math.tan(pitch), slope = Math.hypot(w / 2 + ov, rise);
+      for (const sx of [-1, 1]) B.add(roofKey, box(slope, 0.14, topD + 2 * ov, T.roof.mpt, off), L(sx * (w / 4 + ov / 2), y + rise / 2, jet / 2, 0, 0, -sx * Math.atan2(rise, w / 2 + ov)));
+      B.add(plasterKey, gable(w, rise, topD, T.plaster.mpt), L(0, y, jet / 2));
+      B.add('timber', box(0.2, 0.2, topD + 2 * ov, T.timber.mpt), L(0, y + rise, jet / 2));
+      // belki szczytu
+      B.add('timber', box(0.14, rise * 0.9, 0.14, T.timber.mpt), L(0, y + rise * 0.45, topD / 2 + jet / 2 + 0.01));
+    } else {
+      // kalenica wzdłuż x: okap nad fasadą
+      const rise = (topD / 2) * Math.tan(pitch), slope = Math.hypot(topD / 2 + ov, rise);
+      for (const sz of [-1, 1]) B.add(roofKey, box(w + 2 * ov, 0.14, slope, T.roof.mpt, off), L(0, y + rise / 2, jet / 2 + sz * (topD / 4 + ov / 2), 0, -sz * Math.atan2(rise, topD / 2 + ov)));
+      // szczyty boczne (trójkąty) — widoczne między domami różnej wysokości
+      for (const sx of [-1, 1]) B.add(plasterKey, gable(topD, rise, 0.3, T.plaster.mpt), L(sx * (w / 2 - 0.15), y, jet / 2, Math.PI / 2));
+      B.add('timber', box(w + 2 * ov, 0.2, 0.2, T.timber.mpt), L(0, y + rise, jet / 2));
+      // lukarna
+      if (r() < 0.5) {
+        const dx = (r() - 0.5) * (w - 3);
+        B.add(plasterKey, box(1.4, 1.2, 1.2, T.plaster.mpt), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.9));
+        B.add(roofKey, box(1.8, 0.12, 1.4, T.roof.mpt), L(dx, y + 1.5, topD / 2 + jet / 2 - 0.9, 0, -0.5));
+        B.add('glass', box(0.7, 0.6, 0.04), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.28));
+      }
+    }
+    // komin
+    const chx = (r() - 0.5) * (w - 2);
+    B.add('stone', box(0.9, y + 2.2 - gf, 0.9, T.stone.mpt, off), L(chx, (gf + y + 2.2) / 2, -1.5));
+    chimneys.push(new THREE.Vector3(chx, y + 2.2, -1.5).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry)));
+  }
+  W.chimneys = chimneys;
+}
+
+export function buildTower(W) {
+  const { ctx, CONFIG, T, B, half, sw } = W;
+  {
+    const tw = CONFIG.tower.size, th = CONFIG.tower.height, rh = CONFIG.tower.roofHeight;
+    const tx = sw / 2 + tw / 2 + 0.5, tz = -half - tw / 2 - 0.2;
+    B.place('slates', box(tw, th, tw, T.slates.mpt), tx, th / 2, tz);
+    ctx.addRect(tx, tz, tw / 2, tw / 2);
+    // gzyms, okna strzelnicze, zegar-tarcza, dach ostrosłupowy
+    B.place('blocks', box(tw + 0.6, 0.5, tw + 0.6, T.blocks.mpt), tx, th - 0.25, tz);
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2, ox = Math.sin(a) * (tw / 2 + 0.01), oz = Math.cos(a) * (tw / 2 + 0.01);
+      B.place('glassLit', box(0.7, 1.6, 0.08), tx + ox, th - 3.2, tz + oz, a);
+      B.place('glass', box(0.5, 1.2, 0.08), tx + ox, th - 8, tz + oz, a);
+      B.place('timber', box(0.9, 0.1, 0.16, T.timber.mpt), tx + ox, th - 2.35, tz + oz, a);
+    }
+    const roofG = new THREE.ConeGeometry(tw / 2 * 1.45, rh, 4, 1);
+    roofG.rotateY(Math.PI / 4);
+    { const uv = roofG.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * tw * 2 / T.roof.mpt, uv.getY(i) * rh / T.roof.mpt); }
+    B.place('roofTower', roofG, tx, th + rh / 2, tz);
+    B.place('iron', cylinder(0.05, 0.05, 2.2, 6, 1), tx, th + rh + 1.0, tz);
+    B.place('banner2', plane(1.4, 0.9, 1), tx + 0.7, th + rh + 1.6, tz);
+    // zadaszone wejście
+    B.place('blocks', box(2.2, 0.4, 1.4, T.blocks.mpt), tx, 3.0, tz + tw / 2 + 0.6);
+    B.place('door', box(1.6, 2.8, 0.1, 1.6), tx, 1.4, tz + tw / 2 + 0.03);
+  }
+}
