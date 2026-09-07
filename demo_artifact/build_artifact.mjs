@@ -29,6 +29,11 @@ const SCENES = {
       wicker_basket_01: [256, 0.2], wooden_bucket_02: [256, 0.5], ceramic_vase_01: [256, 0.3], ceramic_vase_02: [256, 0.3], wooden_bowl_01: [256, 0.2],
       food_apple_01: [256, 0.2], treasure_chest: [512, 0.1], wooden_stool_02: [256, 0.4], grass_medium_02: [512], fern_02: [512],
       tree_stump_01: [512, 0.15], rock_moss_set_02: [512, 0.15], potted_plant_02: [512, 0.12], wine_bottles_01: [512, 0.35], Lantern_01: [256, 0.2],
+      // Etap 2 (razem ≈ 1,8 MB surowych; limit strony 16 MB — 256 px i ostrzejsze simplify niż w rynek/build_assets_jpg.sh)
+      shrub_04_c: [256, 0.4], planter_box_01: [256, 0.3], periwinkle_plant_03: [256, 0.35], celandine_01_c: [256, 0.4], flower_gazania_h: [256, 0.4],
+      hamburger_buns: [256, 0.25], food_pears_asian_01: [256, 0.25], ceramic_pot: [256, 0.6], brass_pot_01: [256, 0.6], wicker_basket_02: [256, 0.2],
+      wooden_crate_02: [256, 0.5], painted_wooden_bench: [256], wooden_bowl_02: [128, 0.4], carved_wooden_plate: [128], brass_vase_01: [256, 0.2],
+      gothic_statue: [256, 0.2], marble_bust_01: [256, 0.2],
     },
     textures: {
       cobblestone_floor_04: [1024, 1024, 512], plastered_wall: [1024, 512, 512], old_planks_02: [512, 512, 256], weathered_planks: [512, 512, 256],
