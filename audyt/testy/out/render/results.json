@@ -1,0 +1,124 @@
+[
+  {
+    "viewport": "phone",
+    "view": "start",
+    "fps": 17.421602787456468,
+    "p95": 100,
+    "calls": 122,
+    "triangles": 503059,
+    "width": 412,
+    "height": 915,
+    "quality": "medium"
+  },
+  {
+    "viewport": "phone",
+    "view": "stol_zblizenie",
+    "fps": 17.421602787456468,
+    "p95": 100,
+    "calls": 122,
+    "triangles": 503059,
+    "width": 412,
+    "height": 915,
+    "quality": "medium"
+  },
+  {
+    "viewport": "phone",
+    "view": "popiersie_zblizenie",
+    "fps": 35.05535055351165,
+    "p95": 100,
+    "calls": 59,
+    "triangles": 296710,
+    "width": 412,
+    "height": 915,
+    "quality": "medium"
+  },
+  {
+    "viewport": "phone",
+    "view": "mur_podloze",
+    "fps": 23.654082694677136,
+    "p95": 100,
+    "calls": 57,
+    "triangles": 226807,
+    "width": 412,
+    "height": 915,
+    "quality": "medium"
+  },
+  {
+    "viewport": "phone",
+    "view": "cienie_pod_slonce",
+    "fps": 23.654082694677136,
+    "p95": 100,
+    "calls": 57,
+    "triangles": 226807,
+    "width": 412,
+    "height": 915,
+    "quality": "medium"
+  },
+  {
+    "viewport": "phone",
+    "loadMs": 4696,
+    "transferBytes": 32005125,
+    "errors": []
+  },
+  {
+    "viewport": "phone_high",
+    "view": "start",
+    "fps": 16.61589587371919,
+    "p95": 100,
+    "calls": 122,
+    "triangles": 503059,
+    "width": 824,
+    "height": 1830,
+    "quality": "high"
+  },
+  {
+    "viewport": "phone_high",
+    "view": "stol_zblizenie",
+    "fps": 16.61589587371919,
+    "p95": 100,
+    "calls": 122,
+    "triangles": 503059,
+    "width": 824,
+    "height": 1830,
+    "quality": "high"
+  },
+  {
+    "viewport": "phone_high",
+    "view": "popiersie_zblizenie",
+    "fps": 16.61589587371919,
+    "p95": 100,
+    "calls": 122,
+    "triangles": 503059,
+    "width": 824,
+    "height": 1830,
+    "quality": "high"
+  },
+  {
+    "viewport": "phone_high",
+    "view": "mur_podloze",
+    "fps": 33.69456333668431,
+    "p95": 100,
+    "calls": 59,
+    "triangles": 296710,
+    "width": 824,
+    "height": 1830,
+    "quality": "high"
+  },
+  {
+    "viewport": "phone_high",
+    "view": "cienie_pod_slonce",
+    "fps": 33.39554071311765,
+    "p95": 100,
+    "calls": 110,
+    "triangles": 607711,
+    "width": 824,
+    "height": 1830,
+    "quality": "high"
+  },
+  {
+    "viewport": "phone_high",
+    "loadMs": 3004,
+    "transferBytes": 32005125,
+    "errors": []
+  }
+]

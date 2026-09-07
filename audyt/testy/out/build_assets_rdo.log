@@ -1,0 +1,9 @@
+model marble_bust_01 2048 -> 3.6M
+model wooden_table_02 2048 -> 3.2M
+model Barrel_01 1024 -> 1.2M
+model rock_moss_set_01 2048 -> 4.7M
+model Lantern_01 1024 -> 1.7M
+model potted_plant_02 1024 -> 2.7M
+model wine_bottles_01 1024 -> 2.0M
+RAZEM: 30M
+BUILD EXIT 0

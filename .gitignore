@@ -1,0 +1,13 @@
+# zależności narzędzi (instalowane przez npm install w tools/)
+tools/node_modules/
+tools/package-lock.json
+# pliki tymczasowe testów
+audyt/testy/out/*.glb
+audyt/testy/out/*.png
+!audyt/testy/out/render/
+# surowe zasoby Poly Haven (62 MB) — odtwarzalne skryptem audyt/assets_src/ph_download.py
+audyt/assets_src/models/
+audyt/assets_src/textures/
+audyt/assets_src/hdri/
+demo_artifact/dziedziniec.html
+demo_artifact/app_inline.js

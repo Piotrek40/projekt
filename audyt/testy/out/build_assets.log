@@ -1,0 +1,12 @@
+model marble_bust_01 2048 -> 4.9M
+model wooden_table_02 2048 -> 4.5M
+model Barrel_01 1024 -> 1.5M
+model rock_moss_set_01 2048 -> 5.1M
+model Lantern_01 1024 -> 2.1M
+model potted_plant_02 1024 -> 3.4M
+model wine_bottles_01 1024 -> 2.4M
+tex medieval_blocks_03 1024 -> 1.6M
+tex castle_brick_02_red 2048 -> 2.9M
+tex stone_tiles_02 2048 -> 4.7M
+RAZEM: 34M
+BUILD EXIT 0
