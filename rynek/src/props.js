@@ -168,6 +168,15 @@ export function buildBanners(W) {
   }
 }
 
+// Macierz szyldu (funkcja czysta — asercja F w audyt/testy/test_geometria.mjs, eksport w geo/entry.mjs): szyld wisi PROSTOPADLE do fasady,
+// FRONTEM (lokalne +z płaszczyzny) DO ULICY, czyli ku along = 0 wzdłuż pierzei: ry = tr.ry − sign(along)·π/2. Policzone (§3.1) dla 4 pierzei × 2 znaki
+// along: n·dirToStreet = 1,00 w 8/8, dirToStreet = (−sign(along),0,0)·M4(0,0,0,tr.ry); stary łańcuch z HEAD M4(…,tr.ry)·T(0,0,0.8)·RotY(π/2) nie zależał
+// od along i dawał 4/8 (PROMPT §3.4 pisał „0/8" — K13: dla along < 0 przechodził przypadkiem, dla along > 0, w tym karczma s2, tył DoubleSide = lustro).
+// tr = sideTransform(side, along szyldu, setback) = punkt na osi domu; szyld na wysokości y, out m przed licem faceZ (lokalne +z domu = front).
+export function signMatrix(tr, along, { y = 3.05, faceZ = 4, out = 0.8 } = {}) { // słownik skali §3.7: środek szyldu 3,05, wysięg 0,8; lico parteru d/2 = 4
+  return M4(0, y, faceZ + out, -Math.sign(along) * Math.PI / 2).premultiply(M4(tr.x, 0, tr.z, tr.ry));
+}
+
 export function buildSmoke(W) {
   const { ctx, scene, R, chimneys } = W;
   // dym z kominów (co czwarty komin): cząstki unoszą się i rozwiewają, zapętlone

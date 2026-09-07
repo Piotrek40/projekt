@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = [
   { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
@@ -18,11 +18,15 @@ function makeW() {
               place(key, g, x, y, z, ry = 0, rx = 0, rz = 0) { this.add(key, g, M4(x, y, z, ry, rx, rz)); } };
   const col = { rects: [], circles: [] };
   const ctx = { addWalkable() {}, addRect: (x, z, hw, hd) => col.rects.push({ x, z, hw, hd }), addCircle: (x, z, r) => col.circles.push({ x, z, r }), flags: {} };
-  const put = () => true; // stub W.put (modele z Poly Haven nie są ładowane offline; buildCart stawia nimi tylko skrzynię i kosz na wozie)
-  return { W: { ctx, R: rng(CONFIG.seed), CONFIG, P: CONFIG.palette, T: CONFIG.textures, H: CONFIG.house, S: CONFIG.plaza.size, half: CONFIG.plaza.size / 2, B, put }, rec, col };
+  // stub modeli (PROMPT §3.4): W.bounds = Map z Box3 (0,0,0)→(1,1,1) dla KAŻDEJ nazwy (modele z Poly Haven nie są ładowane offline), W.put rejestruje
+  // {name, x, y, z, ry, scale} w `puts` (buildCart stawia nim skrzynię i kosz na wozie; motywy #5/#7/#10 mogą sprawdzać pozycje modeli z funkcji czystych)
+  const bounds = new (class extends Map { get(n) { return super.get(n) ?? new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 1)); } })();
+  const puts = [];
+  const put = (name, x, y, z, ry = 0, scale = 1) => { puts.push({ name, x, y, z, ry, scale }); return true; };
+  return { W: { ctx, R: rng(CONFIG.seed), CONFIG, P: CONFIG.palette, T: CONFIG.textures, H: CONFIG.house, S: CONFIG.plaza.size, half: CONFIG.plaza.size / 2, B, put, bounds }, rec, col, puts };
 }
 const fails = [], notes = [];
-const { W, rec, col } = makeW();
+const { W, rec, col, puts } = makeW();
 buildLayout(W);
 const H = W.H;
 // A) każda strona pierzei: lokalne +z patrzy na środek placu (test symetrii 4 stron)
@@ -161,8 +165,26 @@ for (const r of tw.filter(r => r.key.startsWith('glass') || r.key === 'clock')) 
     if (n.dot(outwardOfBox) <= 0) fails.push(`D okno wieży odwrócone do środka: ${f2(c)} n=${f2(n)}`);
   }
 }
-// F) wóz (props.js buildCart) — geometria Batch; modele przez stub put (nie testowane)
+// F) szyld (props.js signMatrix — funkcja czysta; motyw #10): front płaszczyzny (lokalne +z) patrzy NA ULICĘ, tj. ku along = 0 wzdłuż pierzei:
+//    n·dirToStreet ≥ 0,9 dla 4 pierzei × 2 znaki along (8 przypadków), środek szyldu faceZ + out = 4,8 m przed osią domu (± 0,01).
+//    Kalibracja na znanym-złym przypadku: stary łańcuch z HEAD (M4(tr, ry)·T(0,0,0.8)·RotY(π/2), props.js buildBanners) nie zależy od along →
+//    dokładnie 4/8 (along < 0 przechodzi przypadkiem; PROMPT §3.4 pisał „0/8" — policzone 2026-09-07: 4/8). Gdyby F przepuszczał stary łańcuch w 8/8, F nie rozróżnia.
+let nSign = 0, nSignOld = 0;
+for (const side of [0, 1, 2, 3]) for (const along of [-10, 10]) {
+  const tr = W.sideTransform(side, along);
+  const dirToStreet = V(-Math.sign(along), 0, 0).transformDirection(M4(0, 0, 0, tr.ry));
+  const m = signMatrix(tr, along), n = V(0, 0, 1).transformDirection(m), c = new THREE.Vector3().setFromMatrixPosition(m);
+  nSign++;
+  if (n.dot(dirToStreet) < 0.9) fails.push(`F szyld side=${side} along=${along} tyłem do ulicy: n=${f2(n)} dirToStreet=${f2(dirToStreet)}`);
+  const dOut = c.clone().sub(V(tr.x, 0, tr.z)).dot(V(0, 0, 1).transformDirection(M4(0, 0, 0, tr.ry)));
+  if (Math.abs(dOut - 4.8) > 0.01 || Math.abs(c.y - 3.05) > 0.01) fails.push(`F szyld side=${side} along=${along}: środek ${f2(c)} nie 4,8 m przed osią domu / y 3,05 (d=${dOut.toFixed(3)})`);
+  const old = M4(tr.x, 3.05, tr.z, tr.ry).multiply(new THREE.Matrix4().makeTranslation(0, 0, 0.8)).multiply(new THREE.Matrix4().makeRotationY(Math.PI / 2));
+  if (V(0, 0, 1).transformDirection(old).dot(dirToStreet) >= 0.9) nSignOld++;
+}
+if (nSignOld !== 4) fails.push(`F kalibracja: stary łańcuch szyldu z HEAD daje ${nSignOld}/8 (oczekiwane 4/8)`);
+// G) wóz (props.js buildCart) — geometria Batch; modele przez stub put (rejestrowane w puts)
 buildCart(W);
+if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 'wicker_basket_01')) fails.push('G stub W.put: buildCart nie zarejestrował skrzyni i kosza na wozie');
 // B6) obszar chodzenia: żaden element Batch (poza cobble|wet) z dolną krawędzią < 2 m nie ma AABB przecinającego prostokąta chodzenia (plac ± (half−0,3);
 //     ulice (sw/2 − 0,3) × sl/2, jak addWalkable w layout.js) bez pokrycia kolizją: środek AABB w prostokącie/kole kolizji rozszerzonym o promień gracza 0,35
 //     (ta sama tolerancja co C: słup kramu 1,70 m od środka przy kole 1,6 — gracz wchodzi ≤ 0,35 m w bryłę). Prawdziwe wady HEAD → KNOWN_B6 (lista ma się kurczyć).
@@ -184,7 +206,7 @@ buildCart(W);
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);
