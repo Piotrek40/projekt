@@ -187,6 +187,21 @@ export async function createApp(opts) {
     const gpu = document.getElementById('gpu');
     if (gpu) { const gl = renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); gpu.textContent = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); }
     if (loadingEl) loadingEl.hidden = true;
+    // ?debug=1 — nakładka diagnostyczna (tryb tekstur, rozszerzenia GPU, błędy GL, ostatnie błędy konsoli)
+    if (new URLSearchParams(location.search).get('debug')) {
+      const d = document.createElement('pre');
+      d.style.cssText = 'position:fixed;left:8px;top:64px;max-width:92vw;font:10px/1.3 ui-monospace,monospace;background:rgba(0,0,0,.7);color:#9f9;padding:6px;white-space:pre-wrap;word-break:break-all;z-index:9;pointer-events:none';
+      const gl = renderer.getContext();
+      const errs = [];
+      window.addEventListener('error', e => errs.push(String(e.message).slice(0, 160)));
+      const origErr = console.error; console.error = (...a) => { errs.push(a.map(String).join(' ').slice(0, 200)); origErr(...a); };
+      const origWarn = console.warn; console.warn = (...a) => { errs.push('warn: ' + a.map(String).join(' ').slice(0, 200)); origWarn(...a); };
+      const update = () => {
+        const i = renderer.info;
+        d.textContent = JSON.stringify({ ...loaders.info, glError: gl.getError(), textures: i.memory.textures, geometries: i.memory.geometries, programs: i.programs?.length, errors: errs.slice(-6) }, null, 1);
+      };
+      update(); setInterval(update, 2000); document.body.appendChild(d);
+    }
     window.__ready = true;
     requestAnimationFrame(t => { last = t; t0 = t; loop(t); });
   } catch (err) {

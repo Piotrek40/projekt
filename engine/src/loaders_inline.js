@@ -52,6 +52,6 @@ export function createLoaders(manager) {
     },
     loadModel: name => p(gltf, `models/${name}.glb`),
     loadSky: () => p(hdr, 'hdri/sky.hdr'), // wariant inline ma jedno niebo
-    mode: 'inline',
+    mode: 'inline', info: { mode: 'inline' },
   };
 }

@@ -1,0 +1,30 @@
+model_jpg wooden_lantern_01 1024 -> 872K
+model_jpg wooden_crate_01 1024 -> 556K
+model_jpg wine_barrel_01 1024 -> 608K
+model_jpg horse_statue_01 1024 -> 580K
+model_jpg wooden_bucket_02 1024 -> 680K
+model_jpg wicker_basket_01 1024 -> 624K
+model_jpg ceramic_vase_01 1024 -> 168K
+model_jpg Barrel_01 1024 -> 664K
+model_jpg food_apple_01 512 -> 96K
+model_jpg ceramic_vase_02 1024 -> 456K
+model_jpg wooden_bowl_01 1024 -> 416K
+model_jpg treasure_chest 1024 -> 872K
+model_jpg tree_stump_01 1024 -> 976K
+model_jpg fern_02 1024 -> 324K
+model_jpg grass_medium_02 1024 -> 248K
+model_jpg wooden_stool_02 1024 -> 660K
+model_jpg Lantern_01 1024 -> 656K
+model_jpg potted_plant_02 1024 -> 864K
+model_jpg rock_moss_set_02 1024 -> 684K
+model_jpg wine_bottles_01 1024 -> 1.1M
+tex_jpg cobblestone_floor_04 2048
+tex_jpg plastered_wall 1024
+tex_jpg old_planks_02 1024
+tex_jpg weathered_planks 1024
+tex_jpg roof_09 1024
+tex_jpg rustic_stone_wall_02 1024
+tex_jpg medieval_blocks_05 1024
+tex_jpg castle_wall_slates 1024
+tex_jpg fabric_pattern_07 1024
+JPG EXIT 0

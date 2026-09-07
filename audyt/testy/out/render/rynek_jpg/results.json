@@ -1,0 +1,16 @@
+[
+  {
+    "view": "start_plac",
+    "calls": 158,
+    "triangles": 813207,
+    "fps": 17.4
+  },
+  {
+    "loadMs": 2198,
+    "transferMB": 25.2,
+    "width": 618,
+    "height": 1372.5,
+    "quality": "medium",
+    "errors": []
+  }
+]
