@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 // Prostokąty pomiaru koloru (12 px) na lineupie materiałów (?lineup=1) — liczone z projekcji kamery, BEZ renderu, więc deterministyczne.
-// Układ z rynek/src/lineup.js (LINEUP: 7 kolumn co 1,5 m, rzędy co 3 m od z=−2, kula r 0,5 na y 0,5, sześcian 0,7 na y 1,55);
+// Układ z rynek/src/lineup.js (LINEUP: 7 kolumn co 1,5 m, rzędy co 8 m od z=−2, kula r 0,5 na y 0,5, sześcian 0,7 na y 1,55);
 // kamery z audyt/testy/views_lineup.json (oko 1,65 m, fov 70, kadr --w×--h, domyślnie 1280×720 przy DPR 1), każdy rząd = widok row<k>.
 // Na każdej kuli: „sun" = widoczny punkt o największym n·sunDir (dociągnięty do wnętrza tarczy, żeby 12 px mieściło się w kuli),
 // „shade" = o najmniejszym n·sunDir; „cube" = środek ściany +z sześcianu. Pole dotNL mówi, ile słońca faktycznie pada na plamę
 // (kamera patrzy na −z, słońce jest na NE, więc plama „sun" ma dotNL < 1 — cel z palette_predict „ekran słońce" dotyczy dotNL = 1).
 // sunDir jak w engine/src/sky.js: najjaśniejszy piksel sky_1k.hdr → kierunek (konwencja equirect three, flipY=true jak RGBELoader),
 // obrót CONFIG.sky.rotation, min. elewacja CONFIG.sky.minElevationDeg — liczony tu dekoderem RGBE; albo --sun=x,y,z (pole sunDir z results.json).
-// Kolejność kluczy = Object.keys(W.mat) z materials.js (lista KEYS niżej) albo --results=<results.json renderu lineupu> (pole lineup.keys).
+// Kolejność kluczy = Object.keys(W.mat) z materials.js (MAT_KEYS w lineup.js) albo --results=<results.json renderu lineupu> (pole lineup.keys).
 // Użycie: node lineup_rects.mjs [--views=../views_lineup.json] [--out=../lineup_rects.json] [--w=1280] [--h=720] [--sun=x,y,z] [--results=…]
 //         [--overlay=<row0.png>] rysuje prostokąty na kopii PNG (<nazwa>_rects.png) do obejrzenia.
-// Wynik: JSON [{name, view, key, kind, x, y, w, h, dotNL}] — measure_render.mjs mierzy tylko wpisy z view == nazwa PNG (row0.png → row0).
+// Wynik: JSON [{name, view, key, kind, x, y, w, h, dotNL, tint, set, ao, env}] — measure_render.mjs mierzy tylko wpisy z view == nazwa PNG (row0.png → row0)
+// i liczy cel z pól tint (hex z CONFIG.paletteOKLCH.tint[key] przez oklch()), set (zestaw tekstur), ao (AO zestawu z agx_predict.mjs), env ('wall' = sfera).
 import fs from 'node:fs';
 import { registerHooks } from 'node:module';
 import { pathToFileURL, fileURLToPath } from 'node:url';
@@ -28,10 +29,13 @@ registerHooks({ resolve(spec, ctx, next) {
   return next(spec, ctx);
 } });
 const THREE = await import(pathToFileURL(resolve(threeDir, 'build/three.module.js')).href);
-const { LINEUP } = await import(pathToFileURL(resolve(TOOLS_DIR, 'rynek/src/lineup.js')).href);
+const { LINEUP, MAT_KEYS } = await import(pathToFileURL(resolve(TOOLS_DIR, 'rynek/src/lineup.js')).href);
 const { CONFIG } = await import(pathToFileURL(resolve(TOOLS_DIR, 'rynek/src/config.js')).href);
-const KEYS = ['cobble', 'stone', 'blocks', 'slates', 'timber', 'planks', 'door', 'plaster0', 'plaster1', 'plaster2', 'plaster3', 'plaster4', 'roof0', 'roof1', 'roof2', 'roofTower', 'cloth0', 'cloth1', 'cloth2', 'cloth3', 'glass', 'glassLit', 'iron', 'water', 'flame', 'banner0', 'banner1', 'banner2', 'banner3']; // Object.keys(W.mat) w materials.js
-const keys = args.results ? JSON.parse(fs.readFileSync(args.results, 'utf8')).at(-1).lineup.keys : KEYS;
+const { oklchToHex } = await import(pathToFileURL(resolve(TOOLS_DIR, 'rynek/src/color.js')).href);
+const { AO } = await import(pathToFileURL(resolve(here, 'agx_predict.mjs')).href);
+const keys = args.results ? JSON.parse(fs.readFileSync(args.results, 'utf8')).at(-1).lineup.keys : MAT_KEYS;
+// pola koloru prostokąta: tint (hex) i zestaw z CONFIG.paletteOKLCH.tint[key] = [L, C, H, zestaw]; klucze bez wpisu (banner*, glassLit, flame) bez celu
+const colorOf = k => { const t = CONFIG.paletteOKLCH?.tint?.[k]; return t ? { tint: oklchToHex(t[0], t[1], t[2]).hexStr, set: t[3], ao: AO[t[3]] ?? 1, env: 'wall' } : {}; };
 const views = JSON.parse(fs.readFileSync(args.views || resolve(here, '../views_lineup.json'), 'utf8'));
 
 // --- sunDir jak w sky.js (brightestDirection + rotation + minElevation) -------------------------------------------------
@@ -76,8 +80,8 @@ keys.forEach((k, i) => {
   const sPerp = sun.clone().sub(v.clone().multiplyScalar(sun.dot(v))); const hasPerp = sPerp.length() > 1e-6; sPerp.normalize();
   const normalToward = s => { const ang = Math.acos(THREE.MathUtils.clamp(s.dot(v), -1, 1)); return ang <= th || !hasPerp ? (ang <= th ? s.clone() : v.clone()) : v.clone().multiplyScalar(Math.cos(th)).addScaledVector(sPerp.clone().multiplyScalar(Math.sign(s.dot(sPerp))), Math.sin(th)); };
   const nSun = normalToward(sun), nShade = normalToward(sun.clone().negate());
-  for (const [kind, n] of [['sun', nSun], ['shade', nShade]]) rects.push({ name: `${k}_${kind}`, view: view.name, key: k, kind, ...rectAt(proj(center.clone().addScaledVector(n, LINEUP.r), cam)), dotNL: +Math.max(0, n.dot(sun)).toFixed(2) });
-  rects.push({ name: `${k}_cube`, view: view.name, key: k, kind: 'cube', ...rectAt(proj(new THREE.Vector3(x, LINEUP.yCube, z + LINEUP.cube / 2), cam)), dotNL: +Math.max(0, sun.z).toFixed(2) });
+  for (const [kind, n] of [['sun', nSun], ['shade', nShade]]) rects.push({ name: `${k}_${kind}`, view: view.name, key: k, kind, ...rectAt(proj(center.clone().addScaledVector(n, LINEUP.r), cam)), dotNL: +Math.max(0, n.dot(sun)).toFixed(2), ...colorOf(k) });
+  rects.push({ name: `${k}_cube`, view: view.name, key: k, kind: 'cube', ...rectAt(proj(new THREE.Vector3(x, LINEUP.yCube, z + LINEUP.cube / 2), cam)), dotNL: +Math.max(0, sun.z).toFixed(2), ...colorOf(k) });
 });
 const out = args.out || resolve(here, '../lineup_rects.json');
 fs.writeFileSync(out, JSON.stringify(rects, null, 1).replace(/\n\s+("|\d|-)/g, ' $1').replace(/\n }/g, ' }'));
