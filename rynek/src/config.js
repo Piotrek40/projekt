@@ -98,9 +98,26 @@ export const CONFIG = {
     noShadow: ['grass_medium_02', 'fern_02', 'food_apple_01', 'wooden_bowl_01', 'ceramic_vase_01', 'ceramic_vase_02', 'wine_bottles_01', 'potted_plant_02'], // modele z W.put() bez cienia (NO_SHADOW w props.js)
   },
 
-  pois: [],           // tor „UI": podpisy miejsc {name, x, z, r}
-
-  ui: {},             // tor „UI": nazwa miejsca, zdanie nastroju, kolory HUD
+  // tor „UI" (ui.js, motyw #15; ?noui=1). Podpisy miejsc: pozycje NIE są wpisane — ui.js liczy je z W/CONFIG po kluczu `at`
+  // (fountain: (0,0) + fountain.radius + step.outer; tower: W.tower ?? wzór tower.js; tavern: dom szyldu jak w props.js buildBanners;
+  // stall: W.stalls z kind === 'sukiennik' (motyw #11) albo kram najbliżej startu). r = promień własny obiektu + margin; podpis w r, „podejdź bliżej…" w 2r.
+  pois: [
+    { name: 'Fontanna pod Srebrnymi Lipami', at: 'fountain', margin: 2.5 },   // r = 3.2 + 1.2 + 2.5 = 6.9
+    { name: 'Wieża ratuszowa', at: 'tower', margin: 5 },                      // r = 3.5·√2 + 5 = 9.95 (róg wieży kwadratowej 7 m)
+    { name: 'Karczma „Pod Złotym Gryfem"', at: 'tavern', margin: 2 },         // r = w/2 + 2 (dom 6.56 m → 5.28)
+    { name: 'Kram sukiennika', at: 'stall', margin: 1.5 },                     // r = koło kolizji kramu 1.6 + 1.5 = 3.1
+  ],
+  // ekran startowy, HUD, podpisy (§5.4 promptu): kolory EKRANOWE CSS (nie materiały — bez oklch()), rozmiary w px CSS
+  ui: {
+    title: 'Rynek Srebrnych Liści', subtitle: 'SREBRNY BRÓD · WYBRZEŻE MIECZY',
+    mood: 'Zapach chleba i mokrego kamienia; z wieży zaraz wybije czwarta.',
+    enter: 'Wejdź', hint: 'Lewy kciuk: chodzenie · prawy: rozglądanie', near: 'podejdź bliżej…',
+    font: '"Noto Serif", Georgia, serif',                      // bez sieci: Noto Serif (Android) → Georgia → serif
+    size: { title: 34, subtitle: 13, mood: 14, button: 48, hint: 11, caption: 16 }, // px
+    buttonWidth: 60, frameInset: 8, fadeMs: 600, vignetteBlur: 120,               // % szerokości; ramka 8 px od krawędzi; fade-out „Wejdź"; rozmycie winiety
+    colors: { bg0: '#1a1410', bg1: '#3a2a1a', gold: '#b8892e', goldA: 'rgba(184,137,46,.8)', ink: '#e8d9b5', mood: '#cdbb95', button: '#2a1e12', hint: '#8a7a5a', vignette: 'rgba(20,12,6,.45)' },
+    stallCollide: 1.6,                                          // koło kolizji kramu (stalls.js addCircle 1.6) — do promienia POI kramu
+  },
 
   textures: {
     cobble:  { name: 'cobblestone_floor_04', mpt: 2.5 },
