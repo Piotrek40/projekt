@@ -27,6 +27,10 @@ export async function createApp(opts) {
   canvas.addEventListener('webglcontextlost', e => { diag.contextLost++; e.preventDefault(); });
   canvas.addEventListener('webglcontextrestored', () => { diag.restored++; });
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !flags.noaa, powerPreference: 'high-performance' });
+  // Znane błędy sterowników (wynik bisekcji na urządzeniu): Samsung Xclipse przez ANGLE/Vulkan psuje InstancedMesh
+  // po zmianie kolejności rysowania (wierzchołki zwykłych siatek dostają macierze instancji) i dekoduje KTX2 na czarno.
+  { const gl = renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); const gpu = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+    if (/Xclipse/i.test(gpu) && !flags.forceinst) flags.noinst = 'gpu'; flags.gpu = gpu; }
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = opts.exposure ?? 1.0;

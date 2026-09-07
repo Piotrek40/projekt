@@ -136,6 +136,19 @@ Zrzuty z renderu headless: `testy/out/render/phone_high_*.png`. Ocena wyglądu n
 
 Po pomiarze: wypalenie lightmap całej sceny w Blenderze (róg murów, cień pod stołem, kontakt kamieni z posadzką) — to jest krok, który da największy skok wyglądu przy zerowym koszcie na telefonie.
 
+## 6a. Pierwszy pomiar na telefonie Piotra (Galaxy S24, Samsung Xclipse 940, Chrome, ANGLE/Vulkan)
+
+| Scena | Jakość | FPS | p95 | Draw calls | Trójkąty |
+|---|---|---|---|---|---|
+| Rynek (bez instancjonowania, tekstury JPG) | medium (DPR 1,5, 540×961) | 60 | 16,8 ms | 199 | 429 k |
+| Rynek (z instancjonowaniem, obraz uszkodzony) | medium | 41–60 | 17–33 ms | 152–166 | 831–865 k |
+
+Dwa błędy sterownika znalezione bisekcją na urządzeniu (przełączniki `?noinst=1`, `?tex=jpg` itd. w URL):
+1. **KTX2 dekoduje się na czarno** (GPU zgłasza ASTC/ETC2/S3TC, ale wynik jest czarny). Obejście: tekstury JPG wybierane automatycznie po nazwie GPU. Koszt: kilka razy więcej pamięci GPU na tekstury.
+2. **InstancedMesh psuje rendering po obrocie kamery** — po zmianie kolejności rysowania zwykłe siatki dostają macierze instancji i rozciągają się w wielkie trójkąty. Obejście: zwykłe klony zamiast instancji na tym GPU. Koszt: 158 → 199 draw calls; na S24 nadal 60 fps.
+
+Wniosek ogólny: pomiar na telefonie był niezbędny — żaden z tych błędów nie występuje w headless Chromium ani nie wynika z dokumentacji.
+
 ## 7. Co wymaga działania Piotra i co to odblokuje
 
 | Działanie | Odblokowuje |

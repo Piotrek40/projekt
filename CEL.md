@@ -57,6 +57,8 @@
 
 ## 7. Zmiany decyzji
 
+- 2026-09-07 — Telefon Piotra: Galaxy S24 (Samsung Xclipse 940). Na tym GPU nie używamy KTX2 ani InstancedMesh (błędy sterownika znalezione bisekcją; szczegóły w `audyt/RAPORT.md` §6a). Obejścia włączają się automatycznie po nazwie GPU.
+
 - 2026-09-07 — Gra ma działać na telefonie Piotra (Android, Chrome) jako link, nie wewnątrz Cowork/Artifact. Powód: doprecyzowanie Piotra po pierwszym opisie zadania.
 - 2026-09-07 — Silnik: three.js (WebGL2). Powód: wynik audytu (`audyt/RAPORT.md`).
 - 2026-09-07 — Repo publiczne, hosting GitHub Pages z brancha `claude/repo-cleanup-q1fkk3`. Powód: darmowy link na telefon bez limitu 16 MB Artifactu.
