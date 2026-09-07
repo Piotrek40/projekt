@@ -36,6 +36,17 @@ export const CONFIG = {
   props: {            // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
     // modele bez cienia (rzucanie cienia = drugi raz ta sama geometria w przebiegu cieni); props.js: NO_SHADOW = new Set(CONFIG.props.noShadow)
     noShadow: ['grass_medium_02', 'fern_02', 'food_apple_01', 'wooden_bowl_01', 'ceramic_vase_01', 'ceramic_vase_02', 'wine_bottles_01', 'potted_plant_02'],
+    // motyw #1 „cięcia skanów" (?nocuts=1 przywraca stan bazowy: 158 draw / 818 939 tri HUD w start_plac; liczby per model z __stats bazy)
+    cuts: {
+      // limit instancji na model — put() pomija nadmiar w kolejności budowy (kolejność = ziarno, więc bez zmiany losowań reszty sceny);
+      // baza: trawa 10 × 7 842 tri, paproć 4 × 6 232, butelki 2 × 10 099 (9 prymitywów = 9 draw), beczka wina 8 × 3 246
+      maxCount: { grass_medium_02: 0, fern_02: 2, wine_bottles_01: 1, wine_barrel_01: 4 },
+      // cały towar bez cienia (także drobne modele z audyt/research/zasoby_etap2.md, ładowane przez motyw #11)
+      noShadow: ['wicker_basket_01', 'wooden_bowl_02', 'carved_wooden_plate', 'hamburger_buns', 'food_pears_asian_01'],
+      // szkło butelek: KHR_materials_transmission (transmissionFactor 1) każe rendererowi rysować całą nieprzezroczystą scenę drugi raz
+      // (renderTransmissionPass); zamiast tego zwykła przezroczystość alfa z tą kryciem
+      glassOpacity: 0.6,   // krycie alfa szkła butelek
+    },
   },
 
   pois: [],           // tor „UI": podpisy miejsc {name, x, z, r}

@@ -1,20 +1,31 @@
 // Rekwizyty z modeli (instancjonowane lub klonowane), latarnie ze światłem, wóz, chorągwie, szyld, dym z kominów.
+// Modele stawia put(name, x, y, z, ry, scale) w ŚWIECIE (spód modelu na y); geometria wozu ma własny układ lokalny przez L() (+z = front). Metry.
+// Cięcia skanów (motyw #1, ?nocuts=1 wyłącza): W.cuts = CONFIG.props.cuts — limit instancji per model w put(), szkło bez transmisji, towar bez cienia.
 import * as THREE from 'three';
 import { box, plane, cylinder, M4 } from '../../engine/src/geometry.js';
 import { signTexture, smokeTexture } from './materials.js';
-import { checkHeight, checkAboveGround, checkCollisionCovers } from '../../engine/src/check.js';
+import { check, checkHeight, checkAboveGround, checkCollisionCovers } from '../../engine/src/check.js';
 
 // Ładuje modele i przygotowuje put()/flushInstances() dla reszty modułów.
 export async function initProps(W) {
   const { ctx, scene, loaders, CONFIG } = W;
+  const cuts = ctx.flags.nocuts ? null : CONFIG.props.cuts; W.cuts = cuts;   // ?nocuts=1: stan sprzed cięć skanów (motyw #1)
   const names = ['wooden_crate_01', 'wine_barrel_01', 'Barrel_01', 'wicker_basket_01', 'wooden_bucket_02', 'ceramic_vase_01', 'ceramic_vase_02', 'wooden_bowl_01', 'food_apple_01', 'treasure_chest', 'wooden_stool_02', 'wooden_lantern_01', 'horse_statue_01', 'grass_medium_02', 'fern_02', 'tree_stump_01', 'rock_moss_set_02', 'potted_plant_02', 'wine_bottles_01', 'Lantern_01'];
   const models = new Map(await Promise.all(names.map(async n => [n, await loaders.loadModel(n)])));
   const bounds = new Map();
   for (const [n, g] of models) { g.scene.updateMatrixWorld(true); bounds.set(n, new THREE.Box3().setFromObject(g.scene)); }
+  // Materiały z transmisją (butelki: KHR_materials_transmission) → zwykła przezroczystość alfa. Transmisja = WebGLRenderer.renderTransmissionPass:
+  // każdy nieprzezroczysty obiekt sceny rysowany drugi raz do tekstury (zmierzone w bazie: modele bez cienia miały 2 wywołania i 2× trójkątów).
+  const materialsOf = () => { const out = []; for (const [, g] of models) g.scene.traverse(o => { if (o.isMesh) out.push(...[].concat(o.material)); }); return out; };
+  if (cuts) for (const m of materialsOf()) if (m.transmission > 0) { m.transmission = 0; m.transparent = true; m.opacity = cuts.glassOpacity; m.needsUpdate = true; }
+  check(!cuts || materialsOf().every(m => !(m.transmission > 0)), 'materiał z transmisją (drugi przebieg renderera)');
   // Rekwizyty są instancjonowane: jeden draw call na (model × materiał) zamiast jednego na kopię.
   const placements = new Map();
-  const NO_SHADOW = new Set(CONFIG.props.noShadow);
+  const NO_SHADOW = new Set([...CONFIG.props.noShadow, ...(cuts ? cuts.noShadow : [])]);
+  const counts = new Map();   // ile razy proszono o model — limit CONFIG.props.cuts.maxCount pomija nadmiar (bez kolizji, bez bryły)
   function put(name, x, y, z, ry = 0, scale = 1, opts = {}) {
+    const nth = counts.get(name) ?? 0; counts.set(name, nth + 1);
+    if (cuts && nth >= (cuts.maxCount[name] ?? Infinity)) return false;
     const b = bounds.get(name);
     const m = M4(x, y - b.min.y * scale, z, ry, 0, 0, scale);
     if (!placements.has(name)) placements.set(name, []);
@@ -28,6 +39,7 @@ export async function initProps(W) {
       const r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * scale / 2;
       if (r > 0.3 && y < 0.5) { ctx.addCircle(x, z, r * 0.9); W.dbgCircle?.(x, z, r * 0.9); checkCollisionCovers(name, wb, { x, z, r: r * 0.9 }); }
     }
+    return true;
   }
   function flushInstances() {
     for (const [name, mats] of placements) {
@@ -60,11 +72,13 @@ export function buildLanterns(W) {
   const lanternLights = [];
   for (let i = 0; i < CONFIG.lanterns.count; i++) {
     const a = (i + 0.5) / CONFIG.lanterns.count * Math.PI * 2;
-    const x = Math.sin(a) * CONFIG.lanterns.ringRadius, z = Math.cos(a) * CONFIG.lanterns.ringRadius;
+    const x = Math.sin(a) * CONFIG.lanterns.ringRadius, z = Math.cos(a) * CONFIG.lanterns.ringRadius; // ring: pozycja na pierścieniu latarni
+    // układ lokalny latarni: początek u stóp słupa, ry = a, ramię wzdłuż lokalnego +x (świat: (cos a, 0, −sin a) — policzone dla a=0.393: (0.924, 0, −0.383))
+    const L = (lx, ly, lz) => M4(lx, ly, lz).premultiply(M4(x, 0, z, a));
     B.place('timber', box(0.16, 2.8, 0.16, T.timber.mpt), x, 1.4, z);
-    B.place('timber', box(0.6, 0.1, 0.1, T.timber.mpt), x + Math.cos(a) * 0.3, 2.75, z - Math.sin(a) * 0.3, a);
+    B.add('timber', box(0.6, 0.1, 0.1, T.timber.mpt), L(0.3, 2.75, 0));   // ramię: środek 0,3 m od słupa (policzone = dawne x + cos a·0.3)
     const lb = bounds.get('wooden_lantern_01'); const sc = 0.55 / (lb.max.y - lb.min.y); checkHeight('wooden_lantern_01', lb, sc, 0.45, 0.65); // latarnia 0.55 m
-    const lx = x + Math.cos(a) * 0.52, lz = z - Math.sin(a) * 0.52;
+    const { x: lx, z: lz } = new THREE.Vector3().setFromMatrixPosition(L(0.52, 2.15, 0));   // zawieszenie 0,52 m od słupa (policzone = dawne x + cos a·0.52)
     put('wooden_lantern_01', lx, 2.15, lz, a, sc, { collide: false });
     ctx.addCircle(x, z, 0.25);
     const flame = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat.flame); flame.position.set(lx, 2.4, lz); scene.add(flame);
@@ -79,7 +93,7 @@ export function buildLanterns(W) {
 }
 
 export function scatterProps(W) {
-  const { R, H, half, sw, sideTransform, put } = W;
+  const { R, H, half, sw, sideTransform, put, bounds, cuts } = W;
   for (let i = 0; i < 14; i++) {
     const side = R.int(0, 3), along = R.range(-half + 3, half - 3);
     if (Math.abs(along) < sw / 2 + 1.5) continue;
@@ -95,8 +109,13 @@ export function scatterProps(W) {
   }
   put('tree_stump_01', -half + 5, 0, half - 6, 0.4);
   put('rock_moss_set_02', half - 6, 0, -half + 5, 1.2, 0.8);
-  put('treasure_chest', 9, 0, -7, 2.4, 0.9);
-  put('Lantern_01', 9.2, 0.62, -7.1, 1.0, 1, { collide: false });
+  if (!cuts) { put('treasure_chest', 9, 0, -7, 2.4, 0.9); put('Lantern_01', 9.2, 0.62, -7.1, 1.0, 1, { collide: false }); return; }   // stan bazowy: skrzynia i latarenka na jej wieku (0,62 m)
+  // cięcia: bez skrzyni skarbów (10 332 tri + cień); latarenka staje na pieńku — wierzch pieńka = jego wysokość (put stawia spód na y),
+  // pieniek stoi w skali 1 (obrót ry nie zmienia wysokości; bbox modelu y −0,193..0,378 → 0,571 m; latarenka 0,12 × 0,29 × 0,10 m)
+  const sb = bounds.get('tree_stump_01'), lb = bounds.get('Lantern_01'), stumpTop = sb.max.y - sb.min.y;
+  check(stumpTop >= 0.3 && stumpTop <= 1.2, 'pieniek: wysokość poza zakresem pieńka', { stumpTop });   // 0,3–1,2 m = pieniek, nie kłoda ani pień
+  check(Math.max(lb.max.x - lb.min.x, lb.max.z - lb.min.z) <= 0.5 * Math.min(sb.max.x - sb.min.x, sb.max.z - sb.min.z), 'latarenka szersza niż pół pieńka');   // 0,5: mieści się na ściętym wierzchu, nie na korzeniach
+  put('Lantern_01', -half + 5, stumpTop, half - 6, 1.0, 1, { collide: false });   // (x,z) pieńka = środek pnia (początek modelu), ry 1.0 jak w bazie
 }
 
 export function buildCart(W) {
@@ -111,10 +130,10 @@ export function buildCart(W) {
     for (const sz of [-1, 1]) {
       const wheel = new THREE.TorusGeometry(0.62, 0.06, 8, 20); wheel.rotateY(Math.PI / 2);
       B.add('timber', wheel, L(0.3, 0.62, sz * 0.72));
-      for (let k = 0; k < 6; k++) B.add('timber', box(0.05, 1.2, 0.05, T.timber.mpt), L(0.3, 0.62, sz * 0.72, 0, k * Math.PI / 6, 0));
+      for (let k = 0; k < 6; k++) B.add('timber', box(0.05, 1.2, 0.05, T.timber.mpt), L(0.3, 0.62, sz * 0.72, 0, k * Math.PI / 6, 0)); // rot: rx=k·π/6 → szprycha (0,1,0) obraca się w płaszczyźnie y-z koła: k=1 → (0, 0.866, 0.5)
       B.add('timber', box(0.14, 0.14, 1.6, T.timber.mpt), L(0.3, 0.62, 0));
     }
-    for (const sz of [-1, 1]) B.add('timber', box(2.2, 0.1, 0.1, T.timber.mpt), L(-2.2, 0.75, sz * 0.4, 0, 0, 0.08));
+    for (const sz of [-1, 1]) B.add('timber', box(2.2, 0.1, 0.1, T.timber.mpt), L(-2.2, 0.75, sz * 0.4, 0, 0, 0.08)); // rot: rz=+0.08 → koniec +x (przy wozie) w GÓRĘ: (1,0,0)→(0.997,0.08,0); końce w świecie y 0.662 (czubek) / 0.838 (przy wozie)
     ctx.addCircle(x, z, 1.5);
     put('wooden_crate_01', x + 0.2, 0.94, z, ry, 0.8, { collide: false });
     put('wicker_basket_01', x - 0.7, 0.94, z + 0.2, ry + 1, 0.9, { collide: false });
