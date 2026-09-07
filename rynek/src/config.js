@@ -93,6 +93,21 @@ export const CONFIG = {
     },
   },
 
+  // tor „paleta" — maska ról (?roles=1&noaa=1, world.js applyRoles): każdy mesh w jednolitym kolorze roli (MeshBasic, bez tone mappingu), niebo czarne;
+  // audyt/testy/tools/hist_roles.mjs liczy dokładne heksy → 60/30/10 ± 8 (neutralne/wtórne/akcent), „inne" (bez wpisu) ≤ 3 %. Klucze W.mat w `mat`
+  // (przypisanie §4.3.5), modele z W.put() w `props` po nazwie (bez wpisu → `default`); heksy kolorów ról = umowa z hist_roles.mjs, nie kolory sceny.
+  roles: {
+    color: { n: 0xff0000, w: 0x00ff00, a: 0x0000ff, x: 0xffffff, bg: 0x000000 },   // n neutralne, w wtórne, a akcent, x inne (bez wpisu), bg tło
+    mat: { cobble: 'n', stone: 'n', blocks: 'n', slates: 'n', plaster0: 'n', plaster1: 'n', plaster2: 'n', plaster3: 'n', plaster4: 'n', roof2: 'n', far: 'n', wet: 'n', iron: 'n', glass: 'n', jet: 'n',
+           roof0: 'w', roof1: 'w', roofTower: 'w', timber: 'w', planks: 'w', door: 'w', paint0: 'w', paint1: 'w', paint2: 'w', water: 'w',
+           cloth0: 'a', cloth1: 'a', cloth2: 'a', cloth3: 'a', banner0: 'a', banner1: 'a', banner2: 'a', banner3: 'a', sign: 'a', clock: 'a', bunting: 'a', paperLit: 'a', flame: 'a', glassLit: 'a' },
+    props: { default: 'n', horse_statue_01: 'n', gothic_statue: 'n', marble_bust_01: 'n', rock_moss_set_02: 'n',   // kamień
+             wine_barrel_01: 'w', Barrel_01: 'w', wooden_crate_01: 'w', wooden_crate_02: 'w', wooden_bucket_02: 'w', wooden_stool_02: 'w', wooden_lantern_01: 'w', Lantern_01: 'w', tree_stump_01: 'w', treasure_chest: 'w',
+             wicker_basket_01: 'w', wicker_basket_02: 'w', ceramic_vase_01: 'w', ceramic_vase_02: 'w', ceramic_pot: 'w', wooden_bowl_01: 'w', wooden_bowl_02: 'w', carved_wooden_plate: 'w', hamburger_buns: 'w', painted_wooden_bench: 'w', planter_box_01: 'w',
+             grass_medium_02: 'w', fern_02: 'w', potted_plant_02: 'w', shrub_04_c: 'w',   // drewno, plecionka, ceramika, zieleń bez kwiatów = wtórne
+             food_apple_01: 'a', food_pears_asian_01: 'a', wine_bottles_01: 'a', brass_pot_01: 'a', brass_vase_01: 'a', periwinkle_plant_03: 'a', celandine_01_c: 'a', flower_gazania_h: 'a' }, // owoce, szkło, mosiądz, kwiaty = akcent
+  },
+
   pois: [],           // tor „UI": podpisy miejsc {name, x, z, r}
 
   ui: {},             // tor „UI": nazwa miejsca, zdanie nastroju, kolory HUD
