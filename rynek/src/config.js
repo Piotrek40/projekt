@@ -3,7 +3,28 @@ export const CONFIG = {
   seed: 7,
   plaza: { size: 44, streetWidth: 6, streetLength: 16 },
   house: { depth: 8, floorHeight: 2.9, groundFloor: 3.2, jetty: 0.35, roofPitch: 0.85, overhang: 0.55, widthMin: 6, widthMax: 9.5, floorsMin: 2, floorsMax: 3 },
-  tower: { size: 7, height: 15, roofHeight: 6 },
+  // wieża ratusza — motyw #2 „okrągła wieża 36 m" (tor „wieża i panorama"; ?notower2=1 przywraca starą kwadratową: size/height/roofHeight)
+  tower: {
+    size: 7, height: 15, roofHeight: 6,                 // stara kwadratowa (tylko z ?notower2=1)
+    rTop: 3.2, rBot: 3.5, trunkH: 24, seg: 16,          // trzon: walec zbieżny (słownik skali §3.7: R 3,2, podstawa 3,5, trzon 24), 16 segmentów
+    roofH: 9, roofR: 4.1, spireH: 3, ballR: 0.3,        // stożek 9 m (okap r 4,1 = 0,5 m za gzyms), iglica 3 m, kula r 0,3 → 24 + 9 + 3 = 36 m
+    streetGap: 0.5, plazaIn: 2,                         // tx = −(sw/2 + rTop + 0,5) = −6,7 (0,5 m na zachód od ulicy N); tz = −half − rTop + 2 = −23,2 (trzon 2,0 m w placu, podstawa 2,3 m)
+    houseGap: 0.3,                                      // przerwa krawędź ostatniego domu pierzei N-W ↔ obrys podstawy: limit krawędzi = tx − rBot − 0,3 = −10,5
+    bands: [8, 15, 21], bandH: 0.4, bandOut: 0.15,      // pasy blocks: y środka, grubość, wysunięcie za lico (r trzonu tam 3,40 / 3,31 / 3,24)
+    buttresses: 6, buttressW: 0.9, buttressSteps: [[3.5, 1.2], [5.4, 0.9]], // przypory co 60° od 30° (drzwi na 0°); stopnie [wysokość, głębokość radialna]
+    buttressIn: 0.25,                                   // wsunięcie tyłu przypory w trzon (16-kąt: lico ścianki 0,981·r, przy rogu 0,9 m przypory jeszcze 0,11 głębiej)
+    windowRows: [5.9, 10.2, 15.7, 21.6], windowW: 0.75, windowH: 1.65, // okna łukowe: y spodu (nad przyporami 5,4; między pasami), szerokość, wysokość z łukiem
+    frameW: 0.18, frameOut: 0.15, frameIn: 0.15,        // oprawa łukowa blocks: szerokość, wysunięcie przed lico, zatopienie tyłu w murze
+    glassOut: 0.02,                                     // szkło 2 cm przed licem (test D: |dist − rAt| ≤ 0,05)
+    clock: { y: 18.6, r: 1.4, hour: 4, backR: 1.55, backT: 0.4, out: 0.035, // tarcza na S: środek y, promień; podkład blocks r 1,55 gr. 0,4; tarcza 3,5 cm przed licem (1,5 cm przed podkładem)
+      face: [0.92, 0.03, 85], ring: [0.35, 0.02, 60], hands: [0.25, 0.02, 60] }, // kolory OKLCH: krem, ciemny brąz pierścienia, wskazówki
+    corniceH: 0.6, corniceOut: 0.4, corniceIn: 0.1,     // gzyms pod dachem: wysokość, promień góry rTop+0,4, dołu rTop+0,1 (tuż pod y = trunkH)
+    door: { w: 1.6, h: 2.8, frameW: 0.3, frameOut: 0.25, archH: 3.3 }, // portal S: drzwi (słownik: wieża 2,8 × 1,6), oprawa 0,3 wystająca 0,25, łuk do 3,3 m
+    flag: { w: 1.2, h: 0.8 },                           // chorągiew u szczytu iglicy (banner2)
+    yardWall: { h: 2.6, t: 0.4, zOff: -4.3 },           // mur zamykający przerwę za wieżą (od krawędzi domu do 0,2 m przed ulicą), z = tz − 4,3 = −27,5 (za obrysem podstawy −26,7)
+    roofOKLCH: [0.75, 0.085, 200],                      // miedź z patyną na zestawie slates (§4.4 (c): na slates tylko [0.75, 0.085, 200] = #66bec3); tor „paleta" przepina na stone_tiles_02
+    roofParams: { roughness: 0.55, metalness: 0.2 },    // §1: nowy klucz miedzi = slates.material({ params: { roughness: 0.55, metalness: 0.2 } })
+  },
   fountain: { radius: 3.2, rim: 0.75, columnHeight: 1.6, blockScale: 1.1 },
   stalls: { count: 7, ringRadius: 11.5 },
   lanterns: { count: 8, ringRadius: 15.5 },

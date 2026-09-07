@@ -1,5 +1,6 @@
 # zależności narzędzi (instalowane przez npm install w tools/)
 tools/node_modules/
+tools/node_modules
 tools/package-lock.json
 # pliki tymczasowe testów
 audyt/testy/out/*.glb
