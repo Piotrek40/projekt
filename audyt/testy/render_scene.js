@@ -11,9 +11,10 @@ const DIR = path.resolve(__dirname, '../..', sceneDir);
 const OUT = path.resolve(__dirname, 'out/render', outName || path.basename(sceneDir));
 fs.mkdirSync(OUT, { recursive: true });
 const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
+const PORT = process.env.PORT || '8126'; // osobny port na agenta, gdy renderuje kilka worktree naraz
 
 (async () => {
-  const server = spawn('/opt/node22/bin/npx', ['http-server', DIR, '-p', '8126', '-s', '-c-1'], { stdio: 'ignore' });
+  const server = spawn('/opt/node22/bin/npx', ['http-server', DIR, '-p', PORT, '-s', '-c-1'], { stdio: 'ignore' });
   await new Promise(r => setTimeout(r, 1500));
   const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const results = [];
@@ -26,7 +27,7 @@ const views = JSON.parse(fs.readFileSync(viewsFile, 'utf8'));
     page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text().slice(0, 300)); });
     await page.addInitScript(q => { try { localStorage.setItem('quality', q); } catch {} }, vp.quality);
     const t0 = Date.now();
-    await page.goto('http://127.0.0.1:8126/index.html' + (process.env.URLQUERY || ''));
+    await page.goto(`http://127.0.0.1:${PORT}/index.html` + (process.env.URLQUERY || ''));
     try { await page.waitForFunction(() => window.__ready === true, null, { timeout: 240000 }); }
     catch (e) { console.log('NIE GOTOWE:', await page.evaluate(() => document.getElementById('loading')?.textContent.slice(0, 200)), errors.slice(0, 5)); throw e; }
     const loadMs = Date.now() - t0;
