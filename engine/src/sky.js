@@ -24,14 +24,17 @@ export function brightestDirection(tex) {
 
 export function setupSky(scene, hdr, o) {
   const opt = { environmentIntensity: 0.35, sunIntensity: 3.5, sunColor: 0xfff2e0, distance: 60, shadowExtent: 20, shadow: 1024, shadowRadius: 2, minElevation: 0, rotation: 0, ...o };
+  const flags = opt.flags || {};
   hdr.mapping = THREE.EquirectangularReflectionMapping;
-  scene.background = hdr;
-  scene.environment = hdr;
-  scene.environmentIntensity = opt.environmentIntensity;
-  scene.backgroundRotation = new THREE.Euler(0, opt.rotation, 0);
-  scene.environmentRotation = new THREE.Euler(0, opt.rotation, 0);
+  // ?nobg=1 — jednolite tło zamiast HDRI; ?noenv=1 — światło półkuliste zamiast PMREM z HDRI; ?norot=1 — bez obrotu nieba
+  scene.background = flags.nobg ? new THREE.Color(0x9fbbd8) : hdr;
+  if (flags.noenv) { scene.environment = null; scene.add(new THREE.HemisphereLight(0xbcd3ee, 0x6b5a47, 1.2)); }
+  else { scene.environment = hdr; scene.environmentIntensity = opt.environmentIntensity; }
+  const rot = flags.norot ? 0 : opt.rotation;
+  scene.backgroundRotation = new THREE.Euler(0, rot, 0);
+  scene.environmentRotation = new THREE.Euler(0, rot, 0);
 
-  const dir = brightestDirection(hdr).applyAxisAngle(new THREE.Vector3(0, 1, 0), opt.rotation);
+  const dir = brightestDirection(hdr).applyAxisAngle(new THREE.Vector3(0, 1, 0), rot);
   // słońce nisko nad horyzontem daje cienie bez końca — minimalna elewacja jest parametrem sceny
   if (Math.asin(dir.y) < opt.minElevation) { const h = Math.cos(opt.minElevation) / Math.hypot(dir.x, dir.z); dir.set(dir.x * h, Math.sin(opt.minElevation), dir.z * h); }
   const sun = new THREE.DirectionalLight(opt.sunColor, opt.sunIntensity);

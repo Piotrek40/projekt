@@ -54,7 +54,7 @@ export async function createApp(opts) {
     addRect: (x, z, hw, hd) => rects.push({ x, z, hw, hd }),
     addWalkable: (x, z, hw, hd) => walkable.push({ x, z, hw, hd }),
     loadPbrSet: (name, o) => loadPbrSet(loaders, name, { aniso: Math.min(quality.aniso, maxAniso), ...o }),
-    sky: async (o = {}) => setupSky(scene, await loaders.loadSky(o.file), { shadow: quality.shadow, shadowRadius: quality.shadowRadius, ...o }),
+    sky: async (o = {}) => setupSky(scene, await loaders.loadSky(o.file), { shadow: quality.shadow, shadowRadius: quality.shadowRadius, flags, ...o }),
     player,
     updaters: [], // funkcje (dt, t) wywoływane co klatkę (woda, płomienie itp.)
   };
@@ -202,7 +202,7 @@ export async function createApp(opts) {
       const origWarn = console.warn; console.warn = (...a) => { errs.push('warn: ' + a.map(String).join(' ').slice(0, 200)); origWarn(...a); };
       const update = () => {
         const i = renderer.info;
-        d.textContent = JSON.stringify({ ...loaders.info, flags, ...diag, cam: camera.position.toArray().map(v => +v.toFixed(2)), rot: [camera.rotation.x, camera.rotation.y].map(v => +v.toFixed(2)), move: [move.x, move.y].map(v => +v.toFixed(2)), frame: i.render.frame, precision: renderer.capabilities.precision, glError: gl.getError(), textures: i.memory.textures, geometries: i.memory.geometries, programs: i.programs?.length, errors: errs.slice(-6) }, null, 1);
+        d.textContent = JSON.stringify({ precision: renderer.capabilities.precision, flags, ...loaders.info, ...diag, cam: camera.position.toArray().map(v => +v.toFixed(2)), rot: [camera.rotation.x, camera.rotation.y].map(v => +v.toFixed(2)), move: [move.x, move.y].map(v => +v.toFixed(2)), frame: i.render.frame, precision: renderer.capabilities.precision, glError: gl.getError(), textures: i.memory.textures, geometries: i.memory.geometries, programs: i.programs?.length, errors: errs.slice(-6) }, null, 1);
       };
       update(); setInterval(update, 2000); document.body.appendChild(d);
     }
