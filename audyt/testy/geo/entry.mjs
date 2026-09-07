@@ -7,3 +7,4 @@ export { buildLayout } from '../../../rynek/src/layout.js';
 export { buildHouses } from '../../../rynek/src/buildings.js';
 export { buildStalls } from '../../../rynek/src/stalls.js';
 export { buildTower } from '../../../rynek/src/tower.js';
+export { buildSkyline, skylinePlan } from '../../../rynek/src/skyline.js';

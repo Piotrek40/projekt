@@ -33,17 +33,17 @@ export const CONFIG = {
     fog: { color: 0xc9d5df, near: 60, far: 220 },
     // druga linia dachów: domy tła za każdą pierzeją — środek 9–16 m za osią pierzei (26 m → 35–42 m od środka placu), kalenice 12–17 m;
     // wzdłuż pierzei od krawędzi domu zamykającego ulicę (sw/2 + depth = 11 m) + streetClear do half + depth + alongMax
-    secondLine: { distMin: 9, distMax: 16, widthMin: 6, widthMax: 9, depthMin: 7, depthMax: 9, gapMin: 0.5, gapMax: 2.5, ridgeMin: 12, ridgeMax: 17,
-                  streetClear: 1, alongMax: 6, windowSpacing: 2.4, windowRows: 3, gableShare: 0.3 },
+    secondLine: { distMin: 9, distMax: 16, widthMin: 5, widthMax: 8, depthMin: 7, depthMax: 9, gapMin: 0.3, gapMax: 1.5, ridgeMin: 12, ridgeMax: 17, // przerwy 0.3–1.5 m między domami
+                  streetClear: 1, alongMax: 11, windowSpacing: 2.4, windowRows: 3, gableShare: 0.3, streetSideMax: 13 }, // okna co 2.4 m, 3 rzędy od góry; 30 % domów szczytem do placu
     // bramy na końcach 4 ulic: setback od osi pierzei (26 m) → 34 m od środka placu (tył pierzei 30 m, fasada domu zamykającego 38 m)
-    gate: { setback: 8, span: 4, pierWidth: 2, height: 7, thickness: 2, archSpring: 3.5, bastionR: 1.6, bastionH: 9.5, bastionX: 4.6, capH: 2.4, merlons: 3 },
+    gate: { setback: 8, span: 4, pierWidth: 2, height: 7, thickness: 2, archSpring: 3.5, bastionR: 1.6, bastionH: 9.5, bastionX: 4.6, capH: 2.4, merlons: 3 }, // łuk: nasada 3.5 m, szczyt 5.5 m; baszty r 1.6 h 9.5 + hełm 2.4
     // wieże w oddali (klucz far, jaśniejszy = perspektywa powietrzna): pierścień (sin a·R, cos a·R), 60–110 m od środka; policzone:
     // A (−26.6, −86) yaw 0.284 ze startu (kadr 0.15 ± 0.305), B (47.9, −87.8), C (−15.9, 78.4)
-    farTowers: [{ a: Math.PI + 0.3, dist: 90, h: 40, r: 3.5 }, { a: Math.PI - 0.5, dist: 100, h: 44, r: 4 }, { a: -0.2, dist: 80, h: 32, r: 3 }],
-    farColor: [0.80, 0.025, 245],   // OKLCH albedo bez tekstury: jaśniejszy i chłodniejszy niż dachy (ekran L cel 0.70–0.85, niebo 0.87)
+    farTowers: [{ a: Math.PI + 0.3, dist: 90, h: 40, r: 3.5 }, { a: Math.PI - 0.5, dist: 100, h: 44, r: 4 }, { a: -0.2, dist: 80, h: 32, r: 3 }], // a = kąt pierścienia (rad), dist/h/r w metrach
+    farColor: [0.62, 0.030, 245],   // OKLCH albedo bez tekstury; cykl 1: L 0.80 dawało ekran L 0.82 = niebo (0.86) − 0.03; cel ekran L 0.70–0.78 w słońcu (dachy 0.46, niebo 0.86)
     farBlock: { w: 12, h: 9, d: 10 },   // przybudówka przy każdej wieży (masa miasta)
     // ptaki: Points nad placem, krążą po okręgach
-    birds: { count: 14, yMin: 22, yMax: 34, rMin: 8, rMax: 18, speedMin: 0.08, speedMax: 0.16, size: 1.1, color: [0.30, 0.01, 250] },
+    birds: { count: 14, yMin: 14, yMax: 24, rMin: 10, rMax: 20, speedMin: 0.08, speedMax: 0.16, size: 1.1, color: [0.30, 0.01, 250] }, // y 14–24: przy pitch 0.02 kadr sięga 36° nad horyzont = 14 m w 20 m, 30 m w 40 m (cykl 1: 22–34 m poza kadrem) // prędkość kątowa rad/s; rozmiar sprite'a 1.1 m; kolor OKLCH ciemny granat
   },
 
   ground: {},         // tor „wieża i panorama": medalion, krawężniki, gradient wilgoci bruku, kałuże

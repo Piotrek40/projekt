@@ -3,8 +3,11 @@ import { plane } from '../../engine/src/geometry.js';
 
 export function buildLayout(W) {
   const { ctx, R, CONFIG, P, T, H, S, half, B } = W;
-  const groundExtent = half + CONFIG.plaza.streetLength + H.depth + 6;
-  B.place('cobble', plane(groundExtent * 2, groundExtent * 2, T.cobble.mpt), 0, 0, 0, 0, -Math.PI / 2);
+  // z panoramą (skyline.js) bruk sięga CONFIG.skyline.groundExtent (wieże w oddali stoją na gruncie); ?noskyline=1 → jak dawniej
+  const extent0 = half + CONFIG.plaza.streetLength + H.depth + 6; // zasięg bez panoramy (52 m)
+  const groundExtent = (!ctx.flags.noskyline && CONFIG.skyline.groundExtent) || extent0;
+  // uvOffset kotwiczy wzór bruku tak, jak przy zasięgu extent0 (UV płaszczyzny liczy się od jej rogu — bez tego większa płaszczyzna przesuwa wzór na całym placu)
+  B.place('cobble', plane(groundExtent * 2, groundExtent * 2, T.cobble.mpt, [(extent0 - groundExtent) / T.cobble.mpt, (extent0 - groundExtent) / T.cobble.mpt]), 0, 0, 0, 0, -Math.PI / 2);
   ctx.addWalkable(0, 0, half - 0.3, half - 0.3);
   const sw = CONFIG.plaza.streetWidth, sl = CONFIG.plaza.streetLength;
   for (const [dx, dz] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
