@@ -7,7 +7,7 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {
   const rec = [];
-  const B = { add(key, g, m) { g.computeBoundingBox(); rec.push({ key, bb: g.boundingBox.clone(), m: m ? m.clone() : new THREE.Matrix4() }); },
+  const B = { add(key, g, m) { g.computeBoundingBox(); rec.push({ key, bb: g.boundingBox.clone(), m: m ? m.clone() : new THREE.Matrix4(), type: g.type, params: g.parameters }); }, // type/params: klasyfikacja trzonu wieży w D (box vs walec)
               place(key, g, x, y, z, ry = 0, rx = 0, rz = 0) { this.add(key, g, M4(x, y, z, ry, rx, rz)); } };
   const col = { rects: [], circles: [] };
   const ctx = { addWalkable() {}, addRect: (x, z, hw, hd) => col.rects.push({ x, z, hw, hd }), addCircle: (x, z, r) => col.circles.push({ x, z, r }), flags: {} };
@@ -74,18 +74,35 @@ for (const s of W.stalls) {
   if (maxD > c.r + 0.35) fails.push(`C kram (${s.x.toFixed(1)},${s.z.toFixed(1)}): słup ${maxD.toFixed(2)} m od środka, koło ${c.r}+0.35`);
   else if (maxD > c.r) notes.push(`C kram (${s.x.toFixed(1)},${s.z.toFixed(1)}): róg słupa ${maxD.toFixed(2)} m > koło ${c.r} m (gracz wchodzi 0.10 m w słup — tolerowane)`);
 }
-// D) wieża: okna na zewnątrz bryły
+// D) wieża: okna (i tarcza zegara) na licu trzonu, normalną na zewnątrz. Trzon = najwyższy element `slates` wieży; klasyfikacja po typie geometrii:
+//    walec (motyw #2: cylinder(rTop, rBot, h, seg) — promień zależy od wysokości, rAt(y) = rBot + (rTop − rBot)·y/h; policzone dla (3.2, 3.5, 24):
+//    y 8/15/21 → 3.40/3.31/3.24, więc stała półszerokość AABB ± 0.05 dawałaby 12–16 fałszywych FAIL) albo prostopadłościan (stara kwadratowa: lico = ściana AABB).
 const n1 = rec.length; buildTower(W);
-const twr = rec.slice(n1).find(r => r.key === 'slates'), tb = twr.bb.clone().applyMatrix4(twr.m);
-for (const r of rec.slice(n1).filter(r => r.key.startsWith('glass'))) {
-  const c = V(0, 0, 0).applyMatrix4(r.m), n = V(0, 0, 1).transformDirection(r.m), outwardOfBox = V(Math.sign(c.x - (tb.min.x + tb.max.x) / 2), 0, Math.sign(c.z - (tb.min.z + tb.max.z) / 2));
-  const onFace = Math.abs(Math.abs(c.x - (tb.min.x + tb.max.x) / 2) - (tb.max.x - tb.min.x) / 2) < 0.05 || Math.abs(Math.abs(c.z - (tb.min.z + tb.max.z) / 2) - (tb.max.z - tb.min.z) / 2) < 0.05;
-  if (!onFace) fails.push(`D okno wieży nie na licu: ${f2(c)}`);
-  if (n.dot(outwardOfBox) <= 0) fails.push(`D okno wieży odwrócone do środka: ${f2(c)} n=${f2(n)}`);
+const tw = rec.slice(n1);
+const twr = tw.filter(r => r.key === 'slates').sort((a, b) => (b.bb.max.y - b.bb.min.y) - (a.bb.max.y - a.bb.min.y))[0], tb = twr.bb.clone().applyMatrix4(twr.m);
+const tc = V((tb.min.x + tb.max.x) / 2, 0, (tb.min.z + tb.max.z) / 2);   // oś trzonu (x, z)
+const isRound = twr.type === 'CylinderGeometry';
+const rAt = y => { const p = twr.params; return p.radiusBottom + (p.radiusTop - p.radiusBottom) * (y - tb.min.y) / p.height; }; // promień walca na wysokości y (świat)
+let nTowerWin = 0;
+for (const r of tw.filter(r => r.key.startsWith('glass') || r.key === 'clock')) {
+  const c = V(0, 0, 0).applyMatrix4(r.m), n = V(0, 0, 1).transformDirection(r.m);
+  const radial = V(c.x - tc.x, 0, c.z - tc.z), dist = radial.length();
+  nTowerWin++;
+  if (isRound) {
+    // środek okna na licu walca: |odległość od osi − rAt(y)| ≤ 0.05 (szkło 2 cm przed licem); tarcza zegara 0.01–0.05 przed licem; normalna wzdłuż promienia
+    const tol = r.key === 'clock' ? [0.005, 0.05] : [-0.05, 0.05], d = dist - rAt(c.y); // 0.005: tarcza stawiana ≥ 0.01 przed licem, margines na arytmetykę float (0.01 wychodziło 0.00999)
+    if (d < tol[0] || d > tol[1]) fails.push(`D ${r.key} wieży nie na licu walca: odległość od osi ${dist.toFixed(3)} vs promień ${rAt(c.y).toFixed(3)} na y=${c.y.toFixed(2)} (Δ ${d.toFixed(3)}, dozwolone [${tol}])`);
+    if (n.dot(radial.normalize()) < 0.9) fails.push(`D ${r.key} wieży nie patrzy na zewnątrz walca: ${f2(c)} n=${f2(n)}`);
+  } else {
+    const outwardOfBox = V(Math.sign(c.x - tc.x), 0, Math.sign(c.z - tc.z));
+    const onFace = Math.abs(Math.abs(c.x - tc.x) - (tb.max.x - tb.min.x) / 2) < 0.05 || Math.abs(Math.abs(c.z - tc.z) - (tb.max.z - tb.min.z) / 2) < 0.05;
+    if (!onFace) fails.push(`D okno wieży nie na licu: ${f2(c)}`);
+    if (n.dot(outwardOfBox) <= 0) fails.push(`D okno wieży odwrócone do środka: ${f2(c)} n=${f2(n)}`);
+  }
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, połaci ${nRoof}, domów ${allHouses.length}, kramów ${W.stalls.length}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, połaci ${nRoof}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);
