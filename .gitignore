@@ -14,3 +14,7 @@ demo_artifact/app_inline.js
 demo_artifact/*_inline.js
 demo_artifact/*.html
 audyt/testy/geo/scene.bundle.mjs
+# tymczasowe katalogi renderów agentów (per cecha/cykl) — do repo idą tylko bazy rynek/ i rynek_top/
+audyt/testy/out/render/*/
+!audyt/testy/out/render/rynek/
+!audyt/testy/out/render/rynek_top/
