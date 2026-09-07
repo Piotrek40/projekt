@@ -73,12 +73,25 @@ export function buildHouses(W) {
     const topD = d + jet;
     if (h.gableFront) {
       // kalenica wzdłuż z: szczyt widoczny od placu
-      const span = w + 2 * ov, rise = (w / 2) * Math.tan(pitch), slope = Math.hypot(w / 2 + ov, rise);
-      for (const sx of [-1, 1]) B.add(roofKey, box(slope, 0.14, topD + 2 * ov, T.roof.mpt, off), L(sx * (w / 4 + ov / 2), y + rise / 2, jet / 2, 0, 0, -sx * Math.atan2(rise, w / 2 + ov))); // rot: rz=−sx·a → koniec sx·x (okap) W DÓŁ, koniec x=0 (kalenica) w górze; policzone w 8, pitch 0.85, sx=+1: okap (4.55, y, jet/2), kalenica (0, y+4.55, jet/2)
+      const rise = (w / 2) * Math.tan(pitch), slope = Math.hypot(w / 2 + ov, rise), aG = Math.atan2(rise, w / 2 + ov), faceZ = topD / 2 + jet / 2; // faceZ: lico fasady poddasza
+      // Motyw #12b „szczyt schodkowy" (?nostep=1 = trójkąt HEAD): decyzja i liczba schodków z osobnego strumienia rng(seedLocal + 2) (r() domu bez zmian)
+      const St = CONFIG.houseDetail.step, Rd = rng(h.seedLocal + 2), stepped = !ctx.flags.nostep && Rd() < St.share, nSteps = Rd.int(...St.steps);
+      const cut = stepped ? ov + St.slabIn : 0; // skrócenie połaci i kalenicy z przodu: koniec slabIn m za licem, schowany w murze schodków (bez okapu przed szczytem)
+      for (const sx of [-1, 1]) B.add(roofKey, box(slope, 0.14, topD + 2 * ov - cut, T.roof.mpt, off), L(sx * (w / 4 + ov / 2), y + rise / 2, jet / 2 - cut / 2, 0, 0, -sx * aG)); // rot: rz=−sx·a → koniec sx·x (okap) W DÓŁ, koniec x=0 (kalenica) w górze; policzone w 8, pitch 0.85, sx=+1: okap (4.55, y, jet/2), kalenica (0, y+4.55, jet/2)
       B.add(plasterKey, gable(w, rise, topD, T.plaster.mpt), L(0, y, jet / 2));
-      B.add('timber', box(0.2, 0.2, topD + 2 * ov, T.timber.mpt), L(0, y + rise, jet / 2));
-      // belki szczytu
-      B.add('timber', box(0.14, rise * 0.9, 0.14, T.timber.mpt), L(0, y + rise * 0.45, topD / 2 + jet / 2 + 0.01));
+      B.add('timber', box(0.2, 0.2, topD + 2 * ov - cut, T.timber.mpt), L(0, y + rise, jet / 2 - cut / 2)); // belka kalenicy 0,2 (HEAD), skrócona jak połacie
+      if (stepped) stepGable(nSteps);
+      else B.add('timber', box(0.14, rise * 0.9, 0.14, T.timber.mpt), L(0, y + rise * 0.45, faceZ + 0.01)); // belka szczytu (HEAD)
+      // schodki: stos n boxów 'blocks' malejącej szerokości; schodek i ma spód na linii połaci przy zewnętrznym narożniku (y + i·sh) i wierzch par m nad
+      // linią połaci przy wewnętrznym; lico muru St.out przed licem fasady; asercja: wierzch schodka ≥ wierzch płyty (oś + 0,07/cos) + 0,05 przy wewnętrznym narożniku
+      function stepGable(n) {
+        const sh = rise / n, hw0 = w / 2 + ov, roofTopG = x => y + rise * (1 - Math.abs(x) / hw0) + 0.07 * slope / hw0; // wierzch połaci szczytowej nad x (płyta 0,14: +0,07/cos = ·slope/hw0)
+        for (let i = 0; i < n; i++) {
+          const hw = hw0 * (1 - i / n), bottom = y + i * sh, top = bottom + sh + St.parapet;
+          B.add('blocks', box(2 * hw, top - bottom, St.t, T.blocks.mpt, off), L(0, (bottom + top) / 2, faceZ + St.out - St.t / 2));
+          check(top >= roofTopG(hw0 * (1 - (i + 1) / n)) + 0.05, `${id} schodek ${i} pod połacią`, { top, roofTop: roofTopG(hw0 * (1 - (i + 1) / n)) }); // 0.05: margines jak B5b
+        }
+      }
     } else {
       // kalenica wzdłuż x: okap nad fasadą. Powierzchnia połaci (§5.2 #12): oś płyty roofY(z) = y + (eaveZ − z)·s, s = rise/(topD/2 + ov)
       // (NIE tan(pitch) — okap wydłuża połać); wierzch roofTopY = roofY + roofT/2 / cos(a) (+0,100 przy pitch 0,85; policzone 11,121 / 9,908 / 13,344 dla z 3,2 / 4,4 / 1,0)
