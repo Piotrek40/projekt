@@ -1,4 +1,4 @@
-// Kamienice szachulcowe (parter kamienny, piętra z jetty, belki, okna, wykusz wieloboczny na kroksztynach, dach, komin).
+// Kamienice szachulcowe (parter kamienny, piętra z jetty, belki, okna z okiennicami, wykusz wieloboczny na kroksztynach, dach, komin).
 // Układ lokalny: początek na środku podstawy, +x wzdłuż pierzei, +y w górę, +z = FRONT (do placu). Metry. Do świata tylko przez L().
 import * as THREE from 'three';
 import { box, plane, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
@@ -41,6 +41,25 @@ export function buildHouses(W) {
     const oriel = (!ctx.flags.nooriel && w > O.minW && Math.abs(h.along) < half - O.edgeGap && h.floors > O.floor + 1)
       ? { f: O.floor, cx: (Ro() - 0.5) * 2 * Math.min(w / 2 - O.r - O.edge, O.cxMax), lit: [0, 1, 2].map(() => Ro() < O.litShare) } : null; // cx równomiernie w ±min(…); 3 okna: świecące z udziałem litShare
     const inOriel = (f, x) => !!oriel && (f === oriel.f || f === oriel.f + 1) && Math.abs(x - oriel.cx) < O.r + 0.1; // 0.1: zapas, słupek/belka 0,16 przy wierzchołku ±90° wystawałaby z bryły
+    // Motyw #9 „okiennice" (?noshutters=1; CONFIG.shutters): skrzydła w paint0..2 (kolor per dom), uchylone od ściany. Liczby policzone (§5.2 #9 K13):
+    // zawias 0,030 przed licem ramy, wolny koniec 0,092 dla 4 pierzei i obu skrzydeł; przesunięcia cos/sin przez M4 (bez ręcznego sin/cos — §3.1).
+    const Sh = CONFIG.shutters, Rs = rng(h.seedLocal + 6), paintKey = 'paint' + Rs.int(0, 2), noShut = ctx.flags.noshutters || ctx.flags.nopalette; // ?nopalette=1: nie ma kluczy paint*
+    const wingTip = new THREE.Vector3(Sh.wing / 2, 0, 0).applyMatrix4(M4(0, 0, 0, Sh.open)); // koniec skrzydła (wing/2, 0, 0) po obrocie open: x = wing/2·cos (0,121), z = wing/2·sin (0,031)
+    const shutterReach = (ww, wing) => ww / 2 + Sh.gap + wingTip.x * (wing / Sh.wing) + wing / 2; // odległość środek okna → zewnętrzny skraj skrzydła (0,641 przy ww 0,75; 0,913 na parterze)
+    const shutterOK = (field, cx, ground) => !noShut && (ground ? Math.abs(cx) + shutterReach(Sh.ground.ww, Sh.ground.wing) + Sh.ground.edgeGap <= w / 2 : field >= 2 * (shutterReach(Sh.ww, Sh.wing) + Sh.postClear)); // parter: w obrysie domu; piętro: pole ≥ 1,442
+    function shutters(cx, wy, wh, faceZ, ww, wing, idS, posts) {
+      const tipX = wingTip.x * (wing / Sh.wing), tipZ = Math.abs(wingTip.z) * (wing / Sh.wing), frameFace = faceZ + 0.02 + 0.05; // lico ramy okna: box(…, 0.1) na faceZ + 0.02 → przód +0,07; |tipZ|: koniec +x po ry>0 idzie w −z (tabela §3.1), a środek trzeba cofnąć o tyle W PRZÓD (pierwsza wersja bez abs: zawias 8 cm w ścianie — CHECK)
+      const zc = frameFace + Sh.t / 2 + Sh.gap / 2 + tipZ; // środek skrzydła: tył przy zawiasie na frameFace + gap/2 (0,08), wolny koniec 2·tipZ dalej (0,162)
+      for (const s of [-1, 1]) {
+        const sx = cx + s * (ww / 2 + Sh.gap + tipX), m = L(sx, wy, zc, -s * Sh.open); // rot: ry=−s·open → wolny koniec (s·wing/2,0,0) ku +z (od ściany): s=−1, ry=+0.25: (−0.125,0,0) → (−0.121, 0, +0.031); zawias (+0.125,0,0) → (0.121, 0, −0.031) — policzone
+        B.add(paintKey, box(wing, wh, Sh.t), m);
+        const hinge = new THREE.Vector3(-s * wing / 2, 0, 0).applyMatrix4(m), free = new THREE.Vector3(s * wing / 2, 0, 0).applyMatrix4(m), d = p => p.clone().sub(LP(cx, wy, frameFace)).dot(nrm);
+        check(d(hinge) >= 0.02 && d(hinge) <= 0.05, `${idS} okiennica: zawias nie przy ramie`, { d: d(hinge) });      // oczekiwane 0,030 (z tej samej macierzy m)
+        check(d(free) >= 0.08, `${idS} okiennica: wolny koniec nie na zewnątrz`, { d: d(free) });                    // oczekiwane 0,092
+        if (posts) check(Math.min(...posts.map(px => Math.abs(sx - px))) >= wing / 2 + Sh.postClear, `${idS} okiennica w słupku`, { sx, posts }); // ≥ 0,205 (K8; 0,234 przy polu 1,50)
+        check(Math.abs(sx) + wing / 2 <= w / 2, `${idS} okiennica poza obrysem domu`, { sx, w });
+      }
+    }
     for (let f = 1; f < h.floors; f++) {
       if (h.jetty) jet += H.jetty;
       const fw = w, fd = d + jet;
@@ -52,10 +71,11 @@ export function buildHouses(W) {
       B.add('timber', box(fw + bt, bt, bt, T.timber.mpt), L(0, y + fh - bt / 2, zf));
       const n = Math.max(2, Math.round(fw / 1.6));
       const orielHere = !!oriel && f === oriel.f, hidden = (x, halfW) => orielHere && Math.abs(x - oriel.cx) < O.r + halfW; // element piętra wykusza (środek x, półszerokość halfW) nachodzący na bryłę wykusza: geometria pominięta, r() bez zmian
+      const braced = []; // braced[i] = pole i ma zastrzał (okiennice tylko w polach bez zastrzału — motyw #9)
       for (let i = 0; i <= n; i++) {
         const x = -fw / 2 + i * fw / n;
         if (!hidden(x, 0.2)) B.add('timber', box(bt, fh, bt, T.timber.mpt), L(x, y + fh / 2, zf)); // 0.2: pół słupka 0,08 + luz — słupek fasady nie zlewa się ze słupkiem narożnym wykusza (na ±1,11)
-        if (i < n && r() < 0.5) { // zastrzał w polu
+        if (i < n && (braced[i] = r() < 0.5)) { // zastrzał w polu
           const len = Math.hypot(fw / n, fh) * 0.7, sgn = r() < 0.5 ? 1 : -1; // HEAD: zastrzał 0,7 przekątnej pola, znak losowy pół na pół
           if (!hidden(x + fw / n / 2, 0.7 * fw / n / 2 + 0.1)) B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * sgn)); // rot: rz=±atan2(fw/n, fh) → góra zastrzału (0,1,0) ku ∓x: rz=+0.5 → (−0.479, 0.878, 0) (policzone); znak losowy = kierunek zastrzału; zasięg zastrzału w x = 0,7·pół pola + luz 0,1
         }
@@ -65,14 +85,17 @@ export function buildHouses(W) {
       // okna piętra: w polach między słupkami
       for (let i = 0; i < n; i++) {
         if (r() < 0.25) continue;
-        const cx = -fw / 2 + (i + 0.5) * fw / n, ww = Math.min(1.0, fw / n - 0.5), wh = 1.3;
+        const cx = -fw / 2 + (i + 0.5) * fw / n, wh = 1.3; // HEAD: środek pola, okno 1,3 wys.
         const lit = r() < 0.35;
-        if (hidden(cx, ww / 2 + 0.16 + 0.1)) continue; // pół okna + rama 0,08 z każdej strony (box ww + 0,16) + luz 0,1: rama okna fasady nie wchodzi w słupek narożny wykusza
+        const shut = shutterOK(fw / n, cx, false) && !braced[i] && Rs() < Sh.share; // okiennice: pole bez zastrzału, dość szerokie, udział share (strumień Rs — r() domu bez zmian)
+        const ww = shut ? Sh.ww : Math.min(1.0, fw / n - 0.5); // okno z okiennicami zwężone do Sh.ww (0,75), inaczej HEAD
+        if (hidden(cx, (shut ? shutterReach(Sh.ww, Sh.wing) : ww / 2 + 0.16) + 0.1)) continue; // pół okna + rama 0,08 z każdej strony (box ww + 0,16) albo zasięg okiennic + luz 0,1: nic nie wchodzi w słupek narożny wykusza
         B.add(lit ? 'glassLit' : 'glass', box(ww, wh, 0.04), L(cx, y + fh * 0.55, front + 0.01));
         checkInFrontOfWall(`${id} okno p${f}`, LP(cx, y + fh * 0.55, front + 0.01), LP(cx, y + fh * 0.55, front), nrm); // środek okna 1 cm przed licem (d=0.01 ≥ 0.005)
         B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 - wh / 2, front + 0.02));
         B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 + wh / 2, front + 0.02));
         B.add('timber', box(0.06, wh, 0.1), L(cx, y + fh * 0.55, front + 0.02));
+        if (shut) shutters(cx, y + fh * 0.55, wh, front, ww, Sh.wing, `${id} p${f} pole ${i}`, [cx - fw / n / 2, cx + fw / n / 2]); // 0.55: wysokość środka okna jak HEAD; słupki pola na ±pole/2 od środka
       }
       if (orielHere) orielBay(y, front, frontBelow, front + (h.jetty ? H.jetty : 0), bt);
       frontBelow = front;
@@ -129,6 +152,7 @@ export function buildHouses(W) {
       checkInFrontOfWall(`${id} okno parteru`, LP(cx, 1.8, d / 2 + 0.01), LP(cx, 1.8, d / 2), nrm);
       B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 - 0.55, d / 2 + 0.02));
       B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 + 0.55, d / 2 + 0.02));
+      if (shutterOK(0, cx, true) && Rs() < Sh.share) shutters(cx, 1.8, 1.1, d / 2, Sh.ground.ww, Sh.ground.wing, `${id} parter`, null); // parter bez jetty: lico = d/2; skrzydła 0,45 przy oknie 0,9 (rama 1,05)
     }
     // dach
     const roofKey = 'roof' + h.roof, ov = H.overhang, pitch = h.pitch; // spadek per dom (layout.js, motyw #3)
