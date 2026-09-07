@@ -23,7 +23,28 @@ export const CONFIG = {
 
   houseDetail: {},    // tor „kamienice": wykusze, kroksztyny, portale, okiennice, lukarny, gzymsy, sterczyny, typy dachów
 
-  skyline: {},        // tor „wieża i panorama": druga linia dachów, wieże w oddali, bramy na końcach ulic, mgła, ptaki
+  // tor „wieża i panorama": panorama za pierzejami (skyline.js). Flagi: ?noskyline=1 (cały moduł), ?nofog=1, ?nobirds=1.
+  skyline: {
+    seedOffset: 400,     // własny generator rng(seed + seedOffset): kolejność losowań innych modułów nie zmienia panoramy
+    groundExtent: 120,   // półwymiar płaszczyzny bruku (m); bez panoramy layout.js liczy jak dawniej (52 m). Wieże w oddali stoją na gruncie.
+    // mgła: kolor EKRANOWY — Fog miesza po AgX (meshphysical.glsl.js:219), więc hex trafia na ekran 1:1. Sonda color_probe.mjs na bazowym
+    // start_plac.png, pas nieba nad okapami 40,600,480,20 → #c9d5df (L 0.867 C 0.018 H 242.6); pas sąsiedni 40,620,200,20 → #cbd6df (L 0.870):
+    // ΔL 0.003 ≤ 0.01, C < 0.03. Przeliczyć po każdej zmianie ?sun=/exposure/rotation nieba.
+    fog: { color: 0xc9d5df, near: 60, far: 220 },
+    // druga linia dachów: domy tła za każdą pierzeją — środek 9–16 m za osią pierzei (26 m → 35–42 m od środka placu), kalenice 12–17 m;
+    // wzdłuż pierzei od krawędzi domu zamykającego ulicę (sw/2 + depth = 11 m) + streetClear do half + depth + alongMax
+    secondLine: { distMin: 9, distMax: 16, widthMin: 6, widthMax: 9, depthMin: 7, depthMax: 9, gapMin: 0.5, gapMax: 2.5, ridgeMin: 12, ridgeMax: 17,
+                  streetClear: 1, alongMax: 6, windowSpacing: 2.4, windowRows: 3, gableShare: 0.3 },
+    // bramy na końcach 4 ulic: setback od osi pierzei (26 m) → 34 m od środka placu (tył pierzei 30 m, fasada domu zamykającego 38 m)
+    gate: { setback: 8, span: 4, pierWidth: 2, height: 7, thickness: 2, archSpring: 3.5, bastionR: 1.6, bastionH: 9.5, bastionX: 4.6, capH: 2.4, merlons: 3 },
+    // wieże w oddali (klucz far, jaśniejszy = perspektywa powietrzna): pierścień (sin a·R, cos a·R), 60–110 m od środka; policzone:
+    // A (−26.6, −86) yaw 0.284 ze startu (kadr 0.15 ± 0.305), B (47.9, −87.8), C (−15.9, 78.4)
+    farTowers: [{ a: Math.PI + 0.3, dist: 90, h: 40, r: 3.5 }, { a: Math.PI - 0.5, dist: 100, h: 44, r: 4 }, { a: -0.2, dist: 80, h: 32, r: 3 }],
+    farColor: [0.80, 0.025, 245],   // OKLCH albedo bez tekstury: jaśniejszy i chłodniejszy niż dachy (ekran L cel 0.70–0.85, niebo 0.87)
+    farBlock: { w: 12, h: 9, d: 10 },   // przybudówka przy każdej wieży (masa miasta)
+    // ptaki: Points nad placem, krążą po okręgach
+    birds: { count: 14, yMin: 22, yMax: 34, rMin: 8, rMax: 18, speedMin: 0.08, speedMax: 0.16, size: 1.1, color: [0.30, 0.01, 250] },
+  },
 
   ground: {},         // tor „wieża i panorama": medalion, krawężniki, gradient wilgoci bruku, kałuże
 
