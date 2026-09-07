@@ -107,7 +107,7 @@ Kierunek słońca nie jest wpisany ręcznie: przy starcie scena szuka najjaśnie
 
 Dwa warianty budowy tej samej sceny (jeden kod, dwa moduły ładowania zasobów):
 - `demo/` — pliki KTX2 + meshopt, do hostowania na GitHub Pages (32 MB, tekstury w pamięci GPU skompresowane).
-- `demo_artifact/dziedziniec.html` — jeden plik 14,5 MB ze wszystkim w base64, tekstury JPG (KTX2 i meshopt wymagają WASM, którego Artifact nie może pobrać), do natychmiastowego testu na telefonie przez claude.ai. Na telefonie zajmie ~5× więcej pamięci GPU niż wariant KTX2. Opublikowany: https://claude.ai/code/artifact/bc051dfc-49fc-49b2-adb6-eb7f49d0074a
+- `demo_artifact/dziedziniec.html` — jeden plik 14,5 MB ze wszystkim w base64, tekstury JPG (KTX2 i meshopt wymagają WASM, którego Artifact nie może pobrać), do natychmiastowego testu na telefonie przez claude.ai. Na telefonie zajmie ~5× więcej pamięci GPU niż wariant KTX2. Pułapka znaleziona na telefonie Piotra: piaskownica Artifactu blokuje `fetch` do adresów `data:` i `blob:`, a loadery three.js pobierają nimi nawet zasoby wpisane w stronę („Failed to fetch”). Wariant inline przechwytuje więc `fetch` i obsługuje te adresy w JS; sprawdzone lokalnie pod CSP `connect-src 'self'; img-src 'self'` (`testy/test_artifact_csp.js`). Opublikowany: https://claude.ai/code/artifact/bc051dfc-49fc-49b2-adb6-eb7f49d0074a
 
 Sterowanie: joystick dotykowy (lewa część ekranu) + przeciąganie (rozglądanie), kolizje z murami i obiektami. Trzy poziomy jakości do przełączenia na telefonie. HUD z FPS, p95 czasu klatki, draw calls, trójkątami i nazwą GPU — to z niego Piotr odczyta pierwszy prawdziwy pomiar.
 
