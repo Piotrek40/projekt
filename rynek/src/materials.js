@@ -20,10 +20,10 @@ export async function buildMaterials(W) {
   const fabricNor = await loaders.loadTexture('fabric_pattern_07', 'nor'), fabricArm = await loaders.loadTexture('fabric_pattern_07', 'arm');
   for (const t of [fabricNor, fabricArm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = ctx.aniso(); }
   P.cloth.forEach((c, i) => { mat['cloth' + i] = new THREE.MeshStandardMaterial({ color: c, roughness: 1, metalness: 0, normalMap: fabricNor, roughnessMap: fabricArm, side: THREE.DoubleSide }); });
-  mat.glass = new THREE.MeshPhysicalMaterial({ color: 0x1a222c, roughness: 0.08, metalness: 0.0, envMapIntensity: 1.5 });
+  mat.glass = new THREE.MeshPhysicalMaterial({ color: 0x1a222c, roughness: 0.08, metalness: 0.0 }); // bez envMapIntensity: martwy przy scene.environment bez własnego envMap (§4.1.9, §8 #16)
   mat.glassLit = new THREE.MeshStandardMaterial({ color: 0x3a2a14, emissive: 0xffb257, emissiveIntensity: 1.6, roughness: 0.3 });
   mat.iron = new THREE.MeshStandardMaterial({ color: 0x2b2b2e, roughness: 0.55, metalness: 0.9 });
-  mat.water = new THREE.MeshPhysicalMaterial({ color: P.water, roughness: 0.04, metalness: 0.0, transparent: true, opacity: 0.85, envMapIntensity: 1.8, normalMap: sets.cobble.normalMap.clone(), normalScale: new THREE.Vector2(0.25, 0.25) });
+  mat.water = new THREE.MeshPhysicalMaterial({ color: P.water, roughness: 0.04, metalness: 0.0, transparent: true, opacity: 0.85, normalMap: sets.cobble.normalMap.clone(), normalScale: new THREE.Vector2(0.25, 0.25) });
   mat.water.normalMap.repeat.set(3, 3); mat.water.normalMap.needsUpdate = true;
   mat.flame = new THREE.MeshBasicMaterial({ color: 0xffc070 });
   // girlandy (bunting.js): chorągiewki z kolorem wierzchołków (barwy w CONFIG.bunting.pennant.colors), lampiony papierowe emisyjne

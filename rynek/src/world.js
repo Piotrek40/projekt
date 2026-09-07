@@ -61,7 +61,7 @@ export async function buildWorld(ctx) {
   // PRZED B.build (po scaleniu nie ma osobnych brył): koplanarne płaszczyzny tego samego materiału = z-fighting. Tylko klucze z cienkimi
   // płaszczyznami (kilkadziesiąt sztuk, O(n²)); dla timber/stone nie ma sensu — bryły grubsze niż 6 cm, a 2000 belek to 2 mln par.
   for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign)/.test(key)) checkNoCoplanar(key, geos);
-  W.B.build(W.mat, W.scene, { noShadow: new RegExp(CONFIG.noShadowKeys) }); // klucze bez cienia (§8 #17): CONFIG.noShadowKeys
+  W.B.build(W.mat, W.scene, { noShadow: new RegExp(CONFIG.noShadowKeys), renderOrder: CONFIG.renderOrderKeys }); // klucze bez cienia (§8 #17): CONFIG.noShadowKeys; kolejność przezroczystych (motyw #8): CONFIG.renderOrderKeys
   buildSmoke(W);
   initUI(W);          // UI po zbudowaniu świata (podpisy miejsc czytają W)
 }

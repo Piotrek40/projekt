@@ -2,7 +2,10 @@
 export const CONFIG = {
   seed: 7,
   // klucze W.B (regex), które NIE rzucają cienia (Batch.build w geometry.js): nowe małe/cienkie obiekty — girlandy, lampiony, strumienie, mokry bruk, wieże w oddali, tarcza zegara, szyld, chorągwie
-  noShadowKeys: '^(bunting|paperLit|jet|wet|far|clock|sign|banner)',
+  noShadowKeys: '^(bunting|paperLit|jet|wet|water|ripple|far|clock|sign|banner)', // + lustra wody i kręgi (motyw #8): płaskie dyski, cień bez sensu
+  // kolejność rysowania kluczy W.B przezroczystych (Batch.build opts.renderOrder; domyślnie 0): three sortuje przezroczyste po odległości ŚRODKA obiektu,
+  // więc lustro wody (opacity 0.85, środek wyżej) rysowało się PO kręgach i strumieniach i przykrywało je (motyw #8, cykl 4) — kręgi i strumienie po wodzie
+  renderOrderKeys: { water: 0, jet: 1, ripple: 2 },
   plaza: { size: 44, streetWidth: 6, streetLength: 16 },
   house: { depth: 8, floorHeight: 2.9, groundFloor: 3.2, jetty: 0.35, roofPitch: 0.85, overhang: 0.55, widthMin: 6, widthMax: 9.5, floorsMin: 2, floorsMax: 3 },
   tower: { size: 7, height: 15, roofHeight: 6 },
