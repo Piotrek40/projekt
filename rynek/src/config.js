@@ -119,6 +119,12 @@ export const CONFIG = {
     // okno win na 3 ścianach zewnętrznych (udział świecących litShare); stożek capR/capH (apotema podstawy 1,126 → okap 0,17 przed ścianami); pozycja |cx| ≤ min(w/2 − r − edge, cxMax);
     // kroksztyny: trójkąt prostokątny w × h, grubość t, co step pod wykuszem (2 szt. przy r 1,1), wierzch pod podwaliną piętra, pionowy bok na licu kondygnacji niżej
     oriel: { minW: 7, edgeGap: 6, floor: 1, r: 1.1, seg: 6, win: [0.6, 1.3], litShare: 0.35, capR: 1.3, capH: 0.8, edge: 0.3, cxMax: 2.5, corbel: { w: 0.35, h: 0.35, t: 0.14, step: 1.2 } }, // policzone dla seed 7: 11 domów (7 przy placu + 4 zamykające ulice), ≈ +330 tri/dom
+    // motyw #10a „portale łukowe" (?noportal=1 = drzwi box 2,3 + nadproże belkowe HEAD; buildings.js portalArch()): na KAŻDYM domu oprawa w kluczu `key`
+    // (blocks — jaśniejsza od parteru stone): 2 ościeża (archOut − archIn) × impostY × t, łuk pełny = półpierścień r archIn/archOut (ExtrudeGeometry, seg segmentów
+    // na ćwiartkę) na wysokości impostu, zwornik keystone (w × h, wierzch up nad szczytem łuku, out przed oprawą), próg threshold (2·archOut × h × d) na ziemi;
+    // oprawa od 0,01 do 0,01 + t przed licem parteru. Drzwi doorW × doorH (2,2, nie 2,3 z HEAD: róg (0,6, 2,3−1,6) miałby r 0,922 > archOut − 0,02 — wystawałby
+    // za pierścień; przy 2,2: 0,849 ≤ 0,88 — policzone). front: punkt W.portals na ziemi front m przed licem drzwi (kontrakt z torem „plac", greenery.js).
+    portal: { doorW: 1.2, doorH: 2.2, archIn: 0.6, archOut: 0.9, impostY: 1.6, t: 0.25, seg: 8, key: 'blocks', keystone: { w: 0.28, h: 0.45, up: 0.125, out: 0.05 }, threshold: { h: 0.1, d: 0.35 }, front: 0.6 }, // metry; szczyt łuku wewn. 2,2 / zewn. 2,5, zwornik 2,175–2,625 < parter 3,2 i < belki jetty 3,04
   },
 
   skyline: {},        // tor „wieża i panorama": druga linia dachów, wieże w oddali, bramy na końcach ulic, mgła, ptaki

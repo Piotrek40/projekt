@@ -1,4 +1,5 @@
-// Kamienice szachulcowe (parter kamienny, piętra z jetty, belki, okna z okiennicami, wykusz wieloboczny na kroksztynach, dach, komin).
+// Kamienice szachulcowe (parter kamienny z portalem łukowym, piętra z jetty, belki, okna z okiennicami, wykusz wieloboczny na kroksztynach, dach, komin).
+// W.portals = [{x, z, ry, …}] — punkt na ziemi przed drzwiami każdego domu (kontrakt z greenery.js; szyldy w props.js czytają doorX/faceZ1/orielX).
 // Układ lokalny: początek na środku podstawy, +x wzdłuż pierzei, +y w górę, +z = FRONT (do placu). Metry. Do świata tylko przez L().
 import * as THREE from 'three';
 import { box, plane, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
@@ -13,9 +14,18 @@ function prism(points, t, mpt = 2) {
   return g;
 }
 
+// Półpierścień łuku pełnego (oprawa portalu): promień wewnętrzny rIn, zewnętrzny rOut, w płaszczyźnie XY nad y = 0 (impost), wyciągnięty na grubość t
+// wzdłuż z (wyśrodkowany), UV w metrach jak gable(). Policzone (seg 8): bbox x ±rOut, y 0..rOut, z ±t/2; wierzchołki nad y 0,05 mają r ∈ [rIn, rOut] — otwór pusty.
+function archRing(rIn, rOut, t, seg, mpt = 2) {
+  const s = new THREE.Shape(); s.moveTo(rOut, 0); s.absarc(0, 0, rOut, 0, Math.PI, false); s.lineTo(-rIn, 0); s.absarc(0, 0, rIn, Math.PI, 0, true); s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: t, curveSegments: seg, bevelEnabled: false }); g.translate(0, 0, -t / 2);
+  const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / mpt, uv.getY(i) / mpt);
+  return g;
+}
+
 export function buildHouses(W) {
   const { ctx, CONFIG, P, T, H, B, houses, sideTransform, half } = W;
-  const chimneys = [];
+  const chimneys = [], portals = [];
   for (const h of houses) {
     const r = rng(h.seedLocal);
     const tr = sideTransform(h.side, h.along, h.setback);
@@ -142,17 +152,45 @@ export function buildHouses(W) {
         check(Math.abs(inner.y - y) < 0.005 && Math.min(dOut, bt) - Math.max(dIn, 0) >= 0.05, `${idO} kroksztyn ${i} nie styka się z podwaliną`, { dIn, dOut, top: inner.y, y }); // nakładanie w rzucie ≥ 0,05 (0,07 z jetty / 0,09 bez), ten sam y
       }
     }
-    // parter: drzwi i okna
-    const doorX = (r() - 0.5) * (w - 3);
-    B.add('door', box(1.2, 2.3, 0.1, 1.2), L(doorX, 1.15, d / 2 + 0.02));
-    B.add('timber', box(1.5, 0.14, 0.2, T.timber.mpt), L(doorX, 2.4, d / 2 + 0.02));
+    // parter: drzwi w portalu łukowym (motyw #10a, ?noportal=1 = drzwi 2,3 + nadproże belkowe HEAD) i okna
+    const doorX = (r() - 0.5) * (w - 3), faceZ0 = d / 2; // lico parteru (bez jetty)
+    const Po = CONFIG.houseDetail.portal, portal = !ctx.flags.noportal, doorH = portal ? Po.doorH : 2.3; // 2.3: wysokość drzwi HEAD (z ?noportal=1)
+    B.add('door', box(Po.doorW, doorH, 0.1, Po.doorW), L(doorX, doorH / 2, faceZ0 + 0.02)); // HEAD: drzwi 0,1 gr., UV doorW m/kafel, lico 2 cm przed parterem
+    if (portal) portalArch(doorX, faceZ0);
+    else B.add('timber', box(1.5, 0.14, 0.2, T.timber.mpt), L(doorX, 2.4, faceZ0 + 0.02)); // HEAD: nadproże belkowe
+    { const pp = LP(doorX, 0, faceZ0 + Po.front); // punkt zieleni: front m przed licem drzwi, na ziemi (greenery.js: donice); szyldy (props.js) czytają resztę pól
+      checkInFrontOfWall(`${id} punkt portalu`, pp, LP(doorX, 0, faceZ0), nrm, Po.front - 0.005); // 0.005: float
+      portals.push({ x: pp.x, z: pp.z, ry: tr.ry, side: h.side, along: h.along, setback: h.setback || 0, w, doorX, faceZ: faceZ0, faceZ1: faceZ0 + (h.jetty ? H.jetty : 0), orielX: oriel ? oriel.cx : null, tr }); } // faceZ1: lico piętra 1 (jetty)
     for (const sx of [-1, 1]) {
       const cx = doorX + sx * 2.2; if (Math.abs(cx) > w / 2 - 0.9) continue;
-      B.add(r() < 0.3 ? 'glassLit' : 'glass', box(0.9, 1.1, 0.04), L(cx, 1.8, d / 2 + 0.01));
-      checkInFrontOfWall(`${id} okno parteru`, LP(cx, 1.8, d / 2 + 0.01), LP(cx, 1.8, d / 2), nrm);
-      B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 - 0.55, d / 2 + 0.02));
-      B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 + 0.55, d / 2 + 0.02));
-      if (shutterOK(0, cx, true) && Rs() < Sh.share) shutters(cx, 1.8, 1.1, d / 2, Sh.ground.ww, Sh.ground.wing, `${id} parter`, null); // parter bez jetty: lico = d/2; skrzydła 0,45 przy oknie 0,9 (rama 1,05)
+      B.add(r() < 0.3 ? 'glassLit' : 'glass', box(0.9, 1.1, 0.04), L(cx, 1.8, faceZ0 + 0.01)); // HEAD: okno parteru 0,9 × 1,1, środek 1,8, 1 cm przed licem
+      checkInFrontOfWall(`${id} okno parteru`, LP(cx, 1.8, faceZ0 + 0.01), LP(cx, 1.8, faceZ0), nrm); // HEAD
+      B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 - 0.55, faceZ0 + 0.02)); // HEAD: parapet
+      B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 + 0.55, faceZ0 + 0.02)); // HEAD: nadproże okna
+      const shutG = shutterOK(0, cx, true) && Rs() < Sh.share;
+      if (shutG) shutters(cx, 1.8, 1.1, faceZ0, Sh.ground.ww, Sh.ground.wing, `${id} parter`, null); // parter bez jetty: lico = d/2; skrzydła 0,45 przy oknie 0,9 (rama 1,05)
+      if (portal) check(Math.abs(cx - doorX) - (shutG ? shutterReach(Sh.ground.ww, Sh.ground.wing) : 1.05 / 2) >= Po.archOut + 0.05, `${id} okno parteru w oprawie portalu`, { cx, doorX }); // skraj ramy 1,05 (1,675 od drzwi) / okiennicy (1,287) ≥ ościeże 0,9 + 0,05
+    }
+    // Portal łukowy (motyw #10a): oprawa `key` (blocks) 1 cm przed licem parteru: ościeża od archIn do archOut, półpierścień archRing na impoście,
+    // zwornik na szczycie łuku (out przed oprawą), próg na ziemi. Drzwi zostają w ścianie (lico +0,02) — widoczne przez otwór, rogi za pierścieniem.
+    function portalArch(doorX, faceZ0) {
+      const { archIn, archOut, impostY, t, key, keystone: K, threshold: Th } = Po, idP = `${id} portal`;
+      const zc = faceZ0 + 0.01 + t / 2; // środek oprawy: od 1 cm przed licem (K5) do 1 cm + t
+      for (const sx of [-1, 1]) B.add(key, box(archOut - archIn, impostY, t, T.blocks.mpt, off), L(doorX + sx * (archIn + archOut) / 2, impostY / 2, zc)); // ościeże: x od archIn do archOut od osi drzwi
+      B.add(key, archRing(archIn, archOut, t, Po.seg, T.blocks.mpt), L(doorX, impostY, zc));
+      checkInFrontOfWall(`${idP} łuk`, LP(doorX, impostY, zc), LP(doorX, impostY, faceZ0), nrm, t / 2 + 0.005); // środek łuku t/2 + 0,01 = 0,135 przed licem
+      check(Math.hypot(Po.doorW / 2, doorH - impostY) <= archOut - 0.02, `${idP} róg drzwi wystaje za pierścień łuku`, { r: Math.hypot(Po.doorW / 2, doorH - impostY), archOut }); // 0,849 ≤ 0,88 (K13)
+      const kTop = impostY + archOut + K.up, kZ = faceZ0 + 0.01 + (t + K.out) / 2; // zwornik: wierzch up nad szczytem łuku, od lica oprawy wystaje out
+      B.add(key, box(K.w, K.h, t + K.out, T.blocks.mpt, off), L(doorX, kTop - K.h / 2, kZ));
+      checkInFrontOfWall(`${idP} zwornik`, LP(doorX, kTop - K.h / 2, kZ + (t + K.out) / 2), LP(doorX, kTop - K.h / 2, zc + t / 2), nrm, K.out - 0.005); // przód zwornika out = 0,05 przed oprawą
+      check(kTop <= gf - 0.05 && kTop <= gf - 0.16 - 0.02, `${idP} zwornik wyżej niż parter / belki jetty`, { kTop, gf }); // 2,625 ≤ 3,15 i ≤ 3,02 (belki jetty bt 0,16 od gf w dół)
+      B.add(key, box(2 * archOut, Th.h, Th.d, T.blocks.mpt, off), L(doorX, Th.h / 2, faceZ0 + 0.01 + Th.d / 2)); // próg: spód na y = 0, od 1 cm przed licem do 1 cm + d
+      check(Th.h <= 0.15, `${idP} próg wyższy niż stopień`, { h: Th.h }); // 0.15: stopień, nie przeszkoda
+      // kolizja oprawy (K10): przy domach zamykających ulice obszar chodzenia sięga lica (layout.js: ulica do half + sl), więc ościeża 0,26 m i próg 0,36 m
+      // przed licem dostają własny prostokąt osiowy (domy stoją wzdłuż osi) — środek i półwymiary z tej samej macierzy L co bryły
+      const depthF = Math.max(t + K.out, Th.d) + 0.01, cF = LP(doorX, 0, faceZ0 + depthF / 2), alongAxisX = h.side % 2 === 0; // side 0/2: fasada wzdłuż x
+      ctx.addRect(cF.x, cF.z, alongAxisX ? archOut : depthF / 2, alongAxisX ? depthF / 2 : archOut); W.dbgRect?.(cF.x, cF.z, alongAxisX ? archOut : depthF / 2, alongAxisX ? depthF / 2 : archOut);
+      checkCollisionCovers(idP, new THREE.Box3().setFromPoints([LP(doorX - archOut, 0, faceZ0), LP(doorX + archOut, kTop, faceZ0 + depthF)]), { x: cF.x, z: cF.z, hw: alongAxisX ? archOut : depthF / 2, hd: alongAxisX ? depthF / 2 : archOut });
     }
     // dach
     const roofKey = 'roof' + h.roof, ov = H.overhang, pitch = h.pitch; // spadek per dom (layout.js, motyw #3)
@@ -254,5 +292,5 @@ export function buildHouses(W) {
     B.add('stone', box(0.9, y + 2.2 - gf, 0.9, T.stone.mpt, off), L(chx, (gf + y + 2.2) / 2, -1.5));
     chimneys.push(new THREE.Vector3(chx, y + 2.2, -1.5).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry)));
   }
-  W.chimneys = chimneys;
+  W.chimneys = chimneys; W.portals = portals;
 }
