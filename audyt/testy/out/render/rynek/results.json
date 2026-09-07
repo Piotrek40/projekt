@@ -3,56 +3,830 @@
     "view": "start_plac",
     "calls": 158,
     "triangles": 818939,
-    "fps": 17.1
+    "fps": 17.1,
+    "stats": {
+      "total": {
+        "calls": 158,
+        "tris": 818939
+      },
+      "shadow": {
+        "calls": 43,
+        "tris": 177369
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wine_bottles_01",
+          "calls": 18,
+          "tris": 40396
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 4,
+          "tris": 33384
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        }
+      ]
+    }
   },
   {
     "view": "fontanna_zblizenie",
-    "calls": 158,
-    "triangles": 818939,
-    "fps": 17.1
+    "calls": 151,
+    "triangles": 835331,
+    "fps": 17.1,
+    "stats": {
+      "total": {
+        "calls": 151,
+        "tris": 835331
+      },
+      "shadow": {
+        "calls": 44,
+        "tris": 181561
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wine_bottles_01",
+          "calls": 18,
+          "tris": 40396
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 4,
+          "tris": 33384
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        }
+      ]
+    }
   },
   {
     "view": "kram_zblizenie",
-    "calls": 158,
-    "triangles": 818939,
-    "fps": 17.1
+    "calls": 155,
+    "triangles": 816807,
+    "fps": 28.3,
+    "stats": {
+      "total": {
+        "calls": 155,
+        "tris": 816807
+      },
+      "shadow": {
+        "calls": 42,
+        "tris": 175397
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wine_bottles_01",
+          "calls": 18,
+          "tris": 40396
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 4,
+          "tris": 33384
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        }
+      ]
+    }
   },
   {
     "view": "pierzeja_wschodnia",
     "calls": 133,
     "triangles": 756297,
-    "fps": 40.4
+    "fps": 28.3,
+    "stats": {
+      "total": {
+        "calls": 133,
+        "tris": 756297
+      },
+      "shadow": {
+        "calls": 43,
+        "tris": 175405
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wine_bottles_01",
+          "calls": 18,
+          "tris": 40396
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        },
+        {
+          "name": "wooden_crate_01",
+          "calls": 2,
+          "tris": 25764
+        }
+      ]
+    }
   },
   {
     "view": "wieza",
-    "calls": 133,
-    "triangles": 756297,
-    "fps": 40.4
+    "calls": 141,
+    "triangles": 791809,
+    "fps": 28.3,
+    "stats": {
+      "total": {
+        "calls": 141,
+        "tris": 791809
+      },
+      "shadow": {
+        "calls": 43,
+        "tris": 177369
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wine_bottles_01",
+          "calls": 18,
+          "tris": 40396
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 4,
+          "tris": 33384
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        }
+      ]
+    }
   },
   {
     "view": "ulica_poludnie",
-    "calls": 133,
-    "triangles": 756297,
-    "fps": 40.4
+    "calls": 79,
+    "triangles": 512291,
+    "fps": 27.7,
+    "stats": {
+      "total": {
+        "calls": 79,
+        "tris": 512291
+      },
+      "shadow": {
+        "calls": 42,
+        "tris": 177357
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 3,
+          "tris": 27232
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 1,
+          "tris": 25968
+        },
+        {
+          "name": "fern_02",
+          "calls": 1,
+          "tris": 24928
+        },
+        {
+          "name": "timber",
+          "calls": 1,
+          "tris": 22972
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 1,
+          "tris": 17776
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 2,
+          "tris": 16692
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 1,
+          "tris": 16092
+        },
+        {
+          "name": "wooden_crate_01",
+          "calls": 1,
+          "tris": 12882
+        },
+        {
+          "name": "ceramic_vase_02",
+          "calls": 1,
+          "tris": 6676
+        }
+      ]
+    }
   },
   {
     "view": "woz",
-    "calls": 79,
-    "triangles": 512291,
-    "fps": 30
+    "calls": 119,
+    "triangles": 739877,
+    "fps": 27.7,
+    "stats": {
+      "total": {
+        "calls": 119,
+        "tris": 739877
+      },
+      "shadow": {
+        "calls": 39,
+        "tris": 160129
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 4,
+          "tris": 33384
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        },
+        {
+          "name": "wooden_crate_01",
+          "calls": 2,
+          "tris": 25764
+        }
+      ]
+    }
   },
   {
     "view": "karczma_szyld",
-    "calls": 79,
-    "triangles": 512291,
-    "fps": 30
+    "calls": 74,
+    "triangles": 488369,
+    "fps": 42.7,
+    "stats": {
+      "total": {
+        "calls": 74,
+        "tris": 488369
+      },
+      "shadow": {
+        "calls": 38,
+        "tris": 160117
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 3,
+          "tris": 27232
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 1,
+          "tris": 25968
+        },
+        {
+          "name": "fern_02",
+          "calls": 1,
+          "tris": 24928
+        },
+        {
+          "name": "timber",
+          "calls": 1,
+          "tris": 22972
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 1,
+          "tris": 17776
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 2,
+          "tris": 16692
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 1,
+          "tris": 16092
+        },
+        {
+          "name": "wooden_crate_01",
+          "calls": 1,
+          "tris": 12882
+        },
+        {
+          "name": "glass",
+          "calls": 1,
+          "tris": 2340
+        }
+      ]
+    }
   },
   {
-    "loadMs": 2433,
+    "view": "start_v2",
+    "calls": 158,
+    "triangles": 818939,
+    "fps": 42.7,
+    "stats": {
+      "total": {
+        "calls": 158,
+        "tris": 818939
+      },
+      "shadow": {
+        "calls": 43,
+        "tris": 177369
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wine_bottles_01",
+          "calls": 18,
+          "tris": 40396
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 4,
+          "tris": 33384
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        }
+      ]
+    }
+  },
+  {
+    "view": "start_v2_lewo",
+    "calls": 154,
+    "triangles": 831323,
+    "fps": 42.7,
+    "stats": {
+      "total": {
+        "calls": 154,
+        "tris": 831323
+      },
+      "shadow": {
+        "calls": 43,
+        "tris": 177369
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wine_bottles_01",
+          "calls": 18,
+          "tris": 40396
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 4,
+          "tris": 33384
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        }
+      ]
+    }
+  },
+  {
+    "view": "os_wieza",
+    "calls": 155,
+    "triangles": 818779,
+    "fps": 33,
+    "stats": {
+      "total": {
+        "calls": 155,
+        "tris": 818779
+      },
+      "shadow": {
+        "calls": 44,
+        "tris": 177377
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 4,
+          "tris": 53696
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 2,
+          "tris": 51936
+        },
+        {
+          "name": "fern_02",
+          "calls": 2,
+          "tris": 49856
+        },
+        {
+          "name": "timber",
+          "calls": 2,
+          "tris": 45944
+        },
+        {
+          "name": "wine_bottles_01",
+          "calls": 18,
+          "tris": 40396
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 2,
+          "tris": 35552
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 4,
+          "tris": 33384
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 2,
+          "tris": 32184
+        },
+        {
+          "name": "wooden_bowl_01",
+          "calls": 2,
+          "tris": 28240
+        }
+      ]
+    }
+  },
+  {
+    "view": "ulica_brama",
+    "calls": 79,
+    "triangles": 512291,
+    "fps": 33,
+    "stats": {
+      "total": {
+        "calls": 79,
+        "tris": 512291
+      },
+      "shadow": {
+        "calls": 42,
+        "tris": 177357
+      },
+      "top": [
+        {
+          "name": "grass_medium_02",
+          "calls": 2,
+          "tris": 156840
+        },
+        {
+          "name": "wooden_lantern_01",
+          "calls": 3,
+          "tris": 27232
+        },
+        {
+          "name": "wine_barrel_01",
+          "calls": 1,
+          "tris": 25968
+        },
+        {
+          "name": "fern_02",
+          "calls": 1,
+          "tris": 24928
+        },
+        {
+          "name": "timber",
+          "calls": 1,
+          "tris": 22972
+        },
+        {
+          "name": "wicker_basket_01",
+          "calls": 1,
+          "tris": 17776
+        },
+        {
+          "name": "potted_plant_02",
+          "calls": 2,
+          "tris": 16692
+        },
+        {
+          "name": "Barrel_01",
+          "calls": 1,
+          "tris": 16092
+        },
+        {
+          "name": "wooden_crate_01",
+          "calls": 1,
+          "tris": 12882
+        },
+        {
+          "name": "ceramic_vase_02",
+          "calls": 1,
+          "tris": 6676
+        }
+      ]
+    }
+  },
+  {
+    "loadMs": 2286,
     "transferMB": 48.3,
     "width": 824,
     "height": 1830,
     "quality": "high",
+    "sunDir": [
+      0.4976,
+      0.5,
+      0.7088
+    ],
+    "lineup": null,
     "errors": []
   }
 ]
