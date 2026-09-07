@@ -1,6 +1,8 @@
 // Konfiguracja rynku: cała skala, paleta i tekstury w jednym miejscu. Reguły generatora czytają tylko stąd.
 export const CONFIG = {
   seed: 7,
+  // klucze W.B (regex), które NIE rzucają cienia (Batch.build w geometry.js): nowe małe/cienkie obiekty — girlandy, lampiony, strumienie, mokry bruk, wieże w oddali, tarcza zegara, szyld, chorągwie
+  noShadowKeys: '^(bunting|paperLit|jet|wet|far|clock|sign|banner)',
   plaza: { size: 44, streetWidth: 6, streetLength: 16 },
   house: { depth: 8, floorHeight: 2.9, groundFloor: 3.2, jetty: 0.35, roofPitch: 0.85, overhang: 0.55, widthMin: 6, widthMax: 9.5, floorsMin: 2, floorsMax: 3 },
   tower: { size: 7, height: 15, roofHeight: 6 },
@@ -55,7 +57,10 @@ export const CONFIG = {
 
   bunting: {},        // tor „kramy i rekwizyty": girlandy chorągiewek, lampiony, sznury
 
-  props: {},          // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
+  // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
+  props: {
+    noShadow: ['grass_medium_02', 'fern_02', 'food_apple_01', 'wooden_bowl_01', 'ceramic_vase_01', 'ceramic_vase_02', 'wine_bottles_01', 'potted_plant_02'], // modele z W.put() bez cienia (NO_SHADOW w props.js)
+  },
 
   pois: [],           // tor „UI": podpisy miejsc {name, x, z, r}
 

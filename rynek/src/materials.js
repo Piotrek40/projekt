@@ -36,6 +36,7 @@ export async function buildMaterials(W) {
   if (!ctx.flags.nosway) bannerMats.forEach(m => sway(m, 0.08, true));
   ctx.updaters.push((dt, t) => { windUniform.value = t; });
   W.sets = sets; W.mat = mat; W.bannerMats = bannerMats; W.windUniform = windUniform;
+  W.sway = sway; // (§8 #8) kołysanie na wietrze dla innych modułów (girlandy): W.sway(material, amplituda, byUv); wywołujący sprawdza ctx.flags.nosway
 }
 
 export function smokeTexture() {
