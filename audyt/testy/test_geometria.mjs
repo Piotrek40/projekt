@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildSkyline, skylinePlan, buntingCurves, buildBunting, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildSkyline, skylinePlan, buntingCurves, buildBunting, fountainPlan, buildFountain, checkFailures } from './geo/scene.bundle.mjs';
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {
@@ -163,6 +163,47 @@ for (const r of rec.slice(n1).filter(r => r.key.startsWith('glass'))) {
   const lowest = Math.min(...bun.map(r => r.bb.clone().applyMatrix4(r.m).min.y));
   if (lowest < C.lantern.minY - 0.01) fails.push(`G: element girlandy poniżej ${C.lantern.minY}: y=${lowest.toFixed(2)}`);
   console.log(`girlandy: lin ${lines.length}, zwisy ${lines.map(l => l.zwis.toFixed(2)).join('/')}, y lin ${lines.map(l => l.A.y.toFixed(1)).join('/')}, lampionów ${keys.paperLit || 0}, elementów iron ${keys.iron || 0}, najniższy element ${lowest.toFixed(2)} m`);
+}
+// F) fontanna 3-poziomowa (fountain.js): plan z funkcji czystej fountainPlan + bryły z buildFountain (ten sam rejestrator B; stub W.mat = {} → bez Points)
+{
+  const F = CONFIG.fountain, plan = fountainPlan(CONFIG), n5 = rec.length; buildFountain(W); const fo = rec.slice(n5);
+  const wb = r => r.bb.clone().applyMatrix4(r.m);
+  // F1) posąg: krawędź górnej misy = rim + columnHeight (props.js stawia posąg na rim + columnHeight + 0.35); płyta kończy się dokładnie na spodzie posągu
+  if (Math.abs(plan.bowls.at(-1).top - (F.rim + F.columnHeight)) > 1e-6) fails.push(`F1 górna misa ${plan.bowls.at(-1).top} ≠ rim + columnHeight ${F.rim + F.columnHeight}`);
+  if (Math.abs(plan.cap.y1 - (F.rim + F.columnHeight + 0.35)) > 1e-6) fails.push(`F1 płyta kończy się na ${plan.cap.y1}, posąg (props.js) na ${F.rim + F.columnHeight + 0.35}`);
+  const capTop = Math.max(...fo.filter(r => r.key === 'blocks').map(r => wb(r).max.y));
+  if (Math.abs(capTop - plan.statueY) > 1e-6) fails.push(`F1 najwyższy element blocks ${capTop.toFixed(3)} ≠ spód posągu ${plan.statueY}`);
+  // F2) lustra: 3 dyski klucza water, normalna w górę, y między dnem + 0.05 a krawędzią − 0.02, promień < r wewnętrzny
+  const waters = fo.filter(r => r.key === 'water');
+  if (waters.length !== plan.waters.length || waters.length !== 1 + F.bowls.length) fails.push(`F2 luster ${waters.length} ≠ ${1 + F.bowls.length}`);
+  for (const r of waters) { const n = V(0, 0, 1).transformDirection(r.m); if (n.y < 0.99) fails.push(`F2 lustro z normalną ${f2(n)} (nie w górę)`); }
+  for (const wt of plan.waters) if (wt.y < wt.floor + 0.05 || wt.y > wt.rimY - 0.02 || wt.r >= wt.rIn) fails.push(`F2 lustro y=${wt.y} r=${wt.r} poza misą (dno ${wt.floor}, krawędź ${wt.rimY}, r wewn. ${wt.rIn})`);
+  // F3) strumienie: 8 + 4, start na krawędzi misy, koniec na lustrze niżej, łuk (apex ≥ start + 0.05), lądowanie 0.15 od ściany i od kolumny; geometrii jet = strumieni
+  if (plan.jets.length !== F.jets.count[0] + F.jets.count[1]) fails.push(`F3 strumieni ${plan.jets.length}`);
+  for (const j of plan.jets) {
+    const b = plan.bowls[j.tier], rl = Math.hypot(j.end.x, j.end.z);
+    if (j.start.y < b.top || Math.abs(j.end.y - j.below.y) > 1e-6 || j.apex < j.start.y + 0.05) fails.push(`F3 strumień ${j.tier}/${j.a.toFixed(2)}: start ${j.start.y.toFixed(2)} (krawędź ${b.top}), koniec ${j.end.y.toFixed(2)} (lustro ${j.below.y}), apex ${j.apex.toFixed(2)}`);
+    if (rl > j.below.rIn - 0.15 || rl < plan.columns[j.tier].r + 0.15) fails.push(`F3 strumień ${j.tier}: ląduje r=${rl.toFixed(2)} (woda ${plan.columns[j.tier].r}+0.15 … ${j.below.rIn}−0.15)`);
+  }
+  const keys = {}; for (const r of fo) keys[r.key] = (keys[r.key] || 0) + 1;
+  if ((keys.jet || 0) !== plan.jets.length) fails.push(`F3 geometrii jet ${keys.jet} ≠ strumieni ${plan.jets.length}`);
+  if ((keys.ripple || 0) !== plan.jets.length * F.ripple.perJet) fails.push(`F3 kręgów ${keys.ripple} ≠ strumieni × perJet ${plan.jets.length * F.ripple.perJet}`);
+  for (const r of fo.filter(r => r.key === 'ripple')) { const b = wb(r), w = plan.waters.find(w => Math.abs(b.min.y - (w.y + F.ripple.above)) < 1e-3); if (!w) fails.push(`F3 krąg na y=${b.min.y.toFixed(3)} — nie 0.01 nad żadnym lustrem`); }
+  // F4) kolizja (B6): koło w (0,0) r ≥ radius + collide; każdy element poza cobble|wet z min.y < 2 ma środek w tym kole; najniższy element ≥ 0 (schodek na bruku)
+  const c0 = col.circles.find(c => Math.abs(c.x) < 1e-6 && Math.abs(c.z) < 1e-6);
+  if (!c0 || c0.r < F.radius + F.collide - 1e-6) fails.push(`F4 brak koła kolizji fontanny r ≥ ${F.radius + F.collide}`);
+  for (const r of fo.filter(r => r.key !== 'wet')) { const b = wb(r); if (b.min.y < 2 && c0 && Math.hypot((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2) > c0.r) fails.push(`F4 element ${r.key} poza kolizją`); }
+  const lowest = Math.min(...fo.map(r => wb(r).min.y));
+  if (lowest < -0.01) fails.push(`F4 element fontanny pod ziemią: y=${lowest.toFixed(3)}`);
+  const stepR = Math.max(...fo.filter(r => r.key === 'blocks').map(r => wb(r).max.x));
+  if (stepR > c0.r + F.step.outer - F.collide + 1e-6) fails.push(`F4 schodek r=${stepR.toFixed(2)} dalej niż kolizja + 0.2`);
+  // F5) mokry bruk: 2 części wet (dysk do rFull + pierścień rFull→r), zasięg r > schodek + 0.5, 0 < y ≤ 0.01, normalna w górę
+  const wet = fo.filter(r => r.key === 'wet');
+  if (wet.length !== 2) fails.push(`F5 części wet ${wet.length} (ma być dysk + pierścień)`);
+  const wetR = Math.max(...wet.map(r => wb(r).max.x));
+  if (wetR <= stepR + 0.5 || Math.abs(wetR - F.wet.r) > 1e-3) fails.push(`F5 wet zasięg r=${wetR.toFixed(2)} (schodek ${stepR.toFixed(2)}, CONFIG ${F.wet.r})`);
+  for (const r of wet) { const b = wb(r), n = V(0, 0, 1).transformDirection(r.m); if (b.min.y <= 0 || b.min.y > 0.01 || n.y < 0.99) fails.push(`F5 wet y=${b.min.y.toFixed(3)} n=${f2(n)}`); }
+  console.log(`fontanna: spód posągu ${plan.statueY.toFixed(2)} m, misy krawędź ${plan.bowls.map(b => b.top.toFixed(2)).join('/')}, lustra y ${plan.waters.map(w => w.y.toFixed(2)).join('/')} r ${plan.waters.map(w => w.r.toFixed(2)).join('/')}, strumieni ${plan.jets.length} (apex ${plan.jets.map(j => j.apex.toFixed(2)).filter((v, i, a) => a.indexOf(v) === i).join('/')}), elementów blocks ${keys.blocks}, water ${keys.water}, jet ${keys.jet}, ripple ${keys.ripple}, wet ${keys.wet}, najniższy ${lowest.toFixed(2)} m`);
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);

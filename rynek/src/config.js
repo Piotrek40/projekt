@@ -9,7 +9,27 @@ export const CONFIG = {
   plaza: { size: 44, streetWidth: 6, streetLength: 16 },
   house: { depth: 8, floorHeight: 2.9, groundFloor: 3.2, jetty: 0.35, roofPitch: 0.85, overhang: 0.55, widthMin: 6, widthMax: 9.5, floorsMin: 2, floorsMax: 3 },
   tower: { size: 7, height: 15, roofHeight: 6 },
-  fountain: { radius: 3.2, rim: 0.75, columnHeight: 1.6, blockScale: 1.1 },
+  // fontanna 3-poziomowa (fountain.js, motyw #8). Flagi: ?nofountain=1 (stara cembrowina ośmiokątna), ?nojets=1 (bez strumieni, rozbryzgu i kręgów),
+  // ?nowet=1 (bez mokrego bruku), ?nowater=1 (woda/strumienie/kręgi statyczne). Wysokości bezwzględne (m, bruk y=0): obrzeże basenu rim; krawędź misy i
+  // = rim + bowls[i].top; posąg stoi na rim + columnHeight + 0.35 (literał w props.js placeStatue = plinth.h), więc columnHeight MUSI być = top ostatniej misy (check w fountain.js).
+  fountain: {
+    radius: 3.2, rim: 0.75, columnHeight: 2.4, blockScale: 1.1,   // r zewn. basenu, obrzeże, krawędź górnej misy nad brukiem = 3.15, skala tekstury blocks (m/kafel)
+    seg: 24, seedOffset: 800,                  // segmenty LatheGeometry/walców (dawniej 8 = widoczny ośmiokąt); własny rng dla rozbryzgu
+    basin: { wall: 0.4, lip: 0.12, lipH: 0.1, floor: 0.4, waterBelowRim: 0.1 }, // ściana 0.4 (r wewn. 2.8), obrzeże wystaje 0.12 na górnych 0.1 m, dno y 0.4, lustro 0.1 pod obrzeżem (y 0.65)
+    step: { h: 0.18, inner: 1.1, outer: 1.2 }, collide: 1.0,       // schodek r+1.1 / r+1.2 (jak dawniej), koło kolizji r+1.0 (gracz wchodzi 0.2 m na schodek — jak dawniej)
+    columns: [0.45, 0.38, 0.32],               // promienie: basen→misa 1, misa 1→misa 2 (0.35–0.5 wg §5.2 #8), trzpień pod płytą posągu (cieńszy — niesie tylko płytę)
+    bowls: [{ r: 1.8, depth: 0.3, top: 1.0 }, { r: 0.9, depth: 0.25, top: 2.4 }], // top = krawędź nad obrzeżem basenu (1.75 / 3.15 m nad brukiem); depth od krawędzi do spodu
+    bowlShape: [[0.55, 0.8], [0.85, 0.35]],    // węzły profilu spodu misy jako ułamki (r, depth): od dziury pod kolumną do krawędzi
+    bowlWall: 0.06, bowlWaterBelowRim: 0.08, waterInset: 0.02, holeInset: 0.03, sink: 0.04, // ścianka misy; lustro 0.08 pod krawędzią; lustro 0.02 od ściany; dziura 0.03 mniejsza od kolumny; kolumna zatopiona 0.04 w dnie/spodzie
+    plinth: { h: 0.35, capR: 0.7, capH: 0.1 }, // trzpień + płyta = 0.35 (= props.js); płyta r 0.7 pod podstawą posągu 1.92 × 1.27 m (bounds ×11.8)
+    // strumienie: 8 z krawędzi dolnej misy, 4 z górnej; QuadraticBezierCurve3(start na krawędzi, punkt kontrolny ctrlOut/ctrlUp za krawędzią, lądowanie landOut na lustrze niżej)
+    jets: { count: [8, 4], r: 0.035, seg: 10, radial: 5, startIn: 0.04, startUp: 0.02, ctrlOut: [0.35, 0.35], ctrlUp: [0.45, 0.45], landOut: [0.7, 0.5], // lądowanie r 2.5 (basen r wewn. 2.8) / 1.4 (misa r wewn. 1.74)
+            speed: 1.8, texRepeat: 3, opacity: 0.6, roughness: 0.2, envMapIntensity: 1.0, color: [0.93, 0.03, 215] }, // map.offset.x −= dt·speed (uv.x wzdłuż rury); tint jasny błękit OKLCH
+    splash: { perJet: 40, size: 0.12, up: 2.0, out: 0.6, rate: 1.4, life: 0.6, opacity: 0.85, color: [0.70, 0.04, 230], renderOrder: 3 }, // Points: kropla 0.12 m, w górę ≤ 2.0 m/s (h = v²/2g = 20 cm — ponad lustro, na tle ściany/kolumny), w bok ≤ 0.6; cykl 0.6 s; cykle 1–2: 0.07–0.09 białe, 7 cm → niewidoczne na białej wodzie
+    ripple: { rIn: 0.33, rOut: 0.45, seg: 16, perJet: 2, above: 0.01, speed: 0.6, minScale: 0.25, opacity: 0.85, color: [0.35, 0.04, 240] }, // pierścień 0.33–0.45, 2 na lądowanie (faza co ½), 0.01 nad lustrem (K5), skala 0.25→1 w 1/0.6 s, alfa 1→0; cykl 1: 0.05–0.45 biały = dysk niewidoczny; cykl 2: L 0.70/0.5 → ΔL 0.03 na lustrze L 0.76; cykl 4: lustro rysowane po kręgach przykrywało je (→ renderOrderKeys); cykl 5: L 0.50/0.6 ledwo widoczne → ciemniej i mocniej
+    wet: { r: 5.2, rFull: 4.6, seg: 32, y: 0.005, color: [0.55, 0.012, 80], roughness: 0.4 }, // mokry bruk: cobble tint L 0.55 (suchy 0xb9b3aa = L 0.75), gładszy; y 0.005 + polygonOffset; pełne krycie do r 4.6, zanik alfa do 0 na r 5.2 (cykl 2: ostra krawędź)
+    water: { envMapIntensity: 0.8, drift: [0.02, 0.013] }, // własny envMap (§4.1.9); cykl 1: 1.2 → lustro basenu L 0.74–0.80 C < 0.01 (białe, tint H 200 znika, kręgi niewidoczne); dryf normal mapy jak dawniej
+  },
   stalls: { count: 7, ringRadius: 11.5 },
   lanterns: { count: 8, ringRadius: 15.5 },
   sky: { file: 'sky_1k.hdr', environmentIntensity: 0.6, sunIntensity: 5.0, sunColor: 0xffd6a6, minElevationDeg: 30, rotation: -0.25, shadowExtent: 22 },

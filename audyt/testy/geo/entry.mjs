@@ -9,3 +9,4 @@ export { buildStalls } from '../../../rynek/src/stalls.js';
 export { buildTower } from '../../../rynek/src/tower.js';
 export { buildSkyline, skylinePlan } from '../../../rynek/src/skyline.js';
 export { buntingCurves, buildBunting } from '../../../rynek/src/bunting.js';
+export { fountainPlan, buildFountain } from '../../../rynek/src/fountain.js';
