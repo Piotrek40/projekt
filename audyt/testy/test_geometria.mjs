@@ -9,10 +9,7 @@ const KNOWN_B6 = [
   { key: 'timber', x: -9.43, z: 10.72, why: 'dyszel wozu, druga belka (jw.)', date: '2026-09-07' },
 ];
 // Znane wady HEAD (B5b ii): okna lukarn zakopane w połaci (buildings.js blok „lukarna" na HEAD: spód okna 0,44 m POD wierzchem płyty) — usuwa motyw #12 (lukarny NA połaci).
-const KNOWN_B5B = [ // 10 lukarn HEAD (side, along środka domu); spód okna 0,26–0,74 m pod wierzchem płyty (uruchomione 2026-09-07)
-  { side: 0, along: -27.0 }, { side: 0, along: 6.1 }, { side: 0, along: 13.9 }, { side: 1, along: 7.7 }, { side: 1, along: 15.4 }, { side: 1, along: 24.2 },
-  { side: 2, along: -26.6 }, { side: 2, along: -9.0 }, { side: 3, along: 7.4 }, { side: 3, along: 15.2 },
-];
+const KNOWN_B5B = []; // 10 lukarn HEAD usunięte 2026-09-07 przez motyw #12a (lukarny NA połaci: spód okna +0,10 nad wierzchem płyty)
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {

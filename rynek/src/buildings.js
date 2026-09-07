@@ -1,7 +1,7 @@
 // Kamienice szachulcowe (parter kamienny, piętra z wykuszem, belki, okna, dach, komin).
 import * as THREE from 'three';
 import { box, plane, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
-import { checkInFrontOfWall, checkCollisionCovers, facadeNormal } from '../../engine/src/check.js';
+import { check, checkInFrontOfWall, checkCollisionCovers, checkAboveSurface, facadeNormal } from '../../engine/src/check.js';
 
 export function buildHouses(W) {
   const { ctx, CONFIG, P, T, H, B, houses, sideTransform } = W;
@@ -39,7 +39,7 @@ export function buildHouses(W) {
         B.add('timber', box(bt, fh, bt, T.timber.mpt), L(x, y + fh / 2, zf));
         if (i < n && r() < 0.5) { // zastrzał w polu
           const len = Math.hypot(fw / n, fh) * 0.7;
-          B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * (r() < 0.5 ? 1 : -1)));
+          B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * (r() < 0.5 ? 1 : -1))); // rot: rz=±atan2(fw/n, fh) → góra zastrzału (0,1,0) ku ∓x: rz=+0.5 → (−0.479, 0.878, 0) (policzone); znak losowy = kierunek zastrzału
         }
       }
       // belki stropowe wystające pod wykuszem
@@ -74,24 +74,57 @@ export function buildHouses(W) {
     if (h.gableFront) {
       // kalenica wzdłuż z: szczyt widoczny od placu
       const span = w + 2 * ov, rise = (w / 2) * Math.tan(pitch), slope = Math.hypot(w / 2 + ov, rise);
-      for (const sx of [-1, 1]) B.add(roofKey, box(slope, 0.14, topD + 2 * ov, T.roof.mpt, off), L(sx * (w / 4 + ov / 2), y + rise / 2, jet / 2, 0, 0, -sx * Math.atan2(rise, w / 2 + ov)));
+      for (const sx of [-1, 1]) B.add(roofKey, box(slope, 0.14, topD + 2 * ov, T.roof.mpt, off), L(sx * (w / 4 + ov / 2), y + rise / 2, jet / 2, 0, 0, -sx * Math.atan2(rise, w / 2 + ov))); // rot: rz=−sx·a → koniec sx·x (okap) W DÓŁ, koniec x=0 (kalenica) w górze; policzone w 8, pitch 0.85, sx=+1: okap (4.55, y, jet/2), kalenica (0, y+4.55, jet/2)
       B.add(plasterKey, gable(w, rise, topD, T.plaster.mpt), L(0, y, jet / 2));
       B.add('timber', box(0.2, 0.2, topD + 2 * ov, T.timber.mpt), L(0, y + rise, jet / 2));
       // belki szczytu
       B.add('timber', box(0.14, rise * 0.9, 0.14, T.timber.mpt), L(0, y + rise * 0.45, topD / 2 + jet / 2 + 0.01));
     } else {
-      // kalenica wzdłuż x: okap nad fasadą
-      const rise = (topD / 2) * Math.tan(pitch), slope = Math.hypot(topD / 2 + ov, rise);
-      for (const sz of [-1, 1]) B.add(roofKey, box(w + 2 * ov, 0.14, slope, T.roof.mpt, off), L(0, y + rise / 2, jet / 2 + sz * (topD / 4 + ov / 2), 0, sz * Math.atan2(rise, topD / 2 + ov))); // rx=+a opuszcza koniec +z: dla sz=+1 (połać przednia) okap z przodu idzie w dół, kalenica zostaje wyżej (policzone w Node)
+      // kalenica wzdłuż x: okap nad fasadą. Powierzchnia połaci (§5.2 #12): oś płyty roofY(z) = y + (eaveZ − z)·s, s = rise/(topD/2 + ov)
+      // (NIE tan(pitch) — okap wydłuża połać); wierzch roofTopY = roofY + roofT/2 / cos(a) (+0,100 przy pitch 0,85; policzone 11,121 / 9,908 / 13,344 dla z 3,2 / 4,4 / 1,0)
+      const rise = (topD / 2) * Math.tan(pitch), slope = Math.hypot(topD / 2 + ov, rise), a = Math.atan2(rise, topD / 2 + ov), s = rise / (topD / 2 + ov);
+      const eaveZ = jet / 2 + topD / 2 + ov, roofT = 0.14; // z okapu (koniec +z płyty przedniej); grubość płyty
+      const roofY = z => y + (eaveZ - z) * s, roofTopY = z => roofY(z) + roofT / 2 * slope / (topD / 2 + ov); // oś płyty / wierzch płyty: +roofT/2 / cos(a) = ·slope/(topD/2+ov) (nad połacią liczy się wierzch — K9)
+      for (const sz of [-1, 1]) B.add(roofKey, box(w + 2 * ov, roofT, slope, T.roof.mpt, off), L(0, y + rise / 2, jet / 2 + sz * (topD / 4 + ov / 2), 0, sz * a)); // rot: rx=+a (sz=+1, połać przednia) opuszcza koniec +z: okap (0, y, eaveZ), kalenica (0, y+rise, jet/2) — policzone (0, 9, 5.25) / (0, 13.952, 0.35) dla y 9, jet 0.7, pitch 0.85
       // szczyty boczne (trójkąty) — widoczne między domami różnej wysokości
       for (const sx of [-1, 1]) B.add(plasterKey, gable(topD, rise, 0.3, T.plaster.mpt), L(sx * (w / 2 - 0.15), y, jet / 2, Math.PI / 2));
       B.add('timber', box(w + 2 * ov, 0.2, 0.2, T.timber.mpt), L(0, y + rise, jet / 2));
-      // lukarna
+      // lukarna (te same 2 wywołania r() co na HEAD → komin bez zmian)
       if (r() < 0.5) {
         const dx = (r() - 0.5) * (w - 3);
-        B.add(plasterKey, box(1.4, 1.2, 1.2, T.plaster.mpt), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.9));
-        B.add(roofKey, box(1.8, 0.12, 1.4, T.roof.mpt), L(dx, y + 1.5, topD / 2 + jet / 2 - 0.9, 0, 0.5)); // rx=+0.5: przód (+z, okap lukarny) niżej niż tył
-        B.add('glass', box(0.7, 0.6, 0.04), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.28));
+        if (ctx.flags.nodormer) { // HEAD: pudełko zakopane w połaci (okno 0,26–0,74 m pod wierzchem płyty — KNOWN_B5B w teście)
+          B.add(plasterKey, box(1.4, 1.2, 1.2, T.plaster.mpt), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.9)); // HEAD bez zmian
+          B.add(roofKey, box(1.8, 0.12, 1.4, T.roof.mpt, off), L(dx, y + 1.5, topD / 2 + jet / 2 - 0.9, 0, 0.5)); // rot: rx=+0.5 → przód (+z, okap lukarny) niżej niż tył: (0,0,1) → (0, −0.479, 0.878)
+          B.add('glass', box(0.7, 0.6, 0.04), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.28)); // HEAD bez zmian
+        } else dormer(dx);
+      }
+      // Motyw #12a „lukarna NA połaci" (?nodormer=1): ściana czołowa stoi W płycie (spód roofTopY(zF) − sink), okno nad dachówką
+      // (spód roofTopY(zF) + winUp), daszek pulpitowy łagodniejszy od połaci spotyka ją po `depth` m, policzki pod daszkiem schowane w strychu.
+      function dormer(dx) {
+        const D = CONFIG.houseDetail.dormer, idD = `${id} lukarna`;
+        const zF = eaveZ - D.fromEave, Rf = roofTopY(zF);                                       // lico ściany czołowej; wierzch połaci pod nim
+        const wallBottomY = Rf - D.sink, wallTopY = Rf + D.hFront, winBottomY = Rf + D.winUp;
+        B.add(plasterKey, box(D.w, wallTopY - wallBottomY, D.wallT, T.plaster.mpt, off), L(dx, (wallBottomY + wallTopY) / 2, zF - D.wallT / 2));
+        check(wallBottomY <= Rf - 0.05, `${idD} wisi nad połacią`, { wallBottomY, roofTopY: Rf, zF });          // 0.05: próg B5b (i) z §3.4
+        const [ww, wh] = D.win;
+        B.add('glass', box(ww, wh, 0.04), L(dx, winBottomY + wh / 2, zF + 0.01));                                // szkło 4 cm, 1 cm przed licem (jak okna pięter)
+        checkAboveSurface(`${idD} okno`, LP(dx, winBottomY, zF), Rf, 0.05);                                     // spód okna ≥ wierzch płyty + 0,05 (B5b ii)
+        B.add('timber', box(ww + 0.16, 0.08, 0.1), L(dx, winBottomY - 0.04, zF + 0.02));                        // parapet jak rama okien pięter; spód winUp − 0,08 = +0,02 nad połacią
+        B.add('timber', box(ww + 0.16, 0.08, 0.1), L(dx, winBottomY + wh + 0.04, zF + 0.02));                   // nadproże jw.
+        // daszek: oś capY(z) = wallTopY + capGap + (zF − z)·tc; tc < s, więc połać dogania daszek po depth = (hFront + capGap)/(s − tc) — obcięte do D.depth
+        const drop = D.hFront + D.capGap;
+        const depth = Math.min(D.depth[1], Math.max(D.depth[0], drop / (s - Math.tan(pitch * D.capRatio))));
+        const tc = s - drop / depth, capPitch = Math.atan(tc), zBack = zF - depth;
+        check(zBack > jet / 2 + 0.3, `${idD} sięga kalenicy`, { zBack, ridgeZ: jet / 2 });                        // 0.3: zapas przed belką kalenicy (0,2)
+        const capY = z => wallTopY + D.capGap + (zF - z) * tc;
+        const zA = zF + D.capOver, zB = zBack - 0.1, capLen = Math.hypot(zA - zB, capY(zA) - capY(zB));         // tył 0,1 m za punktem styku (schowany w płycie)
+        const capM = L(dx, (capY(zA) + capY(zB)) / 2, (zA + zB) / 2, 0, capPitch); // rot: rx=+capPitch → koniec +z (przód, okap daszka) W DÓŁ; policzone dla s0 along 13.9 (capPitch 0.204, capLen 2.76): przód (−2.67, 12.08, 3.85), tył (−2.67, 12.63, 1.15)
+        B.add(roofKey, box(D.w + 0.3, D.capT, capLen, T.roof.mpt, off), capM);                                  // daszek 0,15 m szerszy z każdej strony
+        const capFront = new THREE.Vector3(0, 0, capLen / 2).applyMatrix4(capM), capBack = new THREE.Vector3(0, 0, -capLen / 2).applyMatrix4(capM);
+        check(capBack.y > capFront.y + 0.2, `${idD} daszek odwrócony`, { front: capFront.toArray(), back: capBack.toArray() }); // 0.2: min różnica przód/tył (najpłytszy 0,43)
+        // policzki: w układzie daszka (górna krawędź capGap pod osią daszka), od lica ściany do tyłu daszka; spód hC pod daszkiem = w strychu
+        const hC = D.hFront + 0.3, cheekLen = capLen - D.capOver * Math.hypot(1, tc) - 0.02;                       // hypot(1,tc) = 1/cos(capPitch); 0.3: zapas, by spód policzka był ≥ 0,15 pod wierzchem płyty przy licu; 0.02: luz za licem
+        for (const sx of [-1, 1]) B.add(plasterKey, box(D.cheekT, hC, cheekLen, T.plaster.mpt, off), M4(sx * (D.w - D.cheekT) / 2, -(hC / 2 + D.capGap), -(capLen - cheekLen) / 2).premultiply(capM));
       }
     }
     // komin

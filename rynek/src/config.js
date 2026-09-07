@@ -46,7 +46,12 @@ export const CONFIG = {
 
   paletteOKLCH: {},   // tor „paleta": rodziny barw z rolami (tynki, dachy, drewno malowane, tkaniny, kamień, woda, emisja)
 
-  houseDetail: {},    // tor „kamienice": wykusze, kroksztyny, portale, okiennice, lukarny, gzymsy, sterczyny, typy dachów
+  houseDetail: {      // tor „kamienice": wykusze, kroksztyny, portale, okiennice, lukarny, gzymsy, sterczyny, typy dachów
+    // motyw #12a „lukarny NA połaci" (?nodormer=1 przywraca pudełko HEAD; buildings.js dormer()): lico ściany czołowej fromEave m przed okapem
+    // (w głąb połaci), spód ściany sink m POD wierzchem płyty roofTopY, wierzch hFront m nad nim; okno win (szer., wys.) ze spodem winUp nad wierzchem;
+    // daszek pulpitowy: nachylenie capRatio·pitch, obcięte tak, by głębokość lukarny mieściła się w depth [min, max]; wysięg capOver, grubość capT, szpara nad ścianą capGap
+    dormer: { w: 1.4, wallT: 0.12, cheekT: 0.12, fromEave: 1.6, sink: 0.15, hFront: 1.5, win: [0.6, 0.7], winUp: 0.1, capRatio: 0.3, depth: [1.6, 2.4], capOver: 0.2, capT: 0.1, capGap: 0.07 }, // metry; policzone dla seed 7: 10 lukarn, depth 1,60–2,40, capPitch 0,16–0,36 rad
+  },
 
   skyline: {},        // tor „wieża i panorama": druga linia dachów, wieże w oddali, bramy na końcach ulic, mgła, ptaki
 
