@@ -44,7 +44,7 @@ export async function buildWorld(ctx) {
   // ---------- niebo i słońce ----------
   const skyFile = new URLSearchParams(location.search).get('sky') || CONFIG.sky.file;
   const sun = await ctx.sky({ ...CONFIG.sky, file: skyFile, minElevation: THREE.MathUtils.degToRad(CONFIG.sky.minElevationDeg) });
-  ctx.updaters.push((dt, t, p) => followShadow(sun, p.x, p.z));
+  if (!ctx.flags.nofollow) ctx.updaters.push((dt, t, p) => followShadow(sun, p.x, p.z));
 
   // ---------- tekstury i materiały ----------
   const sets = {};
@@ -77,7 +77,7 @@ export async function buildWorld(ctx) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uWind;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>\n float swayK = ${byUv ? '(1.0 - clamp(uv.y, 0.0, 1.0))' : '1.0'};\n transformed.x += sin(uWind * 2.1 + position.y * 2.0 + position.z * 0.7) * ${amp} * swayK;\n transformed.z += cos(uWind * 1.7 + position.x * 1.3) * ${amp * 0.5} * swayK;`);
   }; };
-  bannerMats.forEach(m => sway(m, 0.08, true));
+  if (!ctx.flags.nosway) bannerMats.forEach(m => sway(m, 0.08, true));
   ctx.updaters.push((dt, t) => { windUniform.value = t; });
 
   const B = new Batch();
@@ -251,7 +251,7 @@ export async function buildWorld(ctx) {
     const water = new THREE.Mesh(new THREE.CircleGeometry(r - 0.05, 32), mat.water);
     water.rotation.x = -Math.PI / 2; water.position.y = F.rim - 0.1; water.receiveShadow = true;
     scene.add(water);
-    ctx.updaters.push((dt, t) => { mat.water.normalMap.offset.set(t * 0.02, t * 0.013); });
+    if (!ctx.flags.nowater) ctx.updaters.push((dt, t) => { mat.water.normalMap.offset.set((t * 0.02) % 1, (t * 0.013) % 1); });
   }
 
   // ---------- kramy ----------
@@ -343,11 +343,11 @@ export async function buildWorld(ctx) {
     const flame = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat.flame); flame.position.set(lx, 2.4, lz); scene.add(flame);
     lanternLights.push({ x: lx, z: lz });
   }
-  const lights = Array.from({ length: 4 }, () => { const l = new THREE.PointLight(0xffa452, 5, 12, 2); scene.add(l); return l; });
+  const lights = Array.from({ length: ctx.flags.nolights ? 0 : 4 }, () => { const l = new THREE.PointLight(0xffa452, 5, 12, 2); scene.add(l); return l; });
   ctx.updaters.push((dt, t, p) => {
     // cztery najbliższe latarnie świecą (koszt świateł punktowych rośnie z ich liczbą)
     const near = lanternLights.map(l => ({ l, d: (l.x - p.x) ** 2 + (l.z - p.z) ** 2 })).sort((a, b) => a.d - b.d).slice(0, 4);
-    near.forEach((n, i) => { lights[i].position.set(n.l.x, 2.4, n.l.z); lights[i].intensity = 5 + Math.sin(t * 7 + i) * 0.6; });
+    near.forEach((n, i) => { if (lights[i]) { lights[i].position.set(n.l.x, 2.4, n.l.z); lights[i].intensity = 5 + Math.sin(t * 7 + i) * 0.6; } });
   });
   // beczki, skrzynie, kosze pod ścianami; roślinność przy fundamentach
   for (let i = 0; i < 14; i++) {
@@ -413,7 +413,7 @@ export async function buildWorld(ctx) {
 
   // dym z kominów (co czwarty komin): cząstki unoszą się i rozwiewają, zapętlone
   const smokeTex = smokeTexture();
-  const smokers = chimneys.filter((c, i) => i % 4 === 1).slice(0, 6);
+  const smokers = ctx.flags.nosmoke ? [] : chimneys.filter((c, i) => i % 4 === 1).slice(0, 6);
   for (const c of smokers) {
     const N = 28, pos = new Float32Array(N * 3), seeds = Array.from({ length: N }, (_, i) => ({ t0: R() * 9, dx: R() - 0.5, dz: R() - 0.5 }));
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));

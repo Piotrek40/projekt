@@ -22,7 +22,11 @@ export async function createApp(opts) {
   let quality = QUALITY[qualityName];
 
   const canvas = document.getElementById('c');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  const flags = Object.fromEntries(new URLSearchParams(location.search)); // przełączniki diagnostyczne (?nosway=1 itd.)
+  const diag = { contextLost: 0, restored: 0 };
+  canvas.addEventListener('webglcontextlost', e => { diag.contextLost++; e.preventDefault(); });
+  canvas.addEventListener('webglcontextrestored', () => { diag.restored++; });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !flags.noaa, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = opts.exposure ?? 1.0;
@@ -43,7 +47,7 @@ export async function createApp(opts) {
   const rects = [];     // { x, z, hw, hd } (osiowe)
   const walkable = [];  // { x, z, hw, hd } — suma prostokątów, po których wolno chodzić
   const ctx = {
-    THREE, scene, renderer, camera, loaders, maxAniso,
+    THREE, scene, renderer, camera, loaders, maxAniso, flags,
     get quality() { return quality; },
     aniso: () => Math.min(quality.aniso, maxAniso),
     addCircle: (x, z, r) => circles.push({ x, z, r }),
@@ -160,7 +164,7 @@ export async function createApp(opts) {
   function loop(now) {
     const dt = Math.min((now - last) / 1000, 0.1); last = now;
     updatePlayer(dt);
-    for (const u of ctx.updaters) u(dt, (now - t0) / 1000, state);
+    for (const u of ctx.updaters) { try { u(dt, (now - t0) / 1000, state); } catch (e) { console.error('updater', e); } }
     renderer.render(scene, camera);
     frames++; acc += dt; frameTimes.push(dt * 1000);
     if (acc >= 1) {
@@ -188,7 +192,7 @@ export async function createApp(opts) {
     if (gpu) { const gl = renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); gpu.textContent = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); }
     if (loadingEl) loadingEl.hidden = true;
     // ?debug=1 — nakładka diagnostyczna (tryb tekstur, rozszerzenia GPU, błędy GL, ostatnie błędy konsoli)
-    if (new URLSearchParams(location.search).get('debug')) {
+    if (flags.debug) {
       const d = document.createElement('pre');
       d.style.cssText = 'position:fixed;left:8px;top:64px;max-width:92vw;font:10px/1.3 ui-monospace,monospace;background:rgba(0,0,0,.7);color:#9f9;padding:6px;white-space:pre-wrap;word-break:break-all;z-index:9;pointer-events:none';
       const gl = renderer.getContext();
@@ -198,7 +202,7 @@ export async function createApp(opts) {
       const origWarn = console.warn; console.warn = (...a) => { errs.push('warn: ' + a.map(String).join(' ').slice(0, 200)); origWarn(...a); };
       const update = () => {
         const i = renderer.info;
-        d.textContent = JSON.stringify({ ...loaders.info, glError: gl.getError(), textures: i.memory.textures, geometries: i.memory.geometries, programs: i.programs?.length, errors: errs.slice(-6) }, null, 1);
+        d.textContent = JSON.stringify({ ...loaders.info, flags, ...diag, cam: camera.position.toArray().map(v => +v.toFixed(2)), rot: [camera.rotation.x, camera.rotation.y].map(v => +v.toFixed(2)), move: [move.x, move.y].map(v => +v.toFixed(2)), frame: i.render.frame, precision: renderer.capabilities.precision, glError: gl.getError(), textures: i.memory.textures, geometries: i.memory.geometries, programs: i.programs?.length, errors: errs.slice(-6) }, null, 1);
       };
       update(); setInterval(update, 2000); document.body.appendChild(d);
     }
