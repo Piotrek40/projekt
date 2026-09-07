@@ -174,16 +174,21 @@ function buildGates(W, gates) {
   }
 }
 
-// Wieże w oddali: trzon + stożek + przybudówka, klucz far (jaśniejszy tint = perspektywa powietrzna, do tego mgła).
+// Wieże w oddali: trzon + gzyms + stożkowy hełm + przybudówka, klucz far (jaśniejszy, chłodny tint = perspektywa powietrzna, do tego mgła).
 function buildFarTowers(W, towers) {
   const { CONFIG, B, T } = W;
-  const S = CONFIG.skyline, F = S.farBlock;
+  const S = CONFIG.skyline, F = S.farBlock, Fd = S.farDetail;
   for (const t of towers) {
     check(t.dist >= 60 && t.dist <= 110, `wieża w oddali ${t.i}: poza 60–110 m`, { dist: t.dist });
-    const trunk = cylinder(t.r, t.r * 1.1, t.h, 8, T.blocks.mpt), mt = M4(t.x, t.h / 2, t.z, t.a); // podstawa 10 % szersza
+    const trunk = cylinder(t.r, t.r * Fd.baseFlare, t.h, Fd.seg, T.blocks.mpt), mt = M4(t.x, t.h / 2, t.z, t.a);
     B.add('far', trunk, mt);
-    B.place('far', new THREE.ConeGeometry(t.r * 1.3, t.h * 0.3, 8), t.x, t.h + t.h * 0.15, t.z, t.a); // hełm 30 % wysokości trzonu, okap 30 %
-    // przybudówka po stronie stycznej pierścienia: lokalne +x wieży obróconej o a (ry=a: +x → (cos a, 0, −sin a) = styczna, §3.1)
+    // gzyms (machikuły): spód = wierzch trzonu (r), wierzch szerszy (ledgeR·r); hełm stoi na gzymsie
+    const ledgeTopY = t.h + Fd.ledgeH;
+    B.place('far', cylinder(t.r * Fd.ledgeR, t.r, Fd.ledgeH, Fd.seg, T.blocks.mpt), t.x, t.h + Fd.ledgeH / 2, t.z, t.a);
+    const capH = t.h * Fd.capShare;
+    B.place('far', new THREE.ConeGeometry(t.r * Fd.capR, capH, Fd.seg), t.x, ledgeTopY + capH / 2, t.z, t.a);
+    check(Fd.capR > Fd.ledgeR && Fd.ledgeR > 1, `wieża w oddali ${t.i}: hełm węższy niż gzyms`, Fd); // okap hełmu poza gzymsem, gzyms poza trzonem
+    // przybudówka po stronie stycznej pierścienia: lokalne +x wieży obróconej o a (ry=a: +x → (cos a, 0, −sin a) = styczna; policzone a=π+0.3: (−0.955, 0, 0.296))
     const annex = box(F.w, F.h, F.d), ma = M4(t.r + 1 + F.w / 2, F.h / 2, 0).premultiply(M4(t.x, 0, t.z, t.a));
     B.add('far', annex, ma);
     // na gruncie: bruk to kwadrat ±groundExtent, więc liczy się max(|x|, |z|) narożników AABB, nie odległość od środka
