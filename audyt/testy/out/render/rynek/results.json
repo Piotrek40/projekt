@@ -1,0 +1,58 @@
+[
+  {
+    "view": "start_plac",
+    "calls": 158,
+    "triangles": 818939,
+    "fps": 17.1
+  },
+  {
+    "view": "fontanna_zblizenie",
+    "calls": 158,
+    "triangles": 818939,
+    "fps": 17.1
+  },
+  {
+    "view": "kram_zblizenie",
+    "calls": 158,
+    "triangles": 818939,
+    "fps": 17.1
+  },
+  {
+    "view": "pierzeja_wschodnia",
+    "calls": 133,
+    "triangles": 756297,
+    "fps": 40.4
+  },
+  {
+    "view": "wieza",
+    "calls": 133,
+    "triangles": 756297,
+    "fps": 40.4
+  },
+  {
+    "view": "ulica_poludnie",
+    "calls": 133,
+    "triangles": 756297,
+    "fps": 40.4
+  },
+  {
+    "view": "woz",
+    "calls": 79,
+    "triangles": 512291,
+    "fps": 30
+  },
+  {
+    "view": "karczma_szyld",
+    "calls": 79,
+    "triangles": 512291,
+    "fps": 30
+  },
+  {
+    "loadMs": 2433,
+    "transferMB": 48.3,
+    "width": 824,
+    "height": 1830,
+    "quality": "high",
+    "errors": []
+  }
+]

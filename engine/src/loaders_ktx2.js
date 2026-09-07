@@ -6,6 +6,7 @@ import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 const ASSETS = './assets/';
+// Katalog vendor (transkoder Basis) względem strony sceny
 
 export function createLoaders(manager, renderer) {
   const ktx2 = new KTX2Loader(manager).setTranscoderPath('./vendor/basis/').detectSupport(renderer);
@@ -16,7 +17,7 @@ export function createLoaders(manager, renderer) {
     // name: nazwa zestawu, map: 'diff' | 'nor' | 'arm'
     loadTexture: (name, map) => p(ktx2, `${ASSETS}textures/${name}_${map}.ktx2`),
     loadModel: name => p(gltf, `${ASSETS}models/${name}.glb`),
-    loadSky: () => p(hdr, `${ASSETS}hdri/sky_1k.hdr`),
+    loadSky: (file = 'sky_1k.hdr') => p(hdr, `${ASSETS}hdri/${file}`),
     mode: 'ktx2',
   };
 }

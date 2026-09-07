@@ -1,0 +1,5 @@
+[
+  { "name": "start_plac", "x": 4, "z": 19, "yaw": 0.15, "pitch": 0.02 },
+  { "name": "pierzeja_wschodnia", "x": 6, "z": 0, "yaw": -1.35, "pitch": 0.12 },
+  { "name": "kram_zblizenie", "x": 8.0, "z": 9.5, "yaw": 0.45, "pitch": -0.25 }
+]

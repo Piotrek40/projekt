@@ -11,3 +11,5 @@ audyt/assets_src/textures/
 audyt/assets_src/hdri/
 demo_artifact/dziedziniec.html
 demo_artifact/app_inline.js
+demo_artifact/*_inline.js
+demo_artifact/*.html

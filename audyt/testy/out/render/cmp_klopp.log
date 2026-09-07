@@ -1,0 +1,11 @@
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+page.waitForFunction: Timeout 300000ms exceeded.
+    at /home/user/projekt/audyt/testy/render_scene.js:33:16 {
+  name: 'TimeoutError'
+}
+
+Node.js v22.22.2
+CMP DONE

@@ -1,0 +1,31 @@
+model wooden_lantern_01 1024 -> 1.7M
+model horse_statue_01 2048 -> 3.8M
+model wine_barrel_01 1024 -> 1.2M
+model wooden_crate_01 1024 -> 980K
+model barrel_03 1024 -> 964K
+model Barrel_01 1024 -> 1.2M
+model wicker_basket_01 1024 (simplify 0.5) -> 1.2M
+model wooden_bucket_02 1024 -> 1.2M
+model ceramic_vase_01 1024 -> 468K
+model ceramic_vase_02 1024 -> 1.1M
+model food_apple_01 1024 -> 612K
+model wooden_bowl_01 1024 -> 1.1M
+model wooden_stool_02 1024 -> 1.4M
+model treasure_chest 1024 (simplify 0.25) -> 1.7M
+model grass_medium_02 1024 -> 444K
+model fern_02 1024 -> 688K
+model rock_moss_set_02 1024 (simplify 0.4) -> 1.5M
+model tree_stump_01 1024 (simplify 0.4) -> 1.9M
+model potted_plant_02 1024 (simplify 0.4) -> 2.5M
+model wine_bottles_01 1024 -> 2.0M
+model Lantern_01 1024 (simplify 0.5) -> 1.4M
+tex plastered_wall 2048/1024 -> 2.4M
+tex cobblestone_floor_04 2048/2048 -> 5.4M
+tex weathered_planks 1024/1024 -> 920K
+tex old_planks_02 1024/1024 -> 1.2M
+tex roof_09 2048/1024 -> 2.2M
+tex rustic_stone_wall_02 2048/1024 -> 2.5M
+tex castle_wall_slates 1024/1024 -> 1.7M
+tex medieval_blocks_05 2048/1024 -> 2.7M
+RAZEM: 48M
+BUILD EXIT 0

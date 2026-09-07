@@ -51,7 +51,7 @@ export function createLoaders(manager) {
       const t = new THREE.Texture(img); t.flipY = false; t.needsUpdate = true; return t;
     },
     loadModel: name => p(gltf, `models/${name}.glb`),
-    loadSky: () => p(hdr, 'hdri/sky.hdr'),
+    loadSky: () => p(hdr, 'hdri/sky.hdr'), // wariant inline ma jedno niebo
     mode: 'inline',
   };
 }

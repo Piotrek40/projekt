@@ -1,0 +1,20 @@
+model grass_medium_02 1024 (simplify 0.3) -> 356K
+model fern_02 1024 (simplify 0.3) -> 680K
+model food_apple_01 512 (simplify 0.3) -> 248K
+model ceramic_vase_01 1024 (simplify 0.4) -> 408K
+model wooden_bowl_01 1024 (simplify 0.35) -> 932K
+model ceramic_vase_02 1024 (simplify 0.4) -> 996K
+model wicker_basket_01 1024 (simplify 0.3) -> 1.2M
+model wooden_lantern_01 1024 (simplify 0.5) -> 1.6M
+model wooden_stool_02 1024 (simplify 0.4) -> 1.3M
+model wine_bottles_01 1024 (simplify 0.5) -> 1.8M
+model wine_barrel_01 1024 (simplify 0.5) -> 1.1M
+model horse_statue_01 2048 (simplify 0.6) -> 3.6M
+model wooden_crate_01 1024 (simplify 0.6) -> 944K
+model wooden_bucket_02 1024 (simplify 0.5) -> 1.2M
+model rock_moss_set_02 1024 (simplify 0.25) -> 1.4M
+model tree_stump_01 1024 (simplify 0.25) -> 1.9M
+model treasure_chest 1024 (simplify 0.15) -> 1.6M
+model potted_plant_02 1024 (simplify 0.3) -> 2.5M
+model Lantern_01 1024 (simplify 0.3) -> 1.3M
+REBUILD EXIT 0

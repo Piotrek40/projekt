@@ -1,0 +1,36 @@
+model wooden_crate_01 1k files 5
+model wine_barrel_01 1k files 5
+model barrel_03 1k files 5
+model wooden_bucket_02 1k files 5
+model wicker_basket_01 1k files 5
+model food_apple_01 1k files 5
+model wooden_lantern_01 1k files 8
+model horse_statue_01 2k files 5
+model treasure_chest 1k files 5
+model ceramic_vase_01 1k files 5
+model ceramic_vase_02 1k files 5
+model wooden_bowl_01 1k files 5
+model wooden_stool_02 1k files 5
+model WoodenTable_01 1k files 5
+model wooden_display_shelves_01 1k files 5
+model grass_medium_02 1k files 5
+model fern_02 1k files 5
+model tree_stump_01 1k files 5
+model rock_moss_set_02 1k files 5
+texture cobblestone_floor_04 2k
+texture plastered_wall 2k
+texture medieval_wall_01 2k
+texture weathered_planks 2k
+texture old_planks_02 2k
+texture roof_09 2k
+texture ceramic_roof_01 2k
+texture castle_wall_slates 2k
+texture medieval_blocks_05 2k
+texture rustic_stone_wall_02 2k
+hdri kloppenheim_06_puresky 2k
+hdri kloppenheim_06_puresky 1k
+hdri venice_sunset 1k
+DOWNLOAD DONE
+50M	models
+140M	textures
+14M	hdri
