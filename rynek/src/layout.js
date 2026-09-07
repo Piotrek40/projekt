@@ -1,5 +1,5 @@
 // Układ placu: obszar chodzenia, ulice, podział pierzei na kamienice (z ziarna) i transformacja pierzeja→świat.
-import { plane } from '../../engine/src/geometry.js';
+import { plane, rng } from '../../engine/src/geometry.js';
 import { check } from '../../engine/src/check.js';
 import { towerPlacement } from './tower.js';
 
@@ -21,19 +21,45 @@ export function buildLayout(W) {
     // side: 0 = północ (z<0), 1 = wschód (x>0), 2 = południe (z>0), 3 = zachód (x<0)
     const segs = [[-half - H.depth, -sw / 2], [sw / 2, half + H.depth]]; // dwa odcinki pierzei z przerwą na ulicę
     for (const [a, b] of segs) {
-      let pos = a;
+      let pos = a, prev = null;
       while (b - pos > H.widthMin) {
         let w = Math.min(R.range(H.widthMin, H.widthMax), b - pos);
         if (b - pos - w < H.widthMin) w = b - pos; // ostatni dom domyka pierzeję
-        houses.push({ side, along: pos + w / 2, w, floors: R.int(H.floorsMin, H.floorsMax), plaster: R.int(0, P.plaster.length - 1), roof: R.int(0, P.roof.length - 1), gableFront: R() < 0.35, jetty: R() < 0.7, seedLocal: R.int(1, 1e6) });
+        const h = { side, along: pos + w / 2, w, floors: R.int(H.floorsMin, floorsMax), plaster: R.int(0, P.plaster.length - 1), roof: R.int(0, P.roof.length - 1), gableFront: R() < 0.35, jetty: R() < 0.7, seedLocal: R.int(1, 1e6) }; // szczyt od placu 35 %, wykusz 70 % (jak na HEAD)
+        varyHouse(h, prev);
+        houses.push(h); prev = h;
         pos += w;
       }
     }
   }
+  // Motyw #3 „różne wysokości i spadki" (?noheights=1 = wszystkie domy jak na HEAD: 2–3 piętra, 2,9 m, 0,85 rad). Liczba pięter z ziarna
+  // głównego R (ta sama liczba wywołań R co bez motywu → tynki, kramy i rekwizyty bez przetasowania); wysokość kondygnacji, spadek
+  // i kierunek korekty z osobnego strumienia rng(seedLocal + 1) (buildings.js zaczyna od rng(seedLocal), więc inny strumień).
+  // Reguła „nie dwa takie same obok": floors === prev.floors → ±1 (−1 przy maksimum albo losowo, gdy nie minimum; inaczej +1).
+  const vary = ctx.flags.noheights ? null : H.vary;
+  const floorsMax = vary ? vary.floorsMax : H.floorsMax;
+  function varyHouse(h, prev) {
+    const Rv = rng(h.seedLocal + 1);
+    h.floorHeight = vary ? Rv.range(...vary.floorHeight) : H.floorHeight;
+    h.pitch = vary ? Rv.range(...vary.roofPitch) : H.roofPitch;
+    if (vary && prev && prev.floors === h.floors) h.floors += (h.floors === floorsMax || (h.floors > H.floorsMin && Rv() < 0.5)) ? -1 : 1; // 0.5: kierunek korekty losowy (pół na pół)
+  }
   for (let s = 0; s < 4; s++) layoutSide(s);
+  if (vary) checkHeights(houses, vary);
+  // asercje motywu #3 (na liczbach seed 7 PRZED kodem: 16 par sąsiadów, 0 z tą samą liczbą pięter; piętra 2/3/4 = 3/11/10 → 3 różne)
+  function checkHeights(houses, vary) {
+    let same = 0, pairs = 0;
+    for (let s = 0; s < 4; s++) {
+      const row = houses.filter(h => h.side === s).sort((a, b) => a.along - b.along);
+      for (let i = 1; i < row.length; i++) if (Math.abs((row[i].along - row[i].w / 2) - (row[i - 1].along + row[i - 1].w / 2)) < 0.01) { pairs++; if (row[i].floors === row[i - 1].floors) same++; } // sąsiedzi = stykające się krawędzie
+    }
+    check(same === 0, 'sąsiednie domy z tą samą liczbą pięter', { same, pairs });
+    check(new Set(houses.map(h => h.floors)).size >= vary.minDistinctFloors, 'za mało różnych liczb pięter w pierzejach', { floors: [...new Set(houses.map(h => h.floors))] });
+    for (const h of houses) check(h.floors >= H.floorsMin && h.floors <= vary.floorsMax && h.floorHeight >= vary.floorHeight[0] && h.floorHeight <= vary.floorHeight[1] && h.pitch >= vary.roofPitch[0] && h.pitch <= vary.roofPitch[1], 'dom poza zakresami motywu #3', { side: h.side, along: h.along, floors: h.floors, fh: h.floorHeight, pitch: h.pitch });
+  }
   if (!ctx.flags.notower2) fitToTower(houses, towerPlacement(CONFIG), H);   // motyw #2: pierzeja N-W kończy się przed obrysem okrągłej wieży
   // domy zamykające ulice (widok w głąb ulicy kończy się fasadą)
-  for (let s = 0; s < 4; s++) houses.push({ side: s, along: 0, w: sw + 2 * H.depth, floors: 3, plaster: R.int(0, P.plaster.length - 1), roof: R.int(0, P.roof.length - 1), gableFront: false, jetty: true, seedLocal: R.int(1, 1e6), setback: sl });
+  for (let s = 0; s < 4; s++) { const h = { side: s, along: 0, w: sw + 2 * H.depth, floors: 3, plaster: R.int(0, P.plaster.length - 1), roof: R.int(0, P.roof.length - 1), gableFront: false, jetty: true, seedLocal: R.int(1, 1e6), setback: sl }; varyHouse(h, null); houses.push(h); } // 3 piętra stałe; wysokość kondygnacji i spadek per dom
 
   // Motyw #2: pierzeja N-W (side 0, along < 0) kończy się na krawędzi houseEdgeMax = tx − rBot − 0,3 = −10,5 (nie −3): ostatnie domy od strony
   // ulicy są odcinane — dom, który po odcięciu byłby węższy niż widthMin, znika, a poprzedni domyka pierzeję do tej krawędzi (ta sama reguła,

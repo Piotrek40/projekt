@@ -2,7 +2,11 @@
 export const CONFIG = {
   seed: 7,
   plaza: { size: 44, streetWidth: 6, streetLength: 16 },
-  house: { depth: 8, floorHeight: 2.9, groundFloor: 3.2, jetty: 0.35, roofPitch: 0.85, overhang: 0.55, widthMin: 6, widthMax: 9.5, floorsMin: 2, floorsMax: 3 },
+  house: { depth: 8, floorHeight: 2.9, groundFloor: 3.2, jetty: 0.35, roofPitch: 0.85, overhang: 0.55, widthMin: 6, widthMax: 9.5, floorsMin: 2, floorsMax: 3, // wymiary bazowe (słownik skali §3.7)
+    // motyw #3 „różne wysokości i spadki" (?noheights=1 przywraca floorsMax 3 oraz floorHeight 2,9 / roofPitch 0,85 dla wszystkich domów):
+    // liczba pięter 2–4 z ziarna głównego, wysokość kondygnacji i spadek per dom z ziarna domu; sąsiednie domy nigdy z tą samą liczbą pięter
+    vary: { floorsMax: 4, floorHeight: [2.7, 3.1], roofPitch: [0.7, 1.0], minDistinctFloors: 3 }, // zakresy §5.2 #3; minDistinctFloors: pierzeje mają ≥ 3 różne liczby pięter
+  },
   // wieża ratusza — motyw #2 „okrągła wieża 36 m" (tor „wieża i panorama"; ?notower2=1 przywraca starą kwadratową: size/height/roofHeight)
   tower: {
     size: 7, height: 15, roofHeight: 6,                 // stara kwadratowa (tylko z ?notower2=1)

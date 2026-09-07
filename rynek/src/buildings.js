@@ -12,7 +12,7 @@ export function buildHouses(W) {
     const L = (x, y, z, ry = 0, rx = 0, rz = 0) => M4(x, y, z, ry, rx, rz).premultiply(M4(tr.x, 0, tr.z, tr.ry)); // lokalny → świat
     const LP = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry)); // punkt lokalny → świat (do asercji)
     const nrm = facadeNormal(tr.ry), id = `dom s${h.side} along${h.along.toFixed(1)}`; // normalna fasady w świecie (fasada w lokalnym +z); NIE `n` — w pętli pięter `n` to liczba słupków
-    const w = h.w, d = H.depth, gf = H.groundFloor, fh = H.floorHeight;
+    const w = h.w, d = H.depth, gf = H.groundFloor, fh = h.floorHeight; // wysokość kondygnacji per dom (layout.js, motyw #3)
     const off = [r(), r()];
     // parter kamienny
     B.add('stone', box(w, gf, d, T.stone.mpt, off), L(0, gf / 2, 0));
@@ -69,7 +69,7 @@ export function buildHouses(W) {
       B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 + 0.55, d / 2 + 0.02));
     }
     // dach
-    const roofKey = 'roof' + h.roof, ov = H.overhang, pitch = H.roofPitch;
+    const roofKey = 'roof' + h.roof, ov = H.overhang, pitch = h.pitch; // spadek per dom (layout.js, motyw #3)
     const topD = d + jet;
     if (h.gableFront) {
       // kalenica wzdłuż z: szczyt widoczny od placu
