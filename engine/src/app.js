@@ -30,7 +30,7 @@ export async function createApp(opts) {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = opts.exposure ?? 1.0;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !flags.noshadow;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
@@ -187,6 +187,7 @@ export async function createApp(opts) {
   const loadingEl = document.getElementById('loading');
   try {
     await opts.buildWorld(ctx);
+    if (flags.basic) scene.traverse(o => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; const conv = ms.map(m => new THREE.MeshBasicMaterial({ map: m.map || null, color: m.color || 0xffffff, side: m.side, transparent: m.transparent, opacity: m.opacity })); o.material = Array.isArray(o.material) ? conv : conv[0]; } });
     applyQuality(qualityName);
     const gpu = document.getElementById('gpu');
     if (gpu) { const gl = renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); gpu.textContent = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER); }

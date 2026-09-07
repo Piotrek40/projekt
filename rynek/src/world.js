@@ -295,6 +295,7 @@ export async function buildWorld(ctx) {
   function flushInstances() {
     for (const [name, mats] of placements) {
       const root = models.get(name).scene;
+      if (ctx.flags.noinst) { for (const m of mats) { const c = root.clone(true); c.applyMatrix4(m); c.traverse(o => { if (o.isMesh) { o.castShadow = !NO_SHADOW.has(name); o.receiveShadow = true; } }); scene.add(c); } continue; }
       root.traverse(o => {
         if (!o.isMesh) return;
         // niektóre skany mają morph targets (nieużywane) — InstancedMesh bez influences wywala renderer, więc je usuwamy
