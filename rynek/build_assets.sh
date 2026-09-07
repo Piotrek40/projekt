@@ -35,6 +35,7 @@ tex cobblestone_floor_04 2048 2048 & tex plastered_wall 2048 1024 & wait
 tex old_planks_02 1024 1024 & tex weathered_planks 1024 1024 & wait
 tex roof_09 2048 1024 & tex rustic_stone_wall_02 2048 1024 & wait
 tex medieval_blocks_05 2048 1024 & tex castle_wall_slates 1024 1024 & wait
+tex stone_tiles_02 1024 1024 & wait   # Etap 2, motyw #9: neutralna baza łupku (roof2) i miedzi z patyną (roofTower) — §4.4
 cp "$SRC/hdri/kloppenheim_06_puresky_1k.hdr" "$OUT/hdri/sky_1k.hdr"
 rm -rf "$TMP"
 echo "RAZEM: $(du -sh "$OUT" | cut -f1)"

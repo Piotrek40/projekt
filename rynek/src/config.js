@@ -121,5 +121,6 @@ export const CONFIG = {
     stone:   { name: 'rustic_stone_wall_02', mpt: 2.0 },
     blocks:  { name: 'medieval_blocks_05',   mpt: 2.0 },
     slates:  { name: 'castle_wall_slates',   mpt: 2.0 },
+    tiles:   { name: 'stone_tiles_02',       mpt: 2.0 },   // motyw #9: neutralna baza (lin. [0.198, 0.196, 0.171], H 106, AO 0,93) pod roof2 (łupek) i roofTower (miedź z patyną) — §4.4; 2 m/kafel jak roof/slates
   },
 };

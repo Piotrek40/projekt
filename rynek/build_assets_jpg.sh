@@ -14,5 +14,5 @@ model_jpg flower_gazania_h 512 0.5 & model_jpg hamburger_buns 512 0.3 & model_jp
 model_jpg brass_pot_01 1024 & model_jpg wicker_basket_02 512 0.25 & model_jpg wooden_crate_02 1024 & model_jpg painted_wooden_bench 1024 & wait
 model_jpg wooden_bowl_02 512 0.6 & model_jpg carved_wooden_plate 512 & model_jpg brass_vase_01 1024 0.25 & model_jpg gothic_statue 512 0.2 & wait
 model_jpg marble_bust_01 1024 0.3 & wait
-for t in cobblestone_floor_04:2048 plastered_wall:1024 old_planks_02:1024 weathered_planks:1024 roof_09:1024 rustic_stone_wall_02:1024 medieval_blocks_05:1024 castle_wall_slates:1024 fabric_pattern_07:1024; do tex_jpg ${t%%:*} ${t##*:}; done
+for t in cobblestone_floor_04:2048 plastered_wall:1024 old_planks_02:1024 weathered_planks:1024 roof_09:1024 rustic_stone_wall_02:1024 medieval_blocks_05:1024 castle_wall_slates:1024 stone_tiles_02:1024 fabric_pattern_07:1024; do tex_jpg ${t%%:*} ${t##*:}; done
 rm -rf "$TMP"; echo "JPG EXIT 0"
