@@ -60,8 +60,10 @@ export const CONFIG = {
     // motyw #1 „cięcia skanów" (?nocuts=1 przywraca stan bazowy: 158 draw / 818 939 tri HUD w start_plac; liczby per model z __stats bazy)
     cuts: {
       // limit instancji na model — put() pomija nadmiar w kolejności budowy (kolejność = ziarno, więc bez zmiany losowań reszty sceny);
-      // baza: trawa 10 × 7 842 tri, paproć 4 × 6 232, butelki 2 × 10 099 (9 prymitywów = 9 draw), beczka wina 8 × 3 246
-      maxCount: { grass_medium_02: 0, fern_02: 2, wine_bottles_01: 1, wine_barrel_01: 4 },
+      // baza: butelki 2 zestawy × 10 099 tri (9 prymitywów = 9 draw), beczka wina 8 × 3 246
+      maxCount: { wine_bottles_01: 1, wine_barrel_01: 4 },
+      // kępy zieleni u podnóża pierzei: liczba na model (baza losowała 14× z listy [trawa, paproć, trawa] → 10 traw × 7 842 tri + 4 paprocie × 6 232)
+      scatter: { fern_02: 2, grass_medium_02: 0 },
       // cały towar bez cienia (także drobne modele z audyt/research/zasoby_etap2.md, ładowane przez motyw #11)
       noShadow: ['wicker_basket_01', 'wooden_bowl_02', 'carved_wooden_plate', 'hamburger_buns', 'food_pears_asian_01'],
       // szkło butelek: KHR_materials_transmission (transmissionFactor 1) każe rendererowi rysować całą nieprzezroczystą scenę drugi raz

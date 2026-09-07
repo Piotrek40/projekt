@@ -10,7 +10,7 @@ import { check, checkHeight, checkAboveGround, checkCollisionCovers } from '../.
 export async function initProps(W) {
   const { ctx, scene, loaders, CONFIG } = W;
   const cuts = ctx.flags.nocuts ? null : CONFIG.props.cuts; W.cuts = cuts;   // ?nocuts=1: stan sprzed cięć skanów (motyw #1)
-  const names = ['wooden_crate_01', 'wine_barrel_01', 'Barrel_01', 'wicker_basket_01', 'wooden_bucket_02', 'ceramic_vase_01', 'ceramic_vase_02', 'wooden_bowl_01', 'food_apple_01', 'treasure_chest', 'wooden_stool_02', 'wooden_lantern_01', 'horse_statue_01', 'grass_medium_02', 'fern_02', 'tree_stump_01', 'rock_moss_set_02', 'potted_plant_02', 'wine_bottles_01', 'Lantern_01'];
+  const names = ['wooden_crate_01', 'wine_barrel_01', 'Barrel_01', 'wicker_basket_01', 'wooden_bucket_02', 'ceramic_vase_01', 'ceramic_vase_02', 'wooden_bowl_01', 'food_apple_01', 'treasure_chest', 'wooden_stool_02', 'wooden_lantern_01', 'horse_statue_01', 'grass_medium_02', 'fern_02', 'tree_stump_01', 'rock_moss_set_02', 'potted_plant_02', 'wine_bottles_01', 'Lantern_01'].filter(n => !cuts || n !== 'treasure_chest');   // z cięciami skrzynia skarbów nieładowana (10 332 tri)
   const models = new Map(await Promise.all(names.map(async n => [n, await loaders.loadModel(n)])));
   const bounds = new Map();
   for (const [n, g] of models) { g.scene.updateMatrixWorld(true); bounds.set(n, new THREE.Box3().setFromObject(g.scene)); }
@@ -102,11 +102,17 @@ export function scatterProps(W) {
     put(kind, t.x, 0, t.z, R.range(0, 6.28));
     if (kind === 'wooden_crate_01' && R() < 0.5) put('wooden_crate_01', t.x, 0.62, t.z, R.range(0, 6.28), 0.9, { collide: false });
   }
+  // kępy zieleni u podnóża pierzei: 14 losowań jak w bazie (ten sam strumień ziarna → chorągwie i reszta sceny bez zmian), a z cięciami
+  // stawiane są tylko pierwsze CONFIG.props.scatter[model] kęp danego modelu (baza: 10 traw + 4 paprocie)
+  const left = cuts ? { ...cuts.scatter } : null;   // ile kęp danego modelu jeszcze postawić
   for (let i = 0; i < 14; i++) {
     const side = R.int(0, 3), along = R.range(-half + 1, half - 1);
     const t = sideTransform(side, along, -H.depth / 2 - 0.35);
-    put(R.pick(['grass_medium_02', 'fern_02', 'grass_medium_02']), t.x, 0, t.z, R.range(0, 6.28), R.range(0.8, 1.2), { collide: false });
+    const name = R.pick(['grass_medium_02', 'fern_02', 'grass_medium_02']), ry = R.range(0, 6.28), sc = R.range(0.8, 1.2);   // obrót 0–2π i skala 0,8–1,2 kępy — te same losowania co w bazie
+    if (left) { if (!(left[name] > 0)) continue; left[name]--; }
+    put(name, t.x, 0, t.z, ry, sc, { collide: false });
   }
+  if (left) check(Object.values(left).every(v => v === 0), 'scatter: za mało losowań na liczbę kęp z CONFIG.props.scatter', left);
   put('tree_stump_01', -half + 5, 0, half - 6, 0.4);
   put('rock_moss_set_02', half - 6, 0, -half + 5, 1.2, 0.8);
   if (!cuts) { put('treasure_chest', 9, 0, -7, 2.4, 0.9); put('Lantern_01', 9.2, 0.62, -7.1, 1.0, 1, { collide: false }); return; }   // stan bazowy: skrzynia i latarenka na jej wieku (0,62 m)
