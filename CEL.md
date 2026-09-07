@@ -33,7 +33,12 @@
 - **Zakazy etapu:** brak postprocesu (SSAO, bloom), brak wypalonego oświetlenia — najpierw pomiar bazowy na telefonie.
 - **Test eskalacji:** tak — scena jest budowana z listy `CONFIG.props`, nowe obiekty to wpisy w konfiguracji, nie nowy kod. Sterowanie, kolizje i jakość nie zależą od liczby obiektów.
 
-### Etap 1 — [do ustalenia po pomiarze na telefonie Piotra]
+### Etap 1 — rynek high fantasy (2026-09-07, pierwsza wersja)
+- **Widać:** plac 44×44 m z fontanną i posągiem, pierzeje kamienic szachulcowych z wykuszami, szczytami, lukarnami i oświetlonymi oknami, wieża ratusza z chorągwią, 7 kramów z towarem, wóz, beczki i skrzynie, latarnie ze światłem, falujące chorągwie, dym z kominów; cztery ulice zamknięte fasadami. Chodzenie po całym placu i ulicach z kolizjami.
+- **Zakazy etapu:** żadnego ręcznego rozstawiania domów — pierzeje wynikają z rozmiaru placu i ziarna; żadnych zasobów spoza CC0; brak postprocesu do czasu pomiaru na telefonie.
+- **Test eskalacji:** tak — `CONFIG.plaza.size`, `CONFIG.seed`, liczba kramów i latarni to parametry; większy rynek albo inne miasto to zmiana liczb, nie kodu. Ograniczenie: kolizje domów są osiowe, więc pierzeje pod kątem wymagałyby rozszerzenia silnika.
+
+### Etap 2 — [do ustalenia po pomiarze na telefonie Piotra]
 - **Widać:**
 - **Zakazy etapu:**
 - **Test eskalacji:**
@@ -45,12 +50,14 @@
 
 ## 6. Stan bieżący
 
-- **Etap:** 0 zakończony.
-- **Ostatnio powstało:** audyt (`audyt/RAPORT.md`), scena demo (`demo/`), wariant jednoplikowy do Artifact (`demo_artifact/`), skrypty budujące (`demo/build.sh`, `demo/build_assets.sh`), testy narzędzi (`audyt/testy/`).
-- **Następny krok:** Piotr uruchamia demo na swoim telefonie i podaje wynik z licznika (FPS, p95, nazwa GPU z dolnego rogu). Od tego zależy, ile jakości można dołożyć (cienie kaskadowe, wypalone lightmapy, SSAO).
-- **Odłożone świadomie:** wypalanie lightmap w Blenderze (narzędzie sprawdzone, ale bez pomiaru z telefonu nie wiadomo, czy jest potrzebne), generowanie zasobów AI (wymaga tokena HF), WebGPU (na Androidzie niepewne, zostajemy przy WebGL2).
+- **Etap:** 1 — pierwsza wersja rynku gotowa, czeka na pomiar z telefonu.
+- **Ostatnio powstało:** wspólny silnik (`engine/`), rynek (`rynek/`, https://piotrek40.github.io/projekt/rynek/), wariant jednoplikowy do Artifact (`demo_artifact/build_artifact.mjs rynek`, 13 MB), dziedziniec przepięty na silnik.
+- **Następny krok:** Piotr podaje z telefonu FPS/p95/GPU dla rynku w trzech jakościach. Potem: wypalone oświetlenie pośrednie (Blender), drzewa (własne, lekkie — skany Poly Haven mają 40–950 MB geometrii), postaci/NPC, dźwięk.
+- **Odłożone świadomie:** drzewa ze skanów (za ciężkie), generowanie zasobów AI (token HF), WebGPU, lightmapy (najpierw pomiar).
 
 ## 7. Zmiany decyzji
 
 - 2026-09-07 — Gra ma działać na telefonie Piotra (Android, Chrome) jako link, nie wewnątrz Cowork/Artifact. Powód: doprecyzowanie Piotra po pierwszym opisie zadania.
 - 2026-09-07 — Silnik: three.js (WebGL2). Powód: wynik audytu (`audyt/RAPORT.md`).
+- 2026-09-07 — Repo publiczne, hosting GitHub Pages z brancha `claude/repo-cleanup-q1fkk3`. Powód: darmowy link na telefon bez limitu 16 MB Artifactu.
+- 2026-09-07 — Pierwsza lokacja: rynek high fantasy o złotej godzinie (HDRI kloppenheim_06, słońce podniesione do 30°, bo przy prawdziwym zachodzie cały plac był w cieniu kamienic).

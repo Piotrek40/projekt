@@ -1,7 +1,7 @@
 // Buduje jednoplikową wersję sceny do publikacji jako Artifact (claude.ai):
 // wszystkie zasoby jako data URI, tekstury JPG (bez KTX2 — transkoder WASM nie może być pobrany z CDN),
 // geometria skwantyzowana (bez meshopt — dekoder WASM). Limit strony: 16 MB.
-// Użycie: node demo_artifact/build_artifact.mjs  → demo_artifact/dziedziniec.html
+// Użycie: node demo_artifact/build_artifact.mjs <scena: demo|rynek>  → demo_artifact/<scena>.html
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,41 +14,68 @@ const sharp = createRequire(import.meta.url)(join(ROOT, 'tools/node_modules/shar
 const GT = join(ROOT, 'tools/node_modules/.bin/gltf-transform');
 const SRC = join(ROOT, 'audyt/assets_src');
 const tmp = mkdtempSync(join(tmpdir(), 'artifact-'));
+const scene = process.argv[2] || 'demo';
 
-// rozmiar tekstur per model (px) — kompromis między jakością z bliska a limitem 16 MB
-const MODELS = { marble_bust_01: 1024, wooden_table_02: 1024, rock_moss_set_01: 1024, Barrel_01: 512, potted_plant_02: 512, Lantern_01: 512, wine_bottles_01: 512 };
-const TEXTURES = { stone_tiles_02: 1024, castle_brick_02_red: 1024, medieval_blocks_03: 512 };
+// Konfiguracja per scena: rozmiar tekstur modeli (px) i ewentualne uproszczenie geometrii; tekstury zestawów PBR: [diff, nor, arm] px.
+const SCENES = {
+  demo: {
+    models: { marble_bust_01: [1024], wooden_table_02: [1024], rock_moss_set_01: [1024], Barrel_01: [512], potted_plant_02: [512], Lantern_01: [512], wine_bottles_01: [512] },
+    textures: { stone_tiles_02: [1024, 1024, 512], castle_brick_02_red: [1024, 1024, 512], medieval_blocks_03: [512, 512, 256] },
+    hdri: 'kloofendal_48d_partly_cloudy_puresky_1k.hdr',
+  },
+  rynek: {
+    models: {
+      horse_statue_01: [512, 0.5], wooden_lantern_01: [256, 0.4], wooden_crate_01: [512, 0.6], wine_barrel_01: [512, 0.3], Barrel_01: [512],
+      wicker_basket_01: [256, 0.2], wooden_bucket_02: [256, 0.5], ceramic_vase_01: [256, 0.3], ceramic_vase_02: [256, 0.3], wooden_bowl_01: [256, 0.2],
+      food_apple_01: [256, 0.2], treasure_chest: [512, 0.1], wooden_stool_02: [256, 0.4], grass_medium_02: [512], fern_02: [512],
+      tree_stump_01: [512, 0.15], rock_moss_set_02: [512, 0.15], potted_plant_02: [512, 0.12], wine_bottles_01: [512, 0.35], Lantern_01: [256, 0.2],
+    },
+    textures: {
+      cobblestone_floor_04: [1024, 1024, 512], plastered_wall: [1024, 512, 512], old_planks_02: [512, 512, 256], weathered_planks: [512, 512, 256],
+      roof_09: [1024, 512, 256], rustic_stone_wall_02: [1024, 512, 512], medieval_blocks_05: [1024, 512, 512], castle_wall_slates: [512, 512, 256],
+      fabric_pattern_07: [0, 512, 256],
+    },
+    hdri: 'kloppenheim_06_puresky_1k.hdr',
+  },
+};
+const cfg = SCENES[scene];
+if (!cfg) throw new Error('nieznana scena ' + scene);
 const assets = {};
 const b64 = (buf, mime) => `data:${mime};base64,${Buffer.from(buf).toString('base64')}`;
 let total = 0;
 
-for (const [name, size] of Object.entries(MODELS)) {
+for (const [name, [size, simp]] of Object.entries(cfg.models)) {
   const out = join(tmp, `${name}.glb`);
-  execFileSync(GT, ['optimize', join(SRC, 'models', name, `${name}.gltf`), out, '--compress', 'quantize', '--texture-compress', 'auto', '--texture-size', String(size), '--simplify', 'false', '--join', 'true', '--flatten', 'true'], { stdio: 'ignore' });
+  const simpArgs = simp ? ['--simplify', 'true', '--simplify-ratio', String(simp), '--simplify-error', '0.01'] : ['--simplify', 'false'];
+  execFileSync(GT, ['optimize', join(SRC, 'models', name, `${name}.gltf`), out, '--compress', 'quantize', '--texture-compress', 'auto', '--texture-size', String(size), ...simpArgs, '--join', 'true', '--flatten', 'true'], { stdio: 'ignore' });
   const buf = readFileSync(out); total += buf.length;
   assets[`models/${name}.glb`] = b64(buf, 'model/gltf-binary');
-  console.log(`model ${name} ${size}px: ${(buf.length / 1e6).toFixed(2)} MB`);
+  console.log(`model ${name} ${size}px${simp ? ' ×' + simp : ''}: ${(buf.length / 1e6).toFixed(2)} MB`);
 }
-for (const [name, size] of Object.entries(TEXTURES)) {
-  for (const [map, file, q] of [['diff', 'Diffuse', 82], ['nor', 'nor_gl', 88], ['arm', 'arm', 80]]) {
-    const buf = await sharp(join(SRC, 'textures', name, `${name}_${file}_2k.jpg`)).resize(size, size).jpeg({ quality: q, chromaSubsampling: map === 'diff' ? '4:2:0' : '4:4:4' }).toBuffer();
+for (const [name, sizes] of Object.entries(cfg.textures)) {
+  const maps = [['diff', 'Diffuse', 82, sizes[0]], ['nor', 'nor_gl', 86, sizes[1]], ['arm', 'arm', 78, sizes[2]]];
+  for (const [map, file, q, size] of maps) {
+    if (!size) continue;
+    const src = [`${name}_${file}_2k.jpg`, `${name}_${file}_1k.jpg`].map(f => join(SRC, 'textures', name, f)).find(existsSync);
+    if (!src) { console.warn('brak', name, file); continue; }
+    const buf = await sharp(src).resize(size, size).jpeg({ quality: q, chromaSubsampling: map === 'diff' ? '4:2:0' : '4:4:4' }).toBuffer();
     total += buf.length; assets[`textures/${name}_${map}.jpg`] = b64(buf, 'image/jpeg');
   }
-  console.log(`tekstury ${name} ${size}px`);
+  console.log(`tekstury ${name} ${sizes.join('/')}px`);
 }
 {
-  const buf = readFileSync(join(SRC, 'hdri/kloofendal_48d_partly_cloudy_puresky_1k.hdr')); total += buf.length;
+  const buf = readFileSync(join(SRC, 'hdri', cfg.hdri)); total += buf.length;
   assets['hdri/sky.hdr'] = b64(buf, 'image/vnd.radiance');
 }
-const app = readFileSync(join(ROOT, 'demo_artifact/app_inline.js'), 'utf8');
-const html = readFileSync(join(ROOT, 'demo/index.html'), 'utf8')
+const app = readFileSync(join(ROOT, `demo_artifact/${scene}_inline.js`), 'utf8');
+const html = readFileSync(join(ROOT, `${scene}/index.html`), 'utf8')
   .replace(/<!doctype html>\s*<html[^>]*>\s*<head>\s*/i, '')
   .replace(/<\/head>\s*<body>\s*/i, '')
   .replace(/<\/body>\s*<\/html>\s*$/i, '')
   .replace(/<meta charset="utf-8">\s*/i, '')
   .replace(/<meta name="viewport"[^>]*>\s*/i, '')
   .replace('<script type="module" src="./app.js"></script>', () => `<script>window.__ASSETS=${JSON.stringify(assets)};</script>\n<script>${app.replace(/<\/script>/g, '<\\/script>')}</script>`); // funkcja: String.replace interpretuje $& i $' w tekście zastępującym
-const outPath = join(ROOT, 'demo_artifact/dziedziniec.html');
+const outPath = join(ROOT, `demo_artifact/${scene}.html`);
 writeFileSync(outPath, html);
 rmSync(tmp, { recursive: true, force: true });
 console.log(`zasoby surowe: ${(total / 1e6).toFixed(2)} MB, strona: ${(html.length / 1e6).toFixed(2)} MB → ${outPath}`);

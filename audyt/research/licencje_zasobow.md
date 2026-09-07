@@ -5,6 +5,10 @@
 | Modele: wooden_table_02, Barrel_01, potted_plant_02, rock_moss_set_01, marble_bust_01, Lantern_01, wine_bottles_01 | Poly Haven (api.polyhaven.com) | CC0 1.0 | niewymagana (mile widziana) | tak, także komercyjnie |
 | Tekstury: stone_tiles_02, castle_brick_02_red, medieval_blocks_03 | Poly Haven | CC0 1.0 | niewymagana | tak |
 | HDRI: kloofendal_48d_partly_cloudy_puresky | Poly Haven | CC0 1.0 | niewymagana | tak |
+| Rynek — modele: wooden_crate_01, wine_barrel_01, wooden_bucket_02, wicker_basket_01, food_apple_01, wooden_lantern_01, horse_statue_01, treasure_chest, ceramic_vase_01/02, wooden_bowl_01, wooden_stool_02, grass_medium_02, fern_02, tree_stump_01, rock_moss_set_02 | Poly Haven | CC0 1.0 | niewymagana | tak |
+| Rynek — tekstury: cobblestone_floor_04, plastered_wall, old_planks_02, weathered_planks, roof_09, rustic_stone_wall_02, medieval_blocks_05, castle_wall_slates, fabric_pattern_07 | Poly Haven | CC0 1.0 | niewymagana | tak |
+| Rynek — HDRI: kloppenheim_06_puresky (użyte), venice_sunset (porównanie) | Poly Haven | CC0 1.0 | niewymagana | tak |
+| Chorągwie, szyld, dym | generowane w kodzie (canvas) | własne | — | tak |
 | three.js 0.185.1 | npm | MIT | wymagany plik LICENSE (demo/vendor/LICENSE.three) | tak |
 | Basis Universal transcoder (w three.js) | Binomial / Khronos | Apache-2.0 | notka w LICENSE | tak |
 | meshoptimizer decoder (w three.js) | zeux | MIT | notka w LICENSE | tak |
