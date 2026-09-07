@@ -55,7 +55,20 @@ export const CONFIG = {
 
   greenery: {},       // tor „plac": krzewy w donicach, rabatki, skrzynki kwiatowe (na parapetach z W.sills)
 
-  bunting: {},        // tor „kramy i rekwizyty": girlandy chorągiewek, lampiony, sznury
+  // tor „kramy i rekwizyty": girlandy chorągiewek i lampiony (bunting.js; ?nobunting=1). Liny między fasadami: E–W na z = ew[i] (side 3 → 1),
+  // N–S na x = ns[i] (side 0 → 2); nie przez środek (posąg sięga 5.3 m, lina min 4.0). Kotwice na licu piętra na y (dom 3-piętrowy) albo
+  // belowEave pod okapem (2 piętra → 5.8 m); zwis 1.5–2.5 m ograniczony do y_liny − minY. Chorągiewki co 0.45 m, 5 barw heraldycznych (OKLCH §4.4).
+  bunting: {
+    seedOffset: 500, y: 6.5, sagMin: 1.5, sagMax: 2.5, minY: 4.0, lines: 6, belowEave: 0.3, // liny 6.5 m (§3.7), zwis 1.5–2.5, środek ≥ 4.0; kotwica 0.3 pod okapem, gdy dom niższy
+    ew: [-12, -6, 6, 12], ns: [-12, 12],           // 4 liny E–W (z) + 2 N–S (x) = lines
+    bannerClear: 1.0, bannerShift: 1.2,            // kotwica ≥ 1 m od chorągwi (płótno 0.9 m); gdy bliżej — przesunięcie wzdłuż pierzei
+    hook: { size: 0.05, len: 0.36, inWall: 0.18, out: 0.15 },   // hak żelazny: 0.18 w ścianie, 0.18 przed licem; koniec liny 0.15 przed licem (słupek wystaje 0.09)
+    rope: { r: 0.015, seg: 16, radial: 4 },        // TubeGeometry: 16 × 4 × 2 = 128 tri na linę
+    pennant: { spacing: 0.45, w: 0.22, h: 0.32, swayAmp: 0.05, // trójkąt 0.22 × 0.32 co 0.45 m łuku; amplituda kołysania dolnego wierzchołka 5 cm
+               colors: [[0.50, 0.170, 25], [0.72, 0.150, 78], [0.58, 0.100, 190], [0.45, 0.130, 320], [0.90, 0.030, 85]] }, // karmazyn, szafran, turkus, purpura, krem
+    lantern: { count: 3, r: 0.18, drop: 0.32, string: 0.16, stringR: 0.006, minY: 3.3,   // 3 na linę, kula 0.32 m pod liną; spód ≥ 3.3 (min 4.0 − 0.32 − 0.18 = 3.5)
+               color: [0.88, 0.050, 80], emissive: [0.72, 0.160, 60], intensity: 1.4 },  // papier kremowy; emisja pomarańczowa ×1.4 (cykl 1: [0.80,0.12,72]×1.0 → ekran L 0.88 C 0.034 = blada kula; AgX zjada chromę, §4.1.6)
+  },
 
   // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
   props: {

@@ -12,6 +12,7 @@ import { buildTower } from './tower.js';
 import { buildFountain } from './fountain.js';
 import { buildStalls, placeGoods } from './stalls.js';
 import { initProps, placeStatue, buildLanterns, scatterProps, buildCart, buildBanners, buildSmoke } from './props.js';
+import { buildBunting } from './bunting.js';
 import { buildTrees } from './trees.js';
 import { buildGreenery } from './greenery.js';
 import { buildSkyline } from './skyline.js';
@@ -51,6 +52,7 @@ export async function buildWorld(ctx) {
   scatterProps(W);
   buildCart(W);
   buildBanners(W);
+  buildBunting(W);    // girlandy chorągiewek + lampiony (W.B; po buildBanners — kotwice omijają chorągwie z W.banners)
   buildTrees(W);      // lipy (W.B)
   buildGreenery(W);   // zieleń z modeli (W.put) — po initProps, przed flushInstances
   buildSkyline(W);    // panorama za pierzejami (W.B)

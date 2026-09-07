@@ -1,5 +1,6 @@
 // Materiały rynku: zestawy PBR z Poly Haven + materiały proceduralne (szkło, woda, chorągwie, szyld, dym).
 import * as THREE from 'three';
+import { oklch } from './color.js';
 
 export async function buildMaterials(W) {
   const { ctx, loaders, P, T } = W;
@@ -25,6 +26,10 @@ export async function buildMaterials(W) {
   mat.water = new THREE.MeshPhysicalMaterial({ color: P.water, roughness: 0.04, metalness: 0.0, transparent: true, opacity: 0.85, envMapIntensity: 1.8, normalMap: sets.cobble.normalMap.clone(), normalScale: new THREE.Vector2(0.25, 0.25) });
   mat.water.normalMap.repeat.set(3, 3); mat.water.normalMap.needsUpdate = true;
   mat.flame = new THREE.MeshBasicMaterial({ color: 0xffc070 });
+  // girlandy (bunting.js): chorągiewki z kolorem wierzchołków (barwy w CONFIG.bunting.pennant.colors), lampiony papierowe emisyjne
+  { const Lb = W.CONFIG.bunting.lantern;
+    mat.bunting = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide }); // tkanina matowa jak cloth (roughness 1)
+    mat.paperLit = new THREE.MeshStandardMaterial({ color: oklch(...Lb.color), emissive: oklch(...Lb.emissive), emissiveIntensity: Lb.intensity, roughness: 0.8 }); } // papier: matowy (0.8), bez metalu
   const bannerMats = P.cloth.map((c, i) => new THREE.MeshStandardMaterial({ map: heraldry(c, P.cloth[(i + 2) % P.cloth.length], i), roughness: 0.9, side: THREE.DoubleSide, alphaTest: 0.5 }));
   bannerMats.forEach((m, i) => { mat['banner' + i] = m; });
   const windUniform = { value: 0 };

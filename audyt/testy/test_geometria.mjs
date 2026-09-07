@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildSkyline, skylinePlan, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildSkyline, skylinePlan, buntingCurves, buildBunting, checkFailures } from './geo/scene.bundle.mjs';
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {
@@ -129,6 +129,40 @@ for (const r of rec.slice(n1).filter(r => r.key.startsWith('glass'))) {
   const lowestSky = Math.min(...sky.map(r => r.bb.clone().applyMatrix4(r.m).min.y));
   if (lowestSky < -0.01) fails.push(`S4 element panoramy pod ziemią: y=${lowestSky.toFixed(3)}`);
   console.log(`panorama: domów tła ${plan.houses.length}, połaci ${nSlab}, elementów bram ${sky.filter(r => r.key === 'blocks').length}, wież w oddali ${plan.towers.length}, ptaków ${plan.birds.length}`);
+}
+// G) girlandy (bunting.js): funkcja czysta buntingCurves + bryły z buildBunting (ten sam rejestrator B)
+{
+  const C = CONFIG.bunting, lines = buntingCurves(W);
+  if (lines.length !== C.lines) fails.push(`G: ${lines.length} lin zamiast ${C.lines}`);
+  for (const ln of lines) {
+    const m = ln.curve.getPoint(0.5), id = `G lina (${f2(ln.A)})→(${f2(ln.B)})`;
+    if (Math.abs(m.y - (ln.A.y - ln.zwis)) >= 0.01) fails.push(`${id}: środek y=${m.y.toFixed(3)} ≠ A.y − zwis = ${(ln.A.y - ln.zwis).toFixed(3)}`);
+    if (m.y < C.minY) fails.push(`${id}: środek y=${m.y.toFixed(2)} < ${C.minY} (za nisko)`);
+    if (Math.abs(ln.A.y - ln.B.y) > 1e-6) fails.push(`${id}: końce na różnych wysokościach ${ln.A.y} / ${ln.B.y}`);
+    if (ln.zwis < C.sagMin - 1e-6 && ln.zwis < ln.A.y - C.minY - 1e-6) fails.push(`${id}: zwis ${ln.zwis.toFixed(2)} poza zakresem`);
+    if (ln.zwis > C.sagMax + 1e-6) fails.push(`${id}: zwis ${ln.zwis.toFixed(2)} > sagMax`);
+    let minY = 1e9; for (let i = 0; i <= 64; i++) minY = Math.min(minY, ln.curve.getPoint(i / 64).y);
+    if (minY < C.minY - 1e-6) fails.push(`${id}: najniższy punkt liny ${minY.toFixed(3)} < ${C.minY}`);
+    // kotwice: koniec liny przed licem piętra (K4) i we właściwej ćwiartce (lina rozpięta między przeciwległymi pierzejami)
+    for (const a of ln.anchors) {
+      const n = V(0, 0, 1).transformDirection(M4(0, 0, 0, a.tr.ry)), d = a.P.clone().sub(a.face).dot(n);
+      if (Math.abs(d - C.hook.out) > 0.01) fails.push(`${id}: kotwica s${a.side} ${d.toFixed(3)} m przed licem (ma być ${C.hook.out})`);
+      const distC = Math.max(Math.abs(a.P.x), Math.abs(a.P.z));
+      if (distC < W.half - 1 || distC > W.half + H.depth) fails.push(`${id}: kotwica s${a.side} ${distC.toFixed(2)} m od środka — nie na fasadzie (${W.half - 1}–${W.half + H.depth})`);
+      if (a.y > C.y + 1e-6 || a.y < C.y - 1) fails.push(`${id}: kotwica y=${a.y.toFixed(2)} poza [${C.y - 1}, ${C.y}]`);
+    }
+    if (ln.anchors[0].side % 2 !== ln.anchors[1].side % 2 || ln.anchors[0].side === ln.anchors[1].side) fails.push(`${id}: strony ${ln.anchors[0].side}/${ln.anchors[1].side} nie są przeciwległe`);
+    for (const p of ln.lanterns) if (p.y - C.lantern.r < C.lantern.minY) fails.push(`${id}: lampion spód ${(p.y - C.lantern.r).toFixed(2)} < ${C.lantern.minY}`);
+    // środek placu wolny (posąg 5.3 m): żaden punkt liny w promieniu 2.5 m od (0,0)
+    for (let i = 0; i <= 64; i++) { const p = ln.curve.getPoint(i / 64); if (Math.hypot(p.x, p.z) < 2.5) { fails.push(`${id}: lina nad posągiem (${f2(p)})`); break; } }
+  }
+  const n4 = rec.length; buildBunting(W); const bun = rec.slice(n4);
+  const keys = {}; for (const r of bun) keys[r.key] = (keys[r.key] || 0) + 1;
+  if ((keys.bunting || 0) !== lines.length) fails.push(`G: geometrii bunting ${keys.bunting} ≠ lin ${lines.length}`);
+  if ((keys.paperLit || 0) !== lines.length * C.lantern.count) fails.push(`G: lampionów ${keys.paperLit} ≠ ${lines.length * C.lantern.count}`);
+  const lowest = Math.min(...bun.map(r => r.bb.clone().applyMatrix4(r.m).min.y));
+  if (lowest < C.lantern.minY - 0.01) fails.push(`G: element girlandy poniżej ${C.lantern.minY}: y=${lowest.toFixed(2)}`);
+  console.log(`girlandy: lin ${lines.length}, zwisy ${lines.map(l => l.zwis.toFixed(2)).join('/')}, y lin ${lines.map(l => l.A.y.toFixed(1)).join('/')}, lampionów ${keys.paperLit || 0}, elementów iron ${keys.iron || 0}, najniższy element ${lowest.toFixed(2)} m`);
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
