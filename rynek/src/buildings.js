@@ -75,7 +75,7 @@ export function buildHouses(W) {
     } else {
       // kalenica wzdłuż x: okap nad fasadą
       const rise = (topD / 2) * Math.tan(pitch), slope = Math.hypot(topD / 2 + ov, rise);
-      for (const sz of [-1, 1]) B.add(roofKey, box(w + 2 * ov, 0.14, slope, T.roof.mpt, off), L(0, y + rise / 2, jet / 2 + sz * (topD / 4 + ov / 2), 0, -sz * Math.atan2(rise, topD / 2 + ov)));
+      for (const sz of [-1, 1]) B.add(roofKey, box(w + 2 * ov, 0.14, slope, T.roof.mpt, off), L(0, y + rise / 2, jet / 2 + sz * (topD / 4 + ov / 2), 0, sz * Math.atan2(rise, topD / 2 + ov))); // rx=+a opuszcza koniec +z: dla sz=+1 (połać przednia) okap z przodu idzie w dół, kalenica zostaje wyżej (policzone w Node)
       // szczyty boczne (trójkąty) — widoczne między domami różnej wysokości
       for (const sx of [-1, 1]) B.add(plasterKey, gable(topD, rise, 0.3, T.plaster.mpt), L(sx * (w / 2 - 0.15), y, jet / 2, Math.PI / 2));
       B.add('timber', box(w + 2 * ov, 0.2, 0.2, T.timber.mpt), L(0, y + rise, jet / 2));
@@ -83,7 +83,7 @@ export function buildHouses(W) {
       if (r() < 0.5) {
         const dx = (r() - 0.5) * (w - 3);
         B.add(plasterKey, box(1.4, 1.2, 1.2, T.plaster.mpt), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.9));
-        B.add(roofKey, box(1.8, 0.12, 1.4, T.roof.mpt), L(dx, y + 1.5, topD / 2 + jet / 2 - 0.9, 0, -0.5));
+        B.add(roofKey, box(1.8, 0.12, 1.4, T.roof.mpt), L(dx, y + 1.5, topD / 2 + jet / 2 - 0.9, 0, 0.5)); // rx=+0.5: przód (+z, okap lukarny) niżej niż tył
         B.add('glass', box(0.7, 0.6, 0.04), L(dx, y + 0.8, topD / 2 + jet / 2 - 0.28));
       }
     }
