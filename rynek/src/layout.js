@@ -45,7 +45,7 @@ export function buildLayout(W) {
     while (last && last.along - last.w / 2 > houseEdgeMax - H.widthMin) { houses.splice(houses.indexOf(last), 1); last = row()[0]; } // po odcięciu < widthMin → znika
     if (last) { const left = last.along - last.w / 2; last.w = houseEdgeMax - left; last.along = left + last.w / 2; }
     check(Math.max(...row().map(h => h.along + h.w / 2)) <= houseEdgeMax + 0.01, 'dom w wieży', { tx, rBot, houseEdgeMax }); // policzone: dom along −12 w 8 (krawędź −8) oblewa, krawędź −10,5 przechodzi
-    check(row().length >= 2 && last.w >= H.widthMin, 'pierzeja N-W po odcięciu ma < 2 domy albo dom węższy niż widthMin', { n: row().length, w: last?.w });
+    check(row().length >= 2 && !!last && last.w >= H.widthMin, 'pierzeja N-W po odcięciu ma < 2 domy albo dom węższy niż widthMin', { n: row().length, w: last?.w });
   }
   // transformacja: układ lokalny domu (fasada w +z, oś domu wzdłuż x) → świat
   function sideTransform(side, along, setback = 0) {
