@@ -17,20 +17,26 @@ export function agx(rgb, exposure = 1.15) {
   return mulM(R2020_TO_SRGB, c).map(v => Math.min(1, Math.max(0, v)));
 }
 // Oświetlenie sceny rynek: słońce 5.0 × 0xffd6a6, env 0.6 × średnia HDRI (policzona z sky_1k.hdr przez hdr_stats.mjs).
-const SUN = [0xff, 0xd6, 0xa6].map(v => srgbToLin(v / 255) * 5.0);
-const ENV_SPHERE = [0.631, 0.726, 0.884].map(v => v * 0.6);   // ściany (przybliżenie: PMREM przy roughness 1 ≈ średnia otoczenia)
-const ENV_UP = [0.814, 0.952, 1.178].map(v => v * 0.6);       // podłoga (normalna w górę)
-// radiancja wyjściowa Lamberta: albedo/π * (dotNL*sun) + albedo/π * (π*env) = albedo * (sun*dotNL/π + env)
-export const radiance = (albedo, { sun = 1, env = ENV_SPHERE, ao = 1 } = {}) => albedo.map((a, i) => a * (SUN[i] * sun / Math.PI + env[i] * ao));
+let SUN = [0xff, 0xd6, 0xa6].map(v => srgbToLin(v / 255) * 5.0), ENV_K = 1;
+// nadpisanie na czas skryptu (jak ?sun=&env= w world.js): kolor słońca (hex '#rrggbb', intensywność 5,0) i mnożnik environmentIntensity względem 0,6
+export function setSun(hex, intensity = 5.0) { SUN = [1, 3, 5].map(i => srgbToLin(parseInt(hex.slice(i, i + 2), 16) / 255) * intensity); }
+export function setEnv(envIntensity) { ENV_K = envIntensity / 0.6; }
+export const ENV_SPHERE = [0.631, 0.726, 0.884].map(v => v * 0.6);   // ściany (przybliżenie: PMREM przy roughness 1 ≈ średnia otoczenia)
+export const ENV_UP = [0.814, 0.952, 1.178].map(v => v * 0.6);       // podłoga (normalna w górę)
+// Mnożniki tekstur diff (średnia liniowa 2k, tex_stats.mjs 2026-09-07) i średnie AO z kanału R mapy arm (tex_ao_weighted.mjs) — klucze = CONFIG.textures.
+// AO ciemni TYLKO światło otoczenia (aomap_fragment), nie słońce. Zmierzone: planks 0,85, stone 0,85, blocks 0,67 (§4.4 zakładał 0,9 — liczba wygrywa).
+export const TEX = { plaster: [0.436, 0.392, 0.335], roof: [0.254, 0.185, 0.129], stone: [0.251, 0.180, 0.111], cobble: [0.279, 0.228, 0.149], timber: [0.123, 0.091, 0.064], planks: [0.081, 0.058, 0.044], blocks: [0.375, 0.242, 0.135], slates: [0.275, 0.227, 0.150], tiles: [0.198, 0.196, 0.171], none: [1, 1, 1] };
+export const AO = { plaster: 0.96, roof: 0.50, stone: 0.85, cobble: 0.70, timber: 0.85, planks: 0.85, blocks: 0.67, slates: 0.45, tiles: 0.93, none: 1 };
+// radiancja wyjściowa Lamberta: albedo/π * (dotNL*sun) + albedo/π * (π*env*ao) = albedo * (sun*dotNL/π + env*ao); env: 'wall' (sfera/ściana) | 'up' (podłoga) | [r,g,b]
+export const radiance = (albedo, { sun = 1, env = ENV_SPHERE, ao = 1 } = {}) => { const e = env === 'up' ? ENV_UP : env === 'wall' ? ENV_SPHERE : env; return albedo.map((a, i) => a * (SUN[i] * sun / Math.PI + e[i] * ENV_K * ao)); };
 const toHex = lin => '#' + lin.map(v => Math.round(linToSrgb(v) * 255).toString(16).padStart(2, '0')).join('');
 export function predict(hexTint, texLinear = [1, 1, 1], opts = {}) {
   const tint = [parseInt(hexTint.slice(1, 3), 16), parseInt(hexTint.slice(3, 5), 16), parseInt(hexTint.slice(5, 7), 16)].map(v => srgbToLin(v / 255));
   const albedo = tint.map((v, i) => v * texLinear[i]);
   const out = agx(radiance(albedo, opts));
-  return { albedoHex: toHex(albedo), albedoOKLCH: linToOklch(...albedo), out: toHex(out), outOKLCH: linToOklch(...out) };
+  return { albedoHex: toHex(albedo), albedoOKLCH: linToOklch(...albedo), albedoLin: albedo, out: toHex(out), outLin: out, outOKLCH: linToOklch(...out) };
 }
 if (process.argv[1]?.endsWith('agx_predict.mjs')) {
-  const TEX = { plaster: [0.436, 0.392, 0.335], roof: [0.254, 0.185, 0.129], stone: [0.251, 0.180, 0.111], cobble: [0.279, 0.228, 0.149], planks: [0.123, 0.091, 0.064], none: [1, 1, 1] };
   const row = (label, hex, tex, o) => { const p = predict(hex, tex, o); console.log(label.padEnd(30), 'tint', hex, 'albedo', p.albedoHex, JSON.stringify(p.albedoOKLCH), '→ ekran', p.out, JSON.stringify(p.outOKLCH)); };
   console.log('== słońce (dotNL=1) + niebo, exposure 1.15 ==');
   row('plaster0 e3d3b2 × plastered_wall', '#e3d3b2', TEX.plaster);
@@ -41,7 +47,7 @@ if (process.argv[1]?.endsWith('agx_predict.mjs')) {
   row('stone cfc6b8 × rustic_stone', '#cfc6b8', TEX.stone);
   row('cobble b9b3aa × cobble (góra)', '#b9b3aa', TEX.cobble, { env: ENV_UP });
   row('cobble w cieniu (góra)', '#b9b3aa', TEX.cobble, { env: ENV_UP, sun: 0 });
-  row('timber 5a4030 × old_planks', '#5a4030', TEX.planks);
+  row('timber 5a4030 × old_planks', '#5a4030', TEX.timber);
   row('cloth0 8c1f28 (bez map)', '#8c1f28', TEX.none);
   row('cloth0 w cieniu', '#8c1f28', TEX.none, { sun: 0 });
   row('cloth1 1f4d3a', '#1f4d3a', TEX.none);
