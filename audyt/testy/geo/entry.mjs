@@ -7,3 +7,4 @@ export { buildLayout } from '../../../rynek/src/layout.js';
 export { buildHouses } from '../../../rynek/src/buildings.js';
 export { buildStalls } from '../../../rynek/src/stalls.js';
 export { buildTower } from '../../../rynek/src/tower.js';
+export { buildCart } from '../../../rynek/src/props.js';   // wóz: geometria Batch (dyszel w KNOWN_B6); modele przez stub W.put w teście

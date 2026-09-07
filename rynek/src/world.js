@@ -58,7 +58,7 @@ export async function buildWorld(ctx) {
   W.flushInstances();
   // PRZED B.build (po scaleniu nie ma osobnych brył): koplanarne płaszczyzny tego samego materiału = z-fighting. Tylko klucze z cienkimi
   // płaszczyznami (kilkadziesiąt sztuk, O(n²)); dla timber/stone nie ma sensu — bryły grubsze niż 6 cm, a 2000 belek to 2 mln par.
-  for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign)/.test(key)) checkNoCoplanar(key, geos);
+  for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign|clock|wet|bunting|jet)/.test(key)) checkNoCoplanar(key, geos);
   W.B.build(W.mat, W.scene);
   buildSmoke(W);
   initUI(W);          // UI po zbudowaniu świata (podpisy miejsc czytają W)

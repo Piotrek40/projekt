@@ -2,7 +2,17 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, checkFailures } from './geo/scene.bundle.mjs';
+// Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
+const KNOWN_B6 = [
+  { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
+  { key: 'timber', x: -9.43, z: 10.72, why: 'dyszel wozu, druga belka (jw.)', date: '2026-09-07' },
+];
+// Znane wady HEAD (B5b ii): okna lukarn zakopane w połaci (buildings.js blok „lukarna" na HEAD: spód okna 0,44 m POD wierzchem płyty) — usuwa motyw #12 (lukarny NA połaci).
+const KNOWN_B5B = [ // 10 lukarn HEAD (side, along środka domu); spód okna 0,26–0,74 m pod wierzchem płyty (uruchomione 2026-09-07)
+  { side: 0, along: -27.0 }, { side: 0, along: 6.1 }, { side: 0, along: 13.9 }, { side: 1, along: 7.7 }, { side: 1, along: 15.4 }, { side: 1, along: 24.2 },
+  { side: 2, along: -26.6 }, { side: 2, along: -9.0 }, { side: 3, along: 7.4 }, { side: 3, along: 15.2 },
+];
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {
@@ -11,7 +21,8 @@ function makeW() {
               place(key, g, x, y, z, ry = 0, rx = 0, rz = 0) { this.add(key, g, M4(x, y, z, ry, rx, rz)); } };
   const col = { rects: [], circles: [] };
   const ctx = { addWalkable() {}, addRect: (x, z, hw, hd) => col.rects.push({ x, z, hw, hd }), addCircle: (x, z, r) => col.circles.push({ x, z, r }), flags: {} };
-  return { W: { ctx, R: rng(CONFIG.seed), CONFIG, P: CONFIG.palette, T: CONFIG.textures, H: CONFIG.house, S: CONFIG.plaza.size, half: CONFIG.plaza.size / 2, B }, rec, col };
+  const put = () => true; // stub W.put (modele z Poly Haven nie są ładowane offline; buildCart stawia nimi tylko skrzynię i kosz na wozie)
+  return { W: { ctx, R: rng(CONFIG.seed), CONFIG, P: CONFIG.palette, T: CONFIG.textures, H: CONFIG.house, S: CONFIG.plaza.size, half: CONFIG.plaza.size / 2, B, put }, rec, col };
 }
 const fails = [], notes = [];
 const { W, rec, col } = makeW();
@@ -25,13 +36,14 @@ for (const side of [0, 1, 2, 3]) {
 }
 // B) domy pojedynczo (izolacja: buildHouses na liście z jednym domem)
 const allHouses = W.houses;
-let nWin = 0, nRoof = 0;
+let nWin = 0, nRoof = 0, nSupp = 0, nDormer = 0, nWalk = 0, known = 0;
 for (const h of allHouses) {
   const n0 = rec.length; W.houses = [h]; buildHouses(W);
   const items = rec.slice(n0);
   const t = W.sideTransform(h.side, h.along, h.setback), inv = M4(t.x, 0, t.z, t.ry).invert();
   const loc = r => ({ ...r, ml: r.m.clone().premultiply(inv) }); // macierz w układzie domu
   const L = items.map(loc);
+  const roofTops = []; // wierzchy szerokich połaci domu (do B5b), z B2
   const floors = L.filter(r => r.key.startsWith('plaster') && r.bb.max.y - r.bb.min.y > 2 && Math.abs(r.ml.elements[0] - 1) < 1e-6 && Math.abs(r.bb.min.z + r.bb.max.z) < 1e-6 && r.bb.max.x > 2.5)
     .map(r => { const c = V(0, 0, 0).applyMatrix4(r.ml); return { face: c.z + r.bb.max.z, y0: c.y + r.bb.min.y, y1: c.y + r.bb.max.y }; });
   // B1) okna i ramy: LICO PRZEDNIE elementu >= lico ściany kondygnacji + 0.005 (element wystaje, nie jest schowany)
@@ -44,19 +56,55 @@ for (const h of allHouses) {
     if (!fl) continue; nWin++;
     if (c.z + depth / 2 < fl.face + 0.005) fails.push(`B1 dom side=${h.side} along=${h.along.toFixed(1)}: ${r.key} lico ${(c.z + depth / 2).toFixed(3)} < ściana ${fl.face.toFixed(3)}`);
   }
-  // B2) połacie: krawędź połaci przy kalenicy ma być WYŻEJ niż krawędź przy okapie
-  for (const r of L.filter(r => r.key.startsWith('roof') && r.bb.max.y - r.bb.min.y < 0.2)) {
-    const isGable = h.gableFront && r.bb.max.z > 3; // szczyt od placu: spadek wzdłuż x
-    const isDormer = r.bb.max.x < 1;                 // daszek lukarny: spadek wzdłuż z, okap z przodu
-    const axis = isGable ? 'x' : 'z';
-    const half = r.bb.max[axis];
-    const a = V(0, 0, 0).setComponent(axis === 'x' ? 0 : 2, -half).applyMatrix4(r.ml), b = V(0, 0, 0).setComponent(axis === 'x' ? 0 : 2, half).applyMatrix4(r.ml);
+  // B2) połacie: krawędź płyty przy kalenicy ma być WYŻEJ niż przy okapie. Oś spadku Z MACIERZY, nie z gableFront/szerokości (naczółek #12 to
+  //     płyta obrócona o rz na domu ∥ x — z osi „z szerokości" dostałby końce wzdłuż z na tej samej wysokości = fałszywy „ODWRÓCONY ZNAK"):
+  //     płyta cienka w lokalnym y (box): e[1] = składowa y lokalnego +x — ≠ 0 ⇒ obrót rz ⇒ spadek wzdłuż lokalnego x, inaczej rx ⇒ wzdłuż z;
+  //     płyta cienka w lokalnym z (ExtrudeGeometry: trójkąt naczółka, pięciokąt połaci przy naczółku, w płaszczyźnie XY) ⇒ spadek wzdłuż lokalnego y.
+  //     Kalenica: oś z większą rozpiętością poziomą końców — 'x' ⇒ koniec bliżej x = 0; 'z' ⇒ koniec bliżej z kalenicy (jet/2); lukarna ⇒ okap z przodu (większe z).
+  for (const r of L.filter(r => r.key.startsWith('roof') && (r.bb.max.y - r.bb.min.y < 0.2 || r.bb.max.z - r.bb.min.z < 0.2))) {
+    const e = r.ml.elements, thinZ = r.bb.max.z - r.bb.min.z < 0.2;
+    const slopeAxis = thinZ ? 'y' : (Math.abs(e[1]) > 1e-6 ? 'x' : 'z');
+    const ai = { x: 0, y: 1, z: 2 }[slopeAxis];
+    const a = V(0, 0, 0).setComponent(ai, r.bb.min[slopeAxis]).applyMatrix4(r.ml), b = V(0, 0, 0).setComponent(ai, r.bb.max[slopeAxis]).applyMatrix4(r.ml);
+    const ridgeAxis = Math.abs(a.x - b.x) > Math.abs(a.z - b.z) ? 'x' : 'z';
+    const isDormer = ridgeAxis === 'z' && r.bb.max.x < 1; // daszek lukarny: spadek wzdłuż z, okap z przodu
     const c = V(0, 0, 0).applyMatrix4(r.ml);
     nRoof++;
     let ridgeEnd, eaveEnd;
-    if (isDormer) { [eaveEnd, ridgeEnd] = a.z > b.z ? [a, b] : [b, a]; } // okap lukarny = koniec bliżej frontu
-    else { const ridge = isGable ? 0 : (h.jetty ? (h.floors - 1) * H.jetty / 2 : 0); const da = Math.abs(a[axis] - ridge), db = Math.abs(b[axis] - ridge); [ridgeEnd, eaveEnd] = da < db ? [a, b] : [b, a]; }
-    if (ridgeEnd.y <= eaveEnd.y) fails.push(`B2 dom side=${h.side} along=${h.along.toFixed(1)} ${isDormer ? 'LUKARNA' : isGable ? 'szczyt' : 'połać'}: kalenica y=${ridgeEnd.y.toFixed(2)} <= okap y=${eaveEnd.y.toFixed(2)} (środek ${f2(c)}) — ODWRÓCONY ZNAK OBROTU`);
+    if (isDormer) { [eaveEnd, ridgeEnd] = a.z > b.z ? [a, b] : [b, a]; }
+    else { const ridge = ridgeAxis === 'x' ? 0 : (h.jetty ? (h.floors - 1) * H.jetty / 2 : 0); const da = Math.abs(a[ridgeAxis] - ridge), db = Math.abs(b[ridgeAxis] - ridge); [ridgeEnd, eaveEnd] = da < db ? [a, b] : [b, a]; }
+    const what = isDormer ? 'LUKARNA' : thinZ ? (r.bb.max.x < 3 ? 'naczółek' : 'połać przy naczółku') : ridgeAxis === 'x' ? 'szczyt' : 'połać';
+    if (ridgeEnd.y <= eaveEnd.y) fails.push(`B2 dom side=${h.side} along=${h.along.toFixed(1)} ${what}: kalenica y=${ridgeEnd.y.toFixed(2)} <= okap y=${eaveEnd.y.toFixed(2)} (środek ${f2(c)}) — ODWRÓCONY ZNAK OBROTU`);
+    if (ridgeAxis === 'z' && !isDormer && r.bb.max.x > 1) roofTops.push({ a: thinZ ? V(0, r.bb.min.y, 0.07).applyMatrix4(r.ml) : V(0, 0.07, r.bb.min.z).applyMatrix4(r.ml), b: thinZ ? V(0, r.bb.max.y, 0.07).applyMatrix4(r.ml) : V(0, 0.07, r.bb.max.z).applyMatrix4(r.ml) }); // wierzch płyty (oś + 0,07 wzdłuż normalnej) — do B5b
+  }
+  // B5) podparcie: element z dolną krawędzią > 0,05 nad ziemią ma inny element TEGO SAMEGO domu, którego AABB rozszerzone o 0,05 przecina jego AABB
+  //     (w układzie domu; AABB bryły obróconej = zachowawcze). NIE dotyczy elementów nad połacią (AABB pochylonej płyty obejmuje cały strych —
+  //     przepuściłby wiszącą lukarnę): dla nich B5b niżej. Element nad połacią = środek nad wierzchem ostatniej kondygnacji i szerokość < 2 m.
+  const eaveY = Math.max(...floors.map(fl => fl.y1));
+  const aboveRoof = r => r.bb.max.x < 1 && V(0, 0, 0).applyMatrix4(r.ml).y > eaveY;
+  const lb = L.map(r => ({ r, b: r.bb.clone().applyMatrix4(r.ml) }));
+  for (const { r, b } of lb) {
+    if (b.min.y <= 0.05 || aboveRoof(r)) continue;
+    const e = b.clone().expandByScalar(0.05);
+    nSupp++;
+    if (!lb.some(o => o.r !== r && o.b.intersectsBox(e))) fails.push(`B5 dom side=${h.side} along=${h.along.toFixed(1)}: ${r.key} wisi (AABB ${f2(b.min)}..${f2(b.max)} bez styku z innym elementem domu)`);
+  }
+  // B5b) lukarna NA połaci (wzory roofY/roofTopY z PROMPT §5.2 #12; tu wierzch płyty z MACIERZY połaci — punkt (0, +0,07, t) płyty, interpolacja po z):
+  //      (i) spód ściany czołowej ≤ roofTopY(zFront) − 0,05 (ściana wchodzi w połać, nie wisi); (ii) spód okna ≥ roofTopY(zOkna) + 0,05 (okno nad dachówką).
+  const roofTopAt = z => { const t = roofTops.find(t => z >= Math.min(t.a.z, t.b.z) - 0.05 && z <= Math.max(t.a.z, t.b.z) + 0.05); if (!t) return null; const u = (z - t.a.z) / (t.b.z - t.a.z); return t.a.y + u * (t.b.y - t.a.y); };
+  for (const { r, b } of lb) {
+    if (!aboveRoof(r)) continue;
+    const c = V(0, 0, 0).applyMatrix4(r.ml), idH = `dom side=${h.side} along=${h.along.toFixed(1)}`;
+    if (r.key.startsWith('plaster') && r.bb.max.x >= 0.5) { // ściana czołowa lukarny (policzki mają bb.max.x 0,06)
+      const zFront = c.z + r.bb.max.z, top = roofTopAt(zFront); nDormer++;
+      if (top === null) fails.push(`B5b ${idH}: ściana lukarny poza połacią (zFront ${zFront.toFixed(2)})`);
+      else if (b.min.y > top - 0.05) fails.push(`B5b(i) ${idH}: lukarna wisi nad połacią — spód ściany ${b.min.y.toFixed(2)} > wierzch połaci ${top.toFixed(2)} − 0,05 przy zFront ${zFront.toFixed(2)}`);
+    }
+    if (r.key.startsWith('glass')) {
+      const top = roofTopAt(c.z);
+      if (top === null) fails.push(`B5b ${idH}: okno lukarny poza połacią (z ${c.z.toFixed(2)})`);
+      else if (b.min.y < top + 0.05) { const msg = `B5b(ii) ${idH}: okno lukarny zakopane — spód ${b.min.y.toFixed(2)} < wierzch połaci ${top.toFixed(2)} + 0,05 przy z ${c.z.toFixed(2)}`; if (KNOWN_B5B.some(k => k.side === h.side && Math.abs(k.along - h.along) < 0.05)) { known++; notes.push('znane (KNOWN_B5B): ' + msg); } else fails.push(msg); }
+    }
   }
   // B3) kolizja: obrys parteru w świecie zawarty w prostokącie kolizji
   const stone = items.find(r => r.key === 'stone' && r.bb.max.y - r.bb.min.y > 3); const wb = stone.bb.clone().applyMatrix4(stone.m);
@@ -100,9 +148,30 @@ for (const r of tw.filter(r => r.key.startsWith('glass') || r.key === 'clock')) 
     if (n.dot(outwardOfBox) <= 0) fails.push(`D okno wieży odwrócone do środka: ${f2(c)} n=${f2(n)}`);
   }
 }
+// F) wóz (props.js buildCart) — geometria Batch; modele przez stub put (nie testowane)
+buildCart(W);
+// B6) obszar chodzenia: żaden element Batch (poza cobble|wet) z dolną krawędzią < 2 m nie ma AABB przecinającego prostokąta chodzenia (plac ± (half−0,3);
+//     ulice (sw/2 − 0,3) × sl/2, jak addWalkable w layout.js) bez pokrycia kolizją: środek AABB w prostokącie/kole kolizji rozszerzonym o promień gracza 0,35
+//     (ta sama tolerancja co C: słup kramu 1,70 m od środka przy kole 1,6 — gracz wchodzi ≤ 0,35 m w bryłę). Prawdziwe wady HEAD → KNOWN_B6 (lista ma się kurczyć).
+{
+  const half = W.half, sw = CONFIG.plaza.streetWidth, sl = CONFIG.plaza.streetLength;
+  const walk = [{ x: 0, z: 0, hw: half - 0.3, hd: half - 0.3 }, ...[[0, -1], [0, 1], [-1, 0], [1, 0]].map(([dx, dz]) => ({ x: dx * (half + sl / 2), z: dz * (half + sl / 2), hw: dx ? sl / 2 : sw / 2 - 0.3, hd: dz ? sl / 2 : sw / 2 - 0.3 }))];
+  const tol = 0.35;
+  const covered = (cx, cz) => col.rects.some(rc => Math.abs(cx - rc.x) <= rc.hw + tol && Math.abs(cz - rc.z) <= rc.hd + tol) || col.circles.some(c => Math.hypot(cx - c.x, cz - c.z) <= c.r + tol);
+  for (const r of rec) {
+    if (/^(cobble|wet)/.test(r.key)) continue;
+    const wb = r.bb.clone().applyMatrix4(r.m); if (wb.min.y >= 2) continue;
+    if (!walk.some(w => wb.max.x > w.x - w.hw && wb.min.x < w.x + w.hw && wb.max.z > w.z - w.hd && wb.min.z < w.z + w.hd)) continue;
+    nWalk++;
+    const cx = (wb.min.x + wb.max.x) / 2, cz = (wb.min.z + wb.max.z) / 2;
+    if (covered(cx, cz)) continue;
+    const msg = `B6 ${r.key} w obszarze chodzenia bez kolizji: środek AABB (${cx.toFixed(2)}, ${((wb.min.y + wb.max.y) / 2).toFixed(2)}, ${cz.toFixed(2)}), min.y ${wb.min.y.toFixed(2)}`;
+    if (KNOWN_B6.some(k => k.key === r.key && Math.hypot(k.x - cx, k.z - cz) < 0.1)) { known++; notes.push('znane (KNOWN_B6): ' + msg); } else fails.push(msg);
+  }
+}
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, połaci ${nRoof}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);
