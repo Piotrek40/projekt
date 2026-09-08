@@ -51,10 +51,18 @@
 
 ## 6. Stan bieżący
 
-- **Etap:** 2 — rynek dopracowany jako pierwsza scena gry, czeka na pomiar z telefonu.
+- **Etap:** 2 — rynek dopracowany jako pierwsza scena gry; pomiar z telefonu jest, trwa runda 3 krytyki wizualnej.
 - **Ostatnio powstało:** Etap 2 rynku (wieża, paleta, fontanna, zieleń, girlandy, panorama, role kramów, UI) — https://piotrek40.github.io/projekt/rynek/ i Artifact (15,4 MB z limitu 16 MB); narzędzia weryfikacji (`engine/src/check.js`, `?top/?side/?boxes/?lineup/?roles`, `audyt/testy/geo_test.sh`, `audyt/testy/tools/*`), 17 nowych zasobów CC0 (`audyt/research/zasoby_etap2.md`), `rynek/PROMPT.md`.
-- **Pomiar (SwiftShader, 824×1830, high):** start_plac 114 draw / 600 k tri w HUD (limit 250 / 700 k), errors [] we wszystkich widokach; w trybie telefonu (`noinst`) ok. 122 draw / 250 k tri. FPS z SwiftShader nie jest miarą telefonu.
-- **Następny krok:** Piotr podaje z telefonu FPS/p95 dla rynku w trzech jakościach (Etap 2). Dopiero potem decyzja, co dalej: wnętrza i interakcja, NPC, dźwięk, czy wypalone światło. Potem: wypalone oświetlenie pośrednie (Blender), drzewa (własne, lekkie — skany Poly Haven mają 40–950 MB geometrii), postaci/NPC, dźwięk.
+- **Pomiar (SwiftShader, 824×1830, high):** start_plac 117 draw / 578 k tri w HUD (limit 250 / 700 k), errors [] we wszystkich widokach. FPS z SwiftShader nie jest miarą telefonu.
+- **Pomiar z telefonu (2026-09-08, Galaxy S24, Samsung Xclipse 940, Vulkan 1.3.279, OpenGL ES 3.2, Chrome, GitHub Pages):**
+  | jakość | DPR | rozdzielczość | fps | p95 | draw | tri (HUD) | kadr |
+  |---|---|---|---|---|---|---|---|
+  | high | 2.00 | 720×1282 | 58 | **20,5 ms** | 151 | 347 k | korona lipy wypełnia kadr |
+  | high | 2.00 | 720×1282 | 59 | 17,1 ms | 115 | 275 k | wieża i kram, lipy poza kadrem |
+  | medium | 1.50 | 540×961 | 58 | 17,1 ms | 158 | 361 k | kadr zbliżony do startowego |
+  Odczyt: 58–59 fps to sufit odświeżania 60 Hz, więc miarą jest p95 (16,7 ms = pełne 60 fps). Jakość medium ma p95 na poziomie sufitu mimo WIĘKSZEJ
+  geometrii niż high, a jedyny kadr z p95 ponad sufitem to ten z lipą — telefon jest bliżej limitu wypełniania pikseli niż geometrii.
+- **Następny krok:** runda 3 krytyki wizualnej z uwzględnieniem zmierzonego budżetu (geometria tania, koszt na piksel drogi), potem poprawki. Dopiero po nich decyzja, co dalej: wnętrza i interakcja, NPC, dźwięk, czy wypalone światło (Blender).
 - **Odłożone świadomie:** drzewa ze skanów (za ciężkie), generowanie zasobów AI (token HF), WebGPU, lightmapy (najpierw pomiar).
 
 ## 7. Zmiany decyzji
@@ -69,3 +77,4 @@
 - 2026-09-08 — Nazwa lokacji: „Rynek Srebrnych Liści" w mieście Srebrny Bród (Wybrzeże Mieczy); karczma „Pod Złotym Gryfem". Nazwy własne nasze, nie z podręczników WotC. Powód: Etap 2 wymagał tożsamości miejsca (heraldyka, podpisy, ekran startowy).
 - 2026-09-08 — Kolory sceny wyłącznie jako OKLCH w `CONFIG.paletteOKLCH` (hex przez `oklch()`), tinty liczone z mnożnika tekstury i sprawdzane sondą na zrzucie. Powód: tint mnoży teksturę, a AgX kompresuje jasność i chromę — dobór „na oko" dawał czarne belki i mleczną wodę.
 - 2026-09-08 — Każda cecha ma flagę URL `?no<cecha>=1` i asercję `check()`; render pomiarowy zawsze z `?noui=1&nosmoke=1&nosway=1&nowater=1`. Powód: bisekcja na telefonie i porównywalność zrzutów.
+- 2026-09-08 — Po pomiarze na S24: budżet sceny liczymy w DWÓCH walutach, nie jednej. Geometria (draw calls, trójkąty) jest tania — 151/250 draw i 347 k/700 k tri przy p95 na sufitie. Kosztem krytycznym jest praca NA PIKSEL: alfa-test, przezroczystość, overdraw, DoubleSide. Powód: jedyny zmierzony kadr ponad sufitem 60 Hz (p95 20,5 ms) to ten z koroną lipy na cały ekran — przy MNIEJSZEJ geometrii niż kadr, który sufit trzymał.
