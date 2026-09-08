@@ -1,5 +1,7 @@
 // Kamienice szachulcowe (parter kamienny z portalem łukowym, piętra z jetty, belki, okna z okiennicami, wykusz wieloboczny na kroksztynach, dach, komin).
 // W.portals = [{x, z, ry, …}] — punkt na ziemi przed drzwiami każdego domu (kontrakt z greenery.js; szyldy w props.js czytają doorX/faceZ1/orielX).
+// W.sills = [{x, y, z, ry, w, floor, side, along, setback, shut}] — środek górnej-PRZEDNIEJ krawędzi parapetu (timber box(w+0.16, 0.08, 0.1) na front+0.02 →
+// wierzch +0.04, lico +0.07) okien parteru (floor 0) i piętra 1 (floor 1), ry = obrót fasady, w = szerokość okna, shut = okno z okiennicami (kontrakt z greenery.js: skrzynki kwiatowe).
 // Układ lokalny: początek na środku podstawy, +x wzdłuż pierzei, +y w górę, +z = FRONT (do placu). Metry. Do świata tylko przez L().
 import * as THREE from 'three';
 import { box, plane, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
@@ -25,7 +27,7 @@ function archRing(rIn, rOut, t, seg, mpt = 2) {
 
 export function buildHouses(W) {
   const { ctx, CONFIG, P, T, H, B, houses, sideTransform, half } = W;
-  const chimneys = [], portals = [];
+  const chimneys = [], portals = [], sills = [];
   for (const h of houses) {
     const r = rng(h.seedLocal);
     const tr = sideTransform(h.side, h.along, h.setback);
@@ -106,6 +108,7 @@ export function buildHouses(W) {
         B.add('timber', box(ww + 0.16, 0.08, 0.1), L(cx, y + fh * 0.55 + wh / 2, front + 0.02));
         B.add('timber', box(0.06, wh, 0.1), L(cx, y + fh * 0.55, front + 0.02));
         if (shut) shutters(cx, y + fh * 0.55, wh, front, ww, Sh.wing, `${id} p${f} pole ${i}`, [cx - fw / n / 2, cx + fw / n / 2]); // 0.55: wysokość środka okna jak HEAD; słupki pola na ±pole/2 od środka
+        if (f === 1) { const sp = LP(cx, y + fh * 0.55 - wh / 2 + 0.08 / 2, front + 0.02 + 0.1 / 2); sills.push({ x: sp.x, y: sp.y, z: sp.z, ry: tr.ry, w: ww, floor: f, side: h.side, along: h.along, setback: h.setback || 0, shut }); } // W.sills (greenery.js): wierzch parapetu = środek + 0,08/2, lico = front + 0,02 + 0,1/2 (wymiary parapetu wyżej)
       }
       if (orielHere) orielBay(y, front, frontBelow, front + (h.jetty ? H.jetty : 0), bt);
       frontBelow = front;
@@ -169,6 +172,7 @@ export function buildHouses(W) {
       B.add('timber', box(1.05, 0.08, 0.1), L(cx, 1.8 + 0.55, faceZ0 + 0.02)); // HEAD: nadproże okna
       const shutG = shutterOK(0, cx, true) && Rs() < Sh.share;
       if (shutG) shutters(cx, 1.8, 1.1, faceZ0, Sh.ground.ww, Sh.ground.wing, `${id} parter`, null); // parter bez jetty: lico = d/2; skrzydła 0,45 przy oknie 0,9 (rama 1,05)
+      { const sp = LP(cx, 1.8 - 0.55 + 0.08 / 2, faceZ0 + 0.02 + 0.1 / 2); sills.push({ x: sp.x, y: sp.y, z: sp.z, ry: tr.ry, w: 0.9, floor: 0, side: h.side, along: h.along, setback: h.setback || 0, shut: shutG }); } // W.sills (greenery.js): parapet parteru (1,25 + 0,04 = 1,29; lico faceZ0 + 0,07), okno 0,9
       if (portal) check(Math.abs(cx - doorX) - (shutG ? shutterReach(Sh.ground.ww, Sh.ground.wing) : 1.05 / 2) >= Po.archOut + 0.05, `${id} okno parteru w oprawie portalu`, { cx, doorX }); // skraj ramy 1,05 (1,675 od drzwi) / okiennicy (1,287) ≥ ościeże 0,9 + 0,05
     }
     // Portal łukowy (motyw #10a): oprawa `key` (blocks) 1 cm przed licem parteru: ościeża od archIn do archOut, półpierścień archRing na impoście,
@@ -292,5 +296,5 @@ export function buildHouses(W) {
     B.add('stone', box(0.9, y + 2.2 - gf, 0.9, T.stone.mpt, off), L(chx, (gf + y + 2.2) / 2, -1.5));
     chimneys.push(new THREE.Vector3(chx, y + 2.2, -1.5).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry)));
   }
-  W.chimneys = chimneys; W.portals = portals;
+  W.chimneys = chimneys; W.portals = portals; W.sills = sills;
 }

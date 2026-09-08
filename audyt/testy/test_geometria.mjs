@@ -47,9 +47,9 @@ for (const side of [0, 1, 2, 3]) {
 // B) domy pojedynczo (izolacja: buildHouses na liście z jednym domem)
 const allHouses = W.houses;
 let nWin = 0, nWinO = 0, nRoof = 0, nSupp = 0, nDormer = 0, nWalk = 0, known = 0;
-const allPortals = []; // W.portals z każdego izolowanego buildHouses (do F2)
+const allPortals = [], allSills = []; // W.portals / W.sills z każdego izolowanego buildHouses (do F2 / K1)
 for (const h of allHouses) {
-  const n0 = rec.length; W.houses = [h]; buildHouses(W); allPortals.push(...W.portals);
+  const n0 = rec.length; W.houses = [h]; buildHouses(W); allPortals.push(...W.portals); allSills.push(...W.sills);
   const items = rec.slice(n0);
   const t = W.sideTransform(h.side, h.along, h.setback), inv = M4(t.x, 0, t.z, t.ry).invert();
   const loc = r => ({ ...r, ml: r.m.clone().premultiply(inv) }); // macierz w układzie domu
@@ -180,6 +180,25 @@ let nTree = 0;
     if (trunk.length < 1) fails.push(`H lipa (${p.x.toFixed(2)}, ${p.z.toFixed(2)}): pień nie stoi na ziemi`);
     const leaves = near.filter(r => r.key.startsWith('leaf')), lowest = Math.min(...leaves.map(r => r.bb.clone().applyMatrix4(r.m).min.y));
     if (leaves.length < 10 || lowest < C.headroom) fails.push(`H lipa (${p.x.toFixed(2)}, ${p.z.toFixed(2)}): korona ${leaves.length} elementów, spód ${lowest.toFixed(2)} < headroom ${C.headroom}`);
+  }
+}
+// K1) kontrakt W.sills (buildings.js → greenery.js, motyw #greenery): punkt = środek górnej-PRZEDNIEJ krawędzi parapetu (timber box(w+0.16, 0.08, 0.1) na front+0.02 →
+//     wierzch +0.04, lico +0.07) okien parteru (floor 0) i piętra 1 (floor 1). Sprawdzane: istnieje belka timber z wierzchem na s.y (± 0,005) zawierająca punkt 1 cm pod
+//     wierzchem i 2 cm za licem; lico tej belki (max rzutu AABB na normalną (sin ry, 0, cos ry)) = punkt (± 0,005); parter bez setback: |współrzędna| = half − 0,07
+//     (lico parteru d/2 przy dist = half + d/2) — 4 pierzeje. Kalibracja 2026-09-08: 0 FAIL na HEAD (parapety z tego samego L() co punkt).
+let nSill = 0;
+{
+  W.sills = allSills; const sills = allSills;
+  if (sills.length < 20) fails.push(`K1 W.sills: ${sills.length} parapetów (< 20 przy 24 domach)`);
+  for (const s of sills) {
+    nSill++;
+    const nrm = V(Math.sin(s.ry), 0, Math.cos(s.ry)), probe = V(s.x, s.y - 0.01, s.z).sub(nrm.clone().multiplyScalar(0.02));
+    const face = rec.filter(r => r.key === "timber").map(r => r.bb.clone().applyMatrix4(r.m)).filter(b => Math.abs(b.max.y - s.y) < 0.005 && b.containsPoint(probe));
+    if (!face.length) { fails.push(`K1 parapet (${s.x.toFixed(2)}, ${s.y.toFixed(2)}, ${s.z.toFixed(2)}) s${s.side} p${s.floor}: brak belki parapetu z wierzchem na y zawierającej punkt 2 cm za licem`); continue; }
+    const b = face[0], lip = Math.max(...[b.min, b.max].map(v => V(v.x, 0, v.z).dot(nrm))) - V(s.x, 0, s.z).dot(nrm); // lico parapetu − punkt (wzdłuż normalnej; AABB osiowe, normalna osiowa)
+    if (Math.abs(lip) > 0.005) fails.push(`K1 parapet s${s.side} p${s.floor} along ${s.along.toFixed(1)}: punkt ${(-lip).toFixed(3)} m od lica parapetu (oczekiwane 0)`);
+    if (![0, 1].includes(s.floor) || !(s.w >= 0.7 && s.w <= 1.0)) fails.push(`K1 parapet s${s.side}: floor ${s.floor}, w ${s.w}`);
+    if (s.floor === 0 && !s.setback) { const c = Math.abs(s.side % 2 === 0 ? s.z : s.x); if (Math.abs(c - (W.half - 0.07)) > 0.005) fails.push(`K1 parapet parteru s${s.side} along ${s.along.toFixed(1)}: |współrzędna| ${c.toFixed(3)} ≠ half − 0,07 = ${(W.half - 0.07).toFixed(3)}`); }
   }
 }
 // D) wieża: okna (i tarcza zegara) na licu trzonu, normalną na zewnątrz. Trzon = najwyższy element `slates` wieży; klasyfikacja po typie geometrii:
@@ -443,7 +462,7 @@ if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, kramów J towar ${nGoods} bel ${nBales}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, parapetów K1 ${nSill}, kramów J towar ${nGoods} bel ${nBales}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);
