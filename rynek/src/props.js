@@ -98,7 +98,7 @@ export async function initProps(W) {
       check(n >= Object.keys(M.materials).length - 1, 'model kramu ma mniej siatek niż materiałów w mapie', { n });
       const s = W.stalls.find(q => q.kind === M.kind);
       check(!!s, 'brak kramu rodzaju modelu w W.stalls', { kind: M.kind });
-      if (s) put(M.name, s.x, 0, s.z, s.ry, 1, { collide: false, force: true });   // kolizję dodał już buildStalls (koło collideR)
+      if (s) put(M.name, s.x, 0, s.z, s.ry + (M.yaw ?? 0), 1, { collide: false, force: true });   // kolizję dodał już buildStalls (koło collideR); M.yaw: korekta osi Blender→glTF
     }
   }
   W.models = models; W.bounds = bounds; W.put = put; W.flushInstances = flushInstances;

@@ -238,6 +238,21 @@ Pozostałe przenikanie: **48 wierzchołków po ≤8 mm w 70-milimetrowej krokwi*
 Koszt: kadr całego stoiska 128 draw / 584 083 tri (przed: 116 / 565 461) — limity 250 / 700 000. Czyli **+12 draw i +19 tys. trójkątów** za cały fragment.
 Płynność sprawdza Piotr na telefonie; z SwiftShadera nie podaję FPS.
 
+### Poprawka ciesiołki kramów po kolejnych zrzutach z telefonu
+
+Uwaga Piotra: „belki podtrzymujące dach są jakby niedokończone, przez to przy jednym straganie znak wisi w powietrzu". Trzy prawdziwe wady, wszystkie znalezione pomiarem:
+
+| wada | liczba, która ją pokazała | poprawka |
+|---|---|---|
+| **belka tylna wisiała 30 cm nad wierzchołkami słupów** — nic jej nie podpierało | słupy 2,30 m, belka tylna na 2,65 m | słup tylny wyższy o `frame.backRise` = 0,40 m; belka spoczywa na jego wierzchu |
+| **rama nie miała boków**: słupy na x = ±1,20, krokwie na ±0,96, między słupem przednim a tylnym nic | rozstaw z `buildStalls` | dwie płatwie boczne (`frame.rail`) wiążące słupy; ich długość i kąt liczone z rzeczywistego rozstawu, nie z szerokości płótna |
+| **belki wystawały 25 cm poza słupy i kończyły się płaskim przekrojem** | `cw + 0.3` przy słupach na ±(cw/2 − 0,1) | zwis `frame.overhang` = 0,10 m + zastrzały kolanowe (`frame.brace`) pod każdą belką |
+| **szyld nie mieścił się pod płótnem**: 0,32 m szyldu w szparze 0,295 m | spód belki 2,20 − dół zwisu 1,905 | zwis wydłużony do `valance.h` = 0,48; szyld wisi na **dwóch skośnych żelaznych taśmach** przybitych do belki — widać, co go trzyma |
+| **model był obrócony o 180°**: sukno zwisało przez tylną krawędź lady, szyld po przeciwnej stronie niż towar | render od strony fontanny | `stalls.model.yaw = π` — Blender buduje frontem ku +Y, a eksporter glTF (Y w górę) mapuje Blender +Y na −Z |
+| **szyld chował się za płótnem modelu** | płótno modelu wysuwa się do z = 1,233, szyld stał na 1,21 | `sign.out` 0,04 → 0,16 |
+
+Przy okazji: kramy stoją **frontem do fontanny**, więc widok od strony placu zewnętrznego pokazuje ich tył — pierwsze rendery kontrolne robiłem właśnie stamtąd i dlatego szyldu na nich nie było.
+
 ### Świadome ograniczenia
 
 - **Wariant inline (Artifact) nie dostaje modelu.** Strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model z mapą AO to ok. 0,5 MB. Tam zostaje kram proceduralny; Pages i wersja lokalna mają model.

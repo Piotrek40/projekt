@@ -15,6 +15,8 @@ CW, CD, CH, PH = 2.6, 1.0, 0.95, 2.3      # szerokość lady, głębokość lady
 POST, BEAM = 0.12, 0.10                    # przekrój słupa, przekrój belki
 POST_Z = CD / 2 + 0.6                      # odsunięcie słupów w głąb/przód od osi lady (stalls.js:57)
 BEV_W, BEV_SEG = 0.006, 2                  # faza: 6 mm, 2 segmenty — na 1,5 m widać jako miękkie światło na krawędzi
+# CIESIOŁKA = CONFIG.stalls.frame w rynek/src/config.js (te same liczby, bo model stoi obok kramów proceduralnych).
+BACK_RISE, OVERHANG, RAIL, BRACE, BRACE_T = 0.40, 0.10, 0.08, 0.40, 0.07
 
 def reset():
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -54,23 +56,40 @@ sukna = [mat(f'sukno{i}', c, 0.95, spec=0.25) for i, c in enumerate(
 
 # ---------- 1. RAMA: 4 słupy + belka przednia (niżej) i tylna (wyżej) + krokwie ----------
 frame = []
+# Słup TYLNY (y < 0) jest wyższy o BACK_RISE — to on niesie belkę tylną. W pierwszej wersji wszystkie słupy miały PH = 2,30,
+# a belka tylna siedziała na 2,65 i wisiała 30 cm nad nimi w powietrzu (znalezione na zrzucie z telefonu).
 for sx in (-1, 1):
     for sz in (-1, 1):
-        # słup lekko zbieżny ku górze i minimalnie odchylony od pionu — ręcznie ciosane drewno nie stoi w pionie
-        lean = 0.012 * sx * (1 if sz > 0 else -1)
-        frame.append(box(f'slup_{sx}_{sz}', POST, POST, PH,
-                         (sx * (CW / 2 - 0.1), sz * POST_Z, PH / 2),
+        h = PH + BACK_RISE if sz < 0 else PH
+        lean = 0.012 * sx * (1 if sz > 0 else -1)   # ręcznie ciosane drewno nie stoi idealnie w pionie
+        frame.append(box(f'slup_{sx}_{sz}', POST, POST, h,
+                         (sx * (CW / 2 - 0.1), sz * POST_Z, h / 2),
                          rot=(lean, 0, 0.02 * sz), material=drewno))
-frame.append(box('belka_przod', CW + 0.3, BEAM, BEAM, (0, POST_Z, PH - 0.05), material=drewno))
-frame.append(box('belka_tyl',   CW + 0.3, BEAM, BEAM, (0, -POST_Z, PH + 0.35), material=drewno))
+frame.append(box('belka_przod', CW + 2 * OVERHANG, BEAM, BEAM, (0, POST_Z, PH - 0.05), material=drewno))
+frame.append(box('belka_tyl',   CW + 2 * OVERHANG, BEAM, BEAM, (0, -POST_Z, PH + BACK_RISE - 0.05), material=drewno))
+# Płatwie boczne: wiążą słup przedni z tylnym. Bez nich kram jest dwiema osobnymi bramkami z płótnem w powietrzu.
+rail_len = math.hypot(2 * POST_Z, BACK_RISE); rail_ang = math.atan2(BACK_RISE, 2 * POST_Z)
+for sx in (-1, 1):
+    frame.append(box(f'platew_{sx}', RAIL, rail_len, RAIL,
+                     (sx * (CW / 2 - 0.1), 0, PH + BACK_RISE / 2 - RAIL / 2 - 0.005), rot=(-rail_ang, 0, 0), material=drewno))   # środek na linii wierzchów belek minus pół płatwi
+# Zastrzały kolanowe pod belkami — ta sama ciesiołka, co w kamienicach sceny.
+for sx in (-1, 1):
+    for sz in (-1, 1):
+        z_beam = (PH + BACK_RISE if sz < 0 else PH) - 0.1
+        frame.append(box(f'zastrzal_{sx}_{sz}', BRACE_T, BRACE_T, BRACE * math.sqrt(2),
+                         (sx * (CW / 2 - 0.1) - sx * BRACE / 2, sz * POST_Z, z_beam - BRACE / 2),
+                         rot=(0, sx * math.pi / 4, 0), material=drewno))
 # Krokwie POD płótnem, równoległe do niego: linia płótna biegnie od wierzchu belki tylnej (PH+0.40) do wierzchu przedniej (PH+0.00)
 # na rozstawie 2·POST_Z. Krokiew ma leżeć tak, żeby jej WIERZCH dotykał tej linii — inaczej przebija płótno (kontrola 4b: 25 mm).
 RAF_H = 0.07
 CONFIG_RAFTERS = (-0.62, 0.0, 0.62)          # = CONFIG.stalls.rafters w rynek/src/config.js
-rise, depth = (PH + 0.35 + BEAM / 2) - (PH - 0.05 + BEAM / 2), 2 * POST_Z    # 0.40 m spadku na 2.2 m
+# Podpory płótna w METRACH: 3 krokwie + 2 płatwie boczne. Płótno jest przybite do KAŻDEJ z nich, a festony powstają między nimi.
+def _supports_m():
+    return sorted([fx * (CW + 0.5) / 2 for fx in CONFIG_RAFTERS] + [-(CW / 2 - 0.1), (CW / 2 - 0.1)])
+rise, depth = BACK_RISE, 2 * POST_Z    # 0.40 m spadku na 2.2 m
 slope = math.hypot(depth, rise); ang = math.atan2(rise, depth)
 for fx in CONFIG_RAFTERS:
-    frame.append(box(f'krokiew_{fx}', 0.05, slope, RAF_H, (fx * (CW + 0.5) / 2, 0, PH + 0.21 - RAF_H / 2 - 0.002),
+    frame.append(box(f'krokiew_{fx}', 0.05, slope, RAF_H, (fx * (CW + 0.5) / 2, 0, PH + BACK_RISE / 2 + 0.01 - RAF_H / 2 - 0.002),
                      rot=(-ang, 0, 0), material=drewno))   # WIERZCH krokwi dokładnie na linii płótna (2,508 m): płótno ma na niej LEŻEĆ. Obniżenie krokwi o 22 mm odebrało mu podparcie i solver przeciskał je na wylot.
 
 # ---------- 2. LADA: osobne deski ze szczelinami, każda z własnym uskokiem i przechyłem ----------
@@ -100,8 +119,8 @@ print(f'rama+lada: {len(frame)+len(lada)} elementow, {time.time()-T0:.1f} s')
 # Płótno rozpięte między belką tylną (wyżej) a przednią (niżej), OPADAJĄCE na krokwie: przypięte tylko wzdłuż obu belek,
 # reszta znajduje swój kształt sama — kolizja z krokwiami daje zwis między nimi, a nadmiar za belką przednią zwisa jako lambrekin.
 BACK_Y, FRONT_Y = -POST_Z, POST_Z
-BACK_Z, FRONT_Z = PH + 0.35 + BEAM / 2, PH - 0.05 + BEAM / 2
-VAL = 0.28                                    # ile płótna zwisa za belką przednią (lambrekin, na nim wisi szyld kramu)
+BACK_Z, FRONT_Z = PH + BACK_RISE - 0.05 + BEAM / 2, PH - 0.05 + BEAM / 2
+VAL = 0.42                                    # ile płótna zwisa za belką przednią (lambrekin, na nim wisi szyld kramu)
 SLACK = 1.000                                 # BEZ luzu wzdłuż spadku: każdy nadmiar wzdłuż y zsuwa płótno pod krokwie (kontrola 4b: przechodziło przez nie na całej długości).
                                               # Nadmiar materiału jest teraz W POPRZEK (X_SLACK) — tam, gdzie ma powstać feston między krokwiami.
 X_SLACK = 1.030                               # nadmiar materiału W POPRZEK: bez niego solver napina płótno i zjada festony
@@ -133,7 +152,7 @@ for v in me.vertices:                          # grid ma x,y w [-0.5, 0.5] — r
     # Węzły festonu MUSZĄ leżeć dokładnie na krokwiach. Krokwie stoją w ułamkach szerokości BALDACHIMU (CW+0.5),
     # a płótno ma szerokość CW+0.18 — pierwsza wersja użyła tych samych ułamków dla obu i płótno uginało się
     # o 10 cm obok krokwi, czyli przechodziło przez nie (kontrola 4b: 25 mm na każdej z trzech).
-    sup = [-1.0] + sorted(rx * (CW + 0.5) / (CW + 0.18) for rx in CONFIG_RAFTERS) + [1.0]
+    sup = [-1.0] + [m / ((CW + 0.18) * X_SLACK / 2) for m in _supports_m()] + [1.0]
     k = max(0, min(len(sup) - 2, next((j for j in range(len(sup) - 1) if xw <= sup[j + 1]), len(sup) - 2)))
     frac = (xw - sup[k]) / (sup[k + 1] - sup[k])
     # Zwis MUSI być zerowy na każdej podporze: na krokwiach (sin(pi·frac) = 0) i przy obu belkach (sin(pi·t) = 0).
@@ -149,7 +168,7 @@ for v in me.vertices:                          # grid ma x,y w [-0.5, 0.5] — r
     # problem, którego solver nie rozwiązał: kolizja z krokwiami nie działała (kontrola 4b: tkanina przechodziła przez nie
     # na całej długości mimo thickness_outer 20 mm). Przypięcie na linii krokwi jest fizycznie poprawne i daje 0 przenikań
     # z konstrukcji, a festony powstają MIĘDZY przywiązaniami z nadmiaru materiału X_SLACK.
-    na_krokwi = min(abs(xw - r * (CW + 0.5) / ((CW + 0.18) * X_SLACK)) for r in CONFIG_RAFTERS) < 0.022
+    na_krokwi = min(abs(xw - m / ((CW + 0.18) * X_SLACK / 2)) for m in _supports_m()) < 0.022
     if yl < 0.05 or abs(yl - span) < 0.05 or (na_krokwi and yl <= span): pin_idx.append(v.index)
 canopy.data.materials.append(plotno)
 
@@ -210,7 +229,7 @@ bpy.ops.object.modifier_apply(modifier='tkanina')
 cv = canopy.data.vertices
 srodek = [v.co.z for v in cv if BACK_Y + 0.2 < v.co.y < FRONT_Y - 0.2]
 lambrekin = [v.co.z for v in cv if v.co.y >= FRONT_Y - 0.12]
-print(f'baldachim: zwis miedzy belkami do z {min(srodek):.3f} m (belka przod {FRONT_Z:.2f}), lambrekin do z {min(lambrekin):.3f} m = {FRONT_Z-min(lambrekin):.2f} m ponizej belki')
+print(f'baldachim: zwis miedzy belkami do z {min(srodek):.3f} m (belka przod {FRONT_Z:.2f}), lambrekin do z {min(lambrekin):.3f} m = {FRONT_Z-min(lambrekin):.2f} m ponizej belki; lambrekin wysuniety do y {max(v.co.y for v in cv):.3f} (szyld kramu stoi na y = cd/2+0.62+out)')
 
 
 # ---------- 4. SUKNO: rolki na wałkach + JEDEN BELE ROZWINIĘTY przez ladę (symulacja) ----------

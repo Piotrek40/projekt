@@ -55,6 +55,17 @@ export const CONFIG = {
     water: { envMapIntensity: 0.32, normalRepeat: 1, normalScale: 0.15, drift: [0.02, 0.013] }, // własny envMap (§4.1.9); cykl 1: 1.2 → lustro basenu L 0.74–0.80 C < 0.01 (białe, tint H 200 znika, kręgi niewidoczne); dryf normal mapy jak dawniej
   },
   stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6, rafters: [-0.62, 0, 0.62],
+    // CIESIOŁKA KRAMU (poprawka po zrzutach z telefonu: „belki podtrzymujące są jakby niedokończone").
+    // Trzy prawdziwe wady, znalezione pomiarem, nie okiem:
+    //  (1) słupy miały 2,30 m, a belka TYLNA siedziała na 2,65 m — wisiała 30 cm nad ich wierzchołkami, bez żadnego podparcia.
+    //      backRise: o ile słup tylny jest wyższy od przedniego (kram jest wyższy z tyłu, żeby płótno spływało do przodu).
+    //  (2) słupy stoją na x = ±1,20, a krokwie na ±0,96 — między słupem przednim a tylnym NIE BYŁO NICZEGO. rail: płatew boczna, która wiąże ramę.
+    //  (3) belki wystawały 25 cm poza słupy i kończyły się płaskim przekrojem w powietrzu. overhang: zwis belki poza słup.
+    // brace: zastrzał kolanowy pod belką (klasyczna ciesiołka; ten sam wzór, co zastrzały w kamienicach).
+    // valance: zwis płótna z przodu — musi być na tyle długi, żeby zmieścił się na nim szyld (0,32 m). Wcześniej szpara
+    // między spodem belki a dołem płótna miała 0,295 m i szyld wystawał POD płótno na każdym z siedmiu kramów.
+    frame: { backRise: 0.40, overhang: 0.10, rail: 0.08, brace: 0.40, braceT: 0.07 },
+    valance: { h: 0.48, drop: 0.285 },
     // Etap 3: rodzaj kramu, który zamiast geometrii proceduralnej dostaje MODEL z Blendera (assets_blender/kram_sukiennik.py).
     // Model ma fazowane krawędzie, ladę z osobnych desek, baldachim i sukno z symulacji tkaniny oraz wypalone w Cyclesie AO.
     // wood/cloth: klucze W.mat, którymi podmieniamy materiały z Blendera — dzięki temu model ma tę SAMĄ teksturę i skalę co
@@ -63,7 +74,10 @@ export const CONFIG = {
     // materials: nazwa materiału w GLB -> klucz W.mat. Podział na konstrukcję i ladę jest istotny: geometria proceduralna
     // używa dla belek `timber` (ciemny dąb), a dla blatu `planks` (jasne deski) — pierwszy render „po" miał wszystko na
     // `timber` i kram był czarny. Rolki dostają cztery barwy sukna, tak jak w wersji proceduralnej.
-    model: { kind: 'sukiennik', name: 'kram_sukiennik', ao: 'kram_sukiennik', aoIntensity: 1.0,
+    // yaw: model budowany jest w Blenderze frontem ku +Y, a eksporter glTF (Y w górę) mapuje Blender (x,y,z) → glTF (x,z,−y),
+    // czyli Blender +Y → glTF −Z. Front kramu w scenie to lokalne +z, więc model trzeba obrócić o π. Bez tego sukno zwisało
+    // przez TYLNĄ krawędź lady, a szyld wisiał po drugiej stronie niż towar (widoczne na renderze od strony fontanny).
+    model: { kind: 'sukiennik', name: 'kram_sukiennik', ao: 'kram_sukiennik', aoIntensity: 1.0, yaw: Math.PI,
              materials: { drewno_konstr: 'timber', drewno_lada: 'planks', plotno: 'cloth2', sukno0: 'cloth0', sukno1: 'cloth1', sukno2: 'cloth2', sukno3: 'cloth3' },
              // Cień kontaktowy pod kramem. AO wypalone W MODELU przyciemnia sam model, ale nie ma jak przyciemnić BRUKU obok —
              // porównanie przed/po styku drewna z brukiem nie pokazało żadnej różnicy, bo jej tam nie było. Decal na ziemi
@@ -98,7 +112,11 @@ export const CONFIG = {
       // yaw/lenVar: rolki nie są ustawione w równą kratę — każda dostaje własny obrót ±yaw i skrócenie do lenVar (własny strumień rng
       // seedOffset + jitterSeed, żeby nie przetasować gniazd towaru). Zasięg rolki w x: len/2 · sin(yaw) + w/2 · cos(yaw) = 0,194 ≤ step/2 = 0,2 (asercja w stalls.js).
       bale: { w: 0.28, len: 1.1, step: 0.4, rows: [3, 2], seg: 14, yaw: 0.10, lenVar: 0.12, jitterSeed: 7, core: { r: 0.035, out: 0.09, seg: 8 } },
-      sign: { w: 0.52, h: 0.32, below: 0.27, out: 0.04 }, ground: { x: 0.95, z: -0.8 } },   // szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158
+      // Szyld kramu wisi na DWÓCH ŻELAZNYCH TAŚMACH przybitych do belki frontowej — dotąd „wisiał w powietrzu”, bo nic go
+      // nie trzymało, a przy festonowym kroju płótna modelu w środku kramu i tak wystawałby pod nie. below zwiększone
+      // 0,27 → 0,35, żeby między spodem belki (ph − 0,1) a wierzchem szyldu została widoczna taśma.
+      sign: { w: 0.52, h: 0.32, below: 0.35, out: 0.16, strap: { w: 0.032, t: 0.014, dx: 0.17, up: 0.05, over: 0.04 } },
+      ground: { x: 0.95, z: -0.8 } },   // szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158
   },
   lanterns: { count: 8, ringRadius: 15.5 },
   // sunColor: motyw #9, hipoteza (a) §4.4 zaliczona na lineupie (lineup_v1_sunA, 2026-09-07): przy 0xfff1e0 (C 0,027) plaster4 w słońcu H 219 (≥ 180), roof2 H 231 (≥ 200),

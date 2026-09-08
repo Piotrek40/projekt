@@ -69,17 +69,34 @@ export function buildStalls(W) {
     }
     B.add('planks', box(cw, 0.08, cd, T.planks.mpt), L(0, ch, 0));
     B.add('planks', box(cw, ch - 0.1, 0.06, T.planks.mpt), L(0, (ch - 0.1) / 2, cd / 2 - 0.03));
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) B.add('timber', box(0.12, ph, 0.12, T.timber.mpt), L(sx * (cw / 2 - 0.1), ph / 2, sz * (cd / 2 + 0.6)));
-    B.add('timber', box(cw + 0.3, 0.1, 0.1, T.timber.mpt), L(0, ph - 0.05, cd / 2 + 0.6));
-    B.add('timber', box(cw + 0.3, 0.1, 0.1, T.timber.mpt), L(0, ph + 0.35, -(cd / 2 + 0.6)));
+    const F = CONFIG.stalls.frame, Vl = CONFIG.stalls.valance, postZ = cd / 2 + 0.6, postX = cw / 2 - 0.1;
+    // Słupy: TYLNE wyższe o backRise, bo to na nich ma spoczywać belka tylna. Dotąd wszystkie miały ph = 2,30,
+    // a belka tylna siedziała na 2,65 — wisiała 30 cm nad nimi w powietrzu (zrzut z telefonu, „niedokończone belki").
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const h = sz < 0 ? ph + F.backRise : ph;
+      B.add('timber', box(0.12, h, 0.12, T.timber.mpt), L(sx * postX, h / 2, sz * postZ));
+    }
+    const beamLen = cw + 2 * F.overhang;
+    B.add('timber', box(beamLen, 0.1, 0.1, T.timber.mpt), L(0, ph - 0.05, postZ));                       // wierzch belki = wierzch słupa przedniego
+    B.add('timber', box(beamLen, 0.1, 0.1, T.timber.mpt), L(0, ph + F.backRise - 0.05, -postZ));         // wierzch belki = wierzch słupa tylnego
     // baldachim: jedna połać opadająca ku przodowi, plus zwis z przodu
     const cloth = p.cloth;   // z rolą kramu = kinds[i].cloth (stallPlacements), bez ról = losowany jak HEAD
-    const depth = cd + 1.4, rise = 0.4, slope = Math.hypot(depth, rise);
-    B.add(cloth, plane(cw + 0.5, slope, 1), L(0, ph + 0.15, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));   // rot: rx=−1.406 → normalna (0,0,1)→(0, 0.986, 0.164) licem w górę, góra płótna (0,1,0)→(0, 0.164, −0.986): tył wyżej, płótno opada ku +z (front) — policzone
-    B.add(cloth, plane(cw + 0.5, 0.35, 1), L(0, ph - 0.22, cd / 2 + 0.62));
+    const depth = cd + 1.4, rise = F.backRise, slope = Math.hypot(depth, rise);
+    // Płatwie boczne: wiążą słup przedni z tylnym po obu stronach. Bez nich kram był dwiema osobnymi „bramkami”.
+    // Długość i kąt liczone z RZECZYWISTEGO rozstawu słupów (2·postZ), nie z `depth` płótna.
+    const railLen = Math.hypot(2 * postZ, rise), railRx = -Math.PI / 2 + Math.atan2(rise, 2 * postZ);
+    for (const sx of [-1, 1]) B.add('timber', box(F.rail, railLen, F.rail, T.timber.mpt), L(sx * postX, ph + rise / 2 - F.rail / 2 - 0.005, 0, 0, railRx));   // środek na linii WIERZCHÓW belek minus pół płatwi: końce trafiają w belki (przy −0,05−rail były 13 cm pod nimi)   // rot: rx≈−1.391 → długa oś (0,1,0) kładzie się wzdłuż z, koniec +z niżej — policzone
+    // Zastrzały kolanowe pod każdą belką: klasyczna ciesiołka, ta sama co w kamienicach (buildings.js).
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      const yBeam = (sz < 0 ? ph + F.backRise : ph) - 0.1;   // spód belki
+      B.add('timber', box(F.braceT, F.brace * Math.SQRT2, F.braceT, T.timber.mpt),
+            L(sx * postX - sx * F.brace / 2, yBeam - F.brace / 2, sz * postZ, 0, 0, sx * Math.PI / 4));   // rot: rz=sx·π/4 → górny koniec zastrzału ku środkowi kramu (sx=+1: (0,+1,0)→(−0.707,0.707,0)) — policzone
+    }
+    B.add(cloth, plane(cw + 0.5, slope, 1), L(0, ph + rise / 2, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));   // płótno LEŻY na wierzchach belek (ph i ph+backRise), więc jego środek jest na ich połowie   // rot: rx=−1.406 → normalna (0,0,1)→(0, 0.986, 0.164) licem w górę, góra płótna (0,1,0)→(0, 0.164, −0.986): tył wyżej, płótno opada ku +z (front) — policzone
+    B.add(cloth, plane(cw + 0.5, Vl.h, 1), L(0, ph - Vl.drop, cd / 2 + 0.62));   // zwis DŁUŻSZY: szyld kramu (0,32 m) ma się na nim zmieścić, a nie wystawać pod spód
     // krokwie pod płótnem (poprawka po zrzutach z telefonu: spód baldachimu z bliska był płaską plamą koloru):
     // ta sama macierz co połać płótna, 5 cm niżej (normalna połaci (0, 0.986, 0.164) — przesunięcie w y wystarcza)
-    for (const rx of CONFIG.stalls.rafters) B.add('timber', box(0.07, slope, 0.05, T.timber.mpt), L(rx * (cw + 0.5) / 2, ph + 0.15 - 0.05, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));
+    for (const rx of CONFIG.stalls.rafters) B.add('timber', box(0.07, slope, 0.05, T.timber.mpt), L(rx * (cw + 0.5) / 2, ph + rise / 2 - 0.035, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));
     stalls.push({ x, z, ry, cw, cd, ch, ph, L, cloth, repoussoir: p.repoussoir, kind: p.kind });   // cd/ph/kind: motyw #11 (towar, szyld kramu, POI sukiennika w ui.js)
     // kolizja: prostokąt przybliżony kołem (kramy są obrócone)
     ctx.addCircle(x, z, CONFIG.stalls.collideR);
@@ -152,7 +169,7 @@ export function stallGoodsPlan(W) {
       } }); }
     // szyld kramu: kafelek roli z atlasu na zwisie baldachimu (zwis: plane 0,35 na (0, ph − 0,22, cd/2 + 0,62) w buildStalls), out przed płótnem
     const valZ = s.cd / 2 + 0.62, signY = s.ph - G.sign.below, tile = tiles.indexOf(K.sign);   // 0,62: z płótna zwisu w buildStalls
-    out.sign = { tile, m: s.L(0, signY, valZ + G.sign.out), center: wp(s.L(0, signY, valZ + G.sign.out)), valance: wp(s.L(0, s.ph - 0.22, valZ)), normal: new THREE.Vector3(0, 0, 1).transformDirection(M4(0, 0, 0, s.ry)), y0: signY - G.sign.h / 2, y1: signY + G.sign.h / 2 };   // 0,22: y płótna zwisu (ph − 0,22) w buildStalls
+    out.sign = { tile, m: s.L(0, signY, valZ + G.sign.out), center: wp(s.L(0, signY, valZ + G.sign.out)), valance: wp(s.L(0, s.ph - CONFIG.stalls.valance.drop, valZ)), normal: new THREE.Vector3(0, 0, 1).transformDirection(M4(0, 0, 0, s.ry)), y0: signY - G.sign.h / 2, y1: signY + G.sign.h / 2 };   // 0,22: y płótna zwisu (ph − 0,22) w buildStalls
     // towar w gniazdach lady (x = slotX ± jitter, z = G.z), spód na blacie
     for (const [j, [name, scale]] of (K.goods ?? []).entries()) { const lx = G.slotX[j % G.slotX.length] + Rg.range(-G.jitter, G.jitter), lz = G.z, p = wp(s.L(lx, 0, lz)); out.goods.push({ name, scale, lx, lz, x: p.x, y: top, z: p.z, ry: Rg.range(0, Math.PI * 2) }); }
     // kosz/garnek na ziemi przy tylnym słupie po stronie przeciwnej niż zaplecze (x zaplecza z legacyDraws)
@@ -188,11 +205,26 @@ export function buildStallGoods(W) {
     check(p.bales.length === 0 || G.bale.len / 2 * Math.sin(G.bale.yaw) + w / 2 * Math.cos(G.bale.yaw) <= G.bale.step / 2 + 1e-9, `${id}: obrócone rolki zachodzą na siebie`, { yaw: G.bale.yaw, step: G.bale.step });
     if (!ctx.flags.nosign) {   // ?nosign=1: mat.sign to szyld tekstowy HEAD, bez atlasu — szyldy kramów pomijane
       check(p.sign.tile >= 0, `${id}: brak kafelka szyldu w atlasie`, { sign: S.kinds.find(k => k.name === p.kind).sign });
-      if (p.sign.tile >= 0) B.add('sign', tilePlane(G.sign.w, G.sign.h, signTileUV(p.sign.tile, A)), p.sign.m);
+      if (p.sign.tile >= 0) {
+        B.add('sign', tilePlane(G.sign.w, G.sign.h, signTileUV(p.sign.tile, A)), p.sign.m);
+        // Dwie SKOŚNE taśmy: od lica belki frontowej w dół i do przodu, aż na wierzch deski. Szyld musi stać przed płótnem
+        // (przy modelu tkanina wysuwa się do z = 1,233), więc taśma ma widoczny wysięg — i właśnie ona pokazuje, na czym szyld wisi.
+        const St = G.sign.strap, valZ2 = s.cd / 2 + 0.62;
+        const zBeam = s.cd / 2 + 0.6 + 0.05 + 0.005, zSign = valZ2 + G.sign.out;       // lico belki frontowej + 5 mm; płaszczyzna szyldu
+        const yTop = s.ph - 0.1 + St.up, yBot = p.sign.y1 - St.over;
+        const dy = yTop - yBot, dz = zSign - zBeam, lenS = Math.hypot(dy, dz);
+        check(dy > 0 && lenS > 0.02, `${id}: taśma szyldu ma zerową długość`, { dy, dz });
+        // rot: rx=−atan2(dz,dy) → lokalne +y (góra taśmy) idzie w (0, dy, −dz)/len, czyli do TYŁU i w GÓRĘ, ku belce — policzone
+        for (const sx of [-1, 1]) B.add('iron', box(St.w, lenS, St.t), s.L(sx * St.dx, (yTop + yBot) / 2, (zBeam + zSign) / 2, 0, -Math.atan2(dz, dy)));
+      }
       check(p.sign.normal.dot(new THREE.Vector3(0, 0, 1).transformDirection(p.sign.m)) >= 0.98, `${id}: szyld nie frontem kramu`);   // 0,98 jak test A
       checkInFrontOfWall(`${id} szyld`, p.sign.center, p.sign.valance, p.sign.normal, 0.01);   // K5: ≥ 0,01 przed płótnem (próg bezwzględny, nie z CONFIG — kalibracja: out −0,04 ma oblać)
       check(p.sign.center.clone().sub(p.sign.valance).dot(p.sign.normal) <= G.sign.out + 0.005, `${id}: szyld dalej niż out od zwisu`);   // 0,005: tolerancja float
-      check(p.sign.y1 <= s.ph - 0.1 - 0.005 && p.sign.y1 <= s.ph - 0.22 + 0.175 && p.sign.y0 >= s.ph - 0.22 - 0.175 - 0.05, `${id}: szyld poza zwisem / w belce`, { y0: p.sign.y0, y1: p.sign.y1 });   // belka box 0,1 na ph − 0,05 → spód ph − 0,1; zwis 0,35 na ph − 0,22; szyld może zwisać ≤ 0,05 pod płótnem
+      // Szyld wisi na taśmach przybitych do belki: musi zostać PONIŻEJ spodu belki (żeby taśma miała długość) i w obrysie
+      // płótna zwisu (drop ± h/2) z tolerancją 0,05 m. Liczby z CONFIG.stalls.valance — nie wpisane na sztywno, bo zwis
+      // został wydłużony po zrzucie z telefonu (szyld 0,32 m nie mieścił się w szparze 0,295 m i wystawał pod płótno).
+      const Vl2 = CONFIG.stalls.valance, valTop = s.ph - Vl2.drop + Vl2.h / 2, valBot = s.ph - Vl2.drop - Vl2.h / 2;
+      check(p.sign.y1 <= s.ph - 0.1 - 0.005 && p.sign.y1 <= valTop && p.sign.y0 >= valBot - 0.05, `${id}: szyld poza zwisem / w belce`, { y0: p.sign.y0, y1: p.sign.y1, valTop, valBot });
     }
     for (const g of p.goods) {
       const sz = size(g.name, g.scale), r = Math.max(sz.w, sz.d) / 2;   // obrót ry dowolny → obrys kołem
