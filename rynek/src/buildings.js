@@ -160,7 +160,7 @@ export function buildHouses(W) {
     else B.add('timber', box(1.5, 0.14, 0.2, T.timber.mpt), L(doorX, 2.4, faceZ0 + 0.02)); // HEAD: nadproże belkowe
     { const pp = LP(doorX, 0, faceZ0 + Po.front); // punkt zieleni: front m przed licem drzwi, na ziemi (greenery.js: donice); szyldy (props.js) czytają resztę pól
       checkInFrontOfWall(`${id} punkt portalu`, pp, LP(doorX, 0, faceZ0), nrm, Po.front - 0.005); // 0.005: float
-      portals.push({ x: pp.x, z: pp.z, ry: tr.ry, side: h.side, along: h.along, setback: h.setback || 0, w, doorX, faceZ: faceZ0, faceZ1: faceZ0 + (h.jetty ? H.jetty : 0), orielX: oriel ? oriel.cx : null, tr }); } // faceZ1: lico piętra 1 (jetty)
+      portals.push({ x: pp.x, z: pp.z, ry: tr.ry, side: h.side, along: h.along, setback: h.setback || 0, w, seedLocal: h.seedLocal, doorX, faceZ: faceZ0, faceZ1: faceZ0 + (h.jetty ? H.jetty : 0), orielX: oriel ? oriel.cx : null, tr }); } // faceZ1: lico piętra 1 (jetty)
     for (const sx of [-1, 1]) {
       const cx = doorX + sx * 2.2; if (Math.abs(cx) > w / 2 - 0.9) continue;
       B.add(r() < 0.3 ? 'glassLit' : 'glass', box(0.9, 1.1, 0.04), L(cx, 1.8, faceZ0 + 0.01)); // HEAD: okno parteru 0,9 × 1,1, środek 1,8, 1 cm przed licem

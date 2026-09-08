@@ -45,7 +45,7 @@ export const CONFIG = {
     water: 0x2f5a63,
     cobble: 0xb9b3aa, slates: 0xb8b4ae, door: 0x6b4a33, planks: 0xffffff, blocks: 0xffffff, glass: 0x1a222c, glassLit: 0x3a2a14, glassLitEmissive: 0xffb257, iron: 0x2b2b2e, flame: 0xffc070,
     roofTowerOKLCH: [0.75, 0.085, 200],                  // stan po motywie #2 (miedź z patyną na slates, roughness/metalness jak paletteOKLCH.params.roofTower)
-    gold: 0xd9b34a, signBg: 0x3a2718, signBoard: 0x5a4030, // pas/emblemat chorągwi (heraldry), tło i deska szyldu (signTexture)
+    gold: 0xd9b34a, signBg: 0x3a2718, signBoard: 0x5a4030, silver: 0xd0d3d9, // pas/emblemat chorągwi (heraldry), tło i deska szyldu (signTexture); silver: liść herbu (atlas #10b)
     lanternLight: 0xffa452, smoke: 0xd8d2c8,             // PointLight latarni, cząstki dymu
   },
   // ---- sekcje Etapu 2 (każdy tor pracy wypełnia TYLKO swoją; kolory jako OKLCH [L, C, H] przez oklch() z color.js) ----
@@ -88,7 +88,7 @@ export const CONFIG = {
     // emisja (wprost do AgX, §4.1.6): płomień = nasycony pomarańcz × 1,6 (pred. ekran #e9a878 C 0,10; #ffc070 ×1 dawało beż #d2b691); okna świecące bez zmian
     emit: { flame: { color: [0.72, 0.185, 49], intensity: 1.6 }, glassLit: { color: [0.30, 0.042, 74], emissive: [0.82, 0.139, 68], intensity: 1.6 } }, // = #fd7a1b (≈ #ff7a1a z §4.4, który jest 0,002 poza gamutem), #3a2a14, #ffb257
     // kolory canvasów (CanvasTexture, sRGB): złoty pas/emblemat chorągwi i ramka szyldu (= #d9b34a), tło i deska szyldu (= #3a2718, #5a4030)
-    canvas: { gold: [0.78, 0.129, 89], signBg: [0.29, 0.038, 59], signBoard: [0.40, 0.045, 53] },   // OKLCH z hexToOklch dawnych heksów (materials.js HEAD)
+    canvas: { gold: [0.78, 0.129, 89], signBg: [0.29, 0.038, 59], signBoard: [0.40, 0.045, 53], silver: [0.86, 0.010, 250] },   // OKLCH z hexToOklch dawnych heksów (materials.js HEAD); silver: srebrny liść herbu miasta (atlas szyldów, motyw #10b)
     lanternLight: [0.80, 0.145, 60],   // PointLight latarni (= #ffa452)
     smoke: [0.87, 0.015, 81],          // cząstki dymu (= #d8d2c8)
     slateShare: 0.3,   // udział domów z roof2 (łupek): kwota round(slateShare·N) z ziarna (layout.js assignRoofs); dla seed 7: 8 z 28 domów (3 plaster3 + 5 losowych)
@@ -124,6 +124,16 @@ export const CONFIG = {
     // na ćwiartkę) na wysokości impostu, zwornik keystone (w × h, wierzch up nad szczytem łuku, out przed oprawą), próg threshold (2·archOut × h × d) na ziemi;
     // oprawa od 0,01 do 0,01 + t przed licem parteru. Drzwi doorW × doorH (2,2, nie 2,3 z HEAD: róg (0,6, 2,3−1,6) miałby r 0,922 > archOut − 0,02 — wystawałby
     // za pierścień; przy 2,2: 0,849 ≤ 0,88 — policzone). front: punkt W.portals na ziemi front m przed licem drzwi (kontrakt z torem „plac", greenery.js).
+    // motyw #10b „szyldy cechowe + herby" (?nosign=1 = szyld karczmy z HEAD; props.js signPlacements()/buildSigns(), materials.js signTexture() = atlas):
+    // domy przy placu z udziałem share (strumień rng(seedLocal + 7), karczma s2 zawsze z kafelkiem tavernTile i napisem), szyld w × h ze środkiem na y, out przed licem
+    // piętra 1 (faceZ1 = d/2 + jetty), PROSTOPADLE do fasady frontem do ulicy (signMatrix: ry = tr.ry − sign(along)·π/2, policzone 8/8), x = doorX − sign(along)·fromDoor
+    // (ku ulicy; gdy wykusz bliżej niż oriel.r + orielGap → po drugiej stronie drzwi, inaczej bez szyldu); 2 płaszczyzny back-to-back w odstępie gapBack; wspornik iron
+    // bracket.t² × len od bracket.back W ŚCIANIE na wysokości bracketY (szyld 3,45 ≤ 3,475 pod nim; okna piętra 1 od 4,03), 2 wieszaki hanger; plakieta herbowa plaque
+    // (kwadratowe okno kafelka, ten sam kafelek) nad zwornikiem portalu: 2,65 ≥ 2,625 + 0,02, 3,01 ≤ 3,02 (belki jetty od 3,04), tylko gdy kroksztyny wykusza dalej niż
+    // corbel.step/2 + corbel.t/2 + w/2 = 0,85 od doorX. Atlas: cols × rows kafelków po tile px, okno szyldu tile × win (256 × 158 ≈ 1,3 × 0,8 m).
+    sign: { share: 0.4, y: 3.05, w: 1.3, h: 0.8, out: 0.8, fromDoor: 1.0, orielGap: 0.2, gapBack: 0.01, bracketY: 3.5, bracket: { t: 0.05, back: 0.1, len: 1.6 }, hanger: { t: 0.03, h: 0.1 }, // szyld, wspornik, wieszaki (m)
+      plaque: { w: 0.36, h: 0.36, y: 2.83, out: 0.02 }, tiles: ['gryf', 'kielich', 'bochen', 'dzban', 'nożyce', 'młot', 'liść', 'klucz'], tavernTile: 0, tavernText: 'Pod Złotym Gryfem', // plakieta (m); kafelki = kolejność EMBLEMS w materials.js
+      atlas: { cols: 4, rows: 2, tile: 256, win: 158, plq: 112, cyText: 56 } }, // metry / px; plq: bok kwadratowego okna plakiety wokół środka tarczy (tarcza 108 × 132, nad napisem 78 × 88 ze środkiem cyText); słownik skali §3.7: szyld 3,05 / 1,3 × 0,8 / wysięg 0,8
     portal: { doorW: 1.2, doorH: 2.2, archIn: 0.6, archOut: 0.9, impostY: 1.6, t: 0.25, seg: 8, key: 'blocks', keystone: { w: 0.28, h: 0.45, up: 0.125, out: 0.05 }, threshold: { h: 0.1, d: 0.35 }, front: 0.6 }, // metry; szczyt łuku wewn. 2,2 / zewn. 2,5, zwornik 2,175–2,625 < parter 3,2 i < belki jetty 3,04
   },
 

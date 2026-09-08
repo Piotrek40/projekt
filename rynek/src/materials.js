@@ -45,7 +45,8 @@ export async function buildMaterials(W) {
   ctx.updaters.push((dt, t) => { windUniform.value = t; });
   W.sets = sets; W.mat = mat; W.bannerMats = bannerMats; W.windUniform = windUniform;
   // heksy poza W.mat dla innych modułów (props.js: PointLight latarni, dym; buildBanners: szyld) — z bieżącej palety
-  W.hex = { lanternLight: PK ? oklch(...PK.lanternLight) : P.lanternLight, smoke: PK ? oklch(...PK.smoke) : P.smoke, gold, signBg: PK ? oklch(...PK.canvas.signBg) : P.signBg, signBoard: PK ? oklch(...PK.canvas.signBoard) : P.signBoard };
+  W.hex = { lanternLight: PK ? oklch(...PK.lanternLight) : P.lanternLight, smoke: PK ? oklch(...PK.smoke) : P.smoke, gold, signBg: PK ? oklch(...PK.canvas.signBg) : P.signBg, signBoard: PK ? oklch(...PK.canvas.signBoard) : P.signBoard,
+    silver: PK ? oklch(...PK.canvas.silver) : P.silver, fields: clothHex }; // silver: liść herbu miasta; fields: pola tarcz herbowych atlasu szyldów = kolory tkanin cloth0..3 (§4.2: te same kolory heraldyczne)
 }
 
 export function smokeTexture() {
@@ -70,8 +71,53 @@ export function heraldry(field, charge, variant, gold) {
   for (let x = 0; x < 256; x += 64) { g.beginPath(); g.moveTo(x, 512); g.lineTo(x + 32, 470); g.lineTo(x + 64, 512); g.fill(); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-// Szyld: tło, deska, złota ramka i napis; kolory z W.hex (signBg, signBoard, gold)
-export function signTexture(text, col) {
+// Atlas szyldów cechowych (motyw #10b): A.cols × A.rows kafelków po A.tile px (4 × 2 × 256 = 1024 × 512); w kafelku okno szyldu A.tile × A.win px (256 × 158 ≈ 1,3 × 0,8 m,
+// wyśrodkowane w pionie): deska signBoard, złota ramka, tarcza herbowa (pole = kolejny kolor z col.fields = cloth0..3, godło gold albo signBg na jasnym polu) z godłem
+// rysowanym ścieżkami canvas w układzie 100 × 100 (EMBLEMS, kolejność = CONFIG.houseDetail.sign.tiles); kafelek 0 (gryf) z napisem karczmy pod mniejszą tarczą.
+// UV kafelka (okno szyldu albo kwadrat A.win × A.win na plakietę): props.js signTileUV(). Kolory z W.hex (sRGB canvas — §4.1.7).
+export function signTexture(col, A, text) {
+  const c = document.createElement('canvas'); c.width = A.cols * A.tile; c.height = A.rows * A.tile; const g = c.getContext('2d');
+  g.fillStyle = hexStr(col.signBg); g.fillRect(0, 0, c.width, c.height);
+  EMBLEMS.forEach((draw, i) => {
+    const x0 = (i % A.cols) * A.tile, y0 = Math.floor(i / A.cols) * A.tile + (A.tile - A.win) / 2;
+    g.save(); g.translate(x0, y0);
+    g.fillStyle = hexStr(col.signBoard); g.fillRect(0, 0, A.tile, A.win);
+    g.strokeStyle = hexStr(col.gold); g.lineWidth = 5; g.strokeRect(6, 6, A.tile - 12, A.win - 12);
+    const withText = i === 0 && !!text, field = col.fields[i % col.fields.length];
+    const light = ((field >> 16) + ((field >> 8) & 255) + (field & 255)) / 3 > 0x90; // jasne pole (szafran): godło ciemne, nie złote
+    const sw = withText ? 78 : 108, sh = withText ? 88 : 132, cx = A.tile / 2, cy = withText ? A.cyText : A.win / 2; // tarcza: szerokość, wysokość, środek (mniejsza nad napisem; plakieta = kwadrat A.plq wokół (cx, cy))
+    // tarcza „heater": prosta góra, boki i ostry dół
+    g.beginPath(); g.moveTo(cx - sw / 2, cy - sh / 2); g.lineTo(cx + sw / 2, cy - sh / 2); g.lineTo(cx + sw / 2, cy - sh / 8); g.quadraticCurveTo(cx + sw / 2, cy + sh / 2, cx, cy + sh / 2); g.quadraticCurveTo(cx - sw / 2, cy + sh / 2, cx - sw / 2, cy - sh / 8); g.closePath();
+    g.fillStyle = hexStr(field); g.fill(); g.strokeStyle = hexStr(col.gold); g.lineWidth = 4; g.stroke();
+    g.save(); g.translate(cx, cy - sh * 0.04); g.scale(sw / 110, sh / 130); // godło w układzie ±50, lekko nad środkiem tarczy
+    g.fillStyle = g.strokeStyle = hexStr(i === 6 ? col.silver : light ? col.signBg : col.gold); g.lineWidth = 6; g.lineCap = 'round';
+    draw(g, hexStr(field)); g.restore();
+    if (withText) { g.fillStyle = hexStr(col.gold); g.font = 'bold 23px Georgia, "Times New Roman", serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, cx, 128); }
+    g.restore();
+  });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; // 4: napis czytelny pod kątem (szyld prostopadły do fasady)
+}
+// godła w układzie 100 × 100 (x, y ∈ ±50, y w dół), styl ustawiony przez signTexture; drugi argument = kolor pola (kontrastowe linie na godle)
+const EMBLEMS = [
+  (g, fld) => { // gryf: tułów, skrzydło, głowa z dziobem, łapy, ogon
+    g.beginPath(); g.ellipse(6, 12, 22, 14, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.moveTo(-6, 2); g.lineTo(16, -42); g.lineTo(28, -38); g.lineTo(34, -18); g.lineTo(22, -2); g.closePath(); g.fill();
+    g.beginPath(); g.arc(-20, -14, 10, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.moveTo(-28, -16); g.lineTo(-42, -10); g.lineTo(-27, -8); g.closePath(); g.fill();
+    g.fillRect(-8, 20, 6, 20); g.fillRect(10, 20, 6, 20);
+    g.beginPath(); g.moveTo(26, 14); g.quadraticCurveTo(44, 8, 40, -8); g.stroke();
+    g.fillStyle = fld; g.beginPath(); g.arc(-22, -16, 2.5, 0, Math.PI * 2); g.fill(); // oko
+  },
+  g => { g.beginPath(); g.ellipse(0, -22, 24, 14, 0, 0, Math.PI); g.fill(); g.fillRect(-24, -30, 48, 8); g.fillRect(-4, -8, 8, 30); g.fillRect(-18, 22, 36, 8); }, // kielich
+  (g, fld) => { g.beginPath(); g.ellipse(0, 4, 34, 20, 0, 0, Math.PI * 2); g.fill(); g.strokeStyle = fld; g.lineWidth = 4; for (const x of [-16, 0, 16]) { g.beginPath(); g.moveTo(x - 6, -6); g.lineTo(x + 6, 14); g.stroke(); } }, // bochen z nacięciami
+  g => { g.beginPath(); g.ellipse(-4, 8, 22, 24, 0, 0, Math.PI * 2); g.fill(); g.fillRect(-14, -36, 20, 14); g.fillRect(-18, -42, 28, 7); g.beginPath(); g.arc(22, 2, 13, -Math.PI / 2, Math.PI / 2); g.stroke(); }, // dzban z uchem
+  g => { for (const sx of [-1, 1]) { g.save(); g.rotate(sx * 0.42); g.beginPath(); g.ellipse(0, -14, 6, 30, 0, 0, Math.PI * 2); g.fill(); g.restore(); g.beginPath(); g.arc(sx * 13, 30, 9, 0, Math.PI * 2); g.stroke(); } }, // nożyce
+  g => { g.fillRect(-30, -34, 60, 22); g.fillRect(-5, -12, 10, 54); }, // młot
+  (g, fld) => { g.beginPath(); g.moveTo(0, -44); g.quadraticCurveTo(40, -12, 0, 44); g.quadraticCurveTo(-40, -12, 0, -44); g.fill(); g.strokeStyle = fld; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -36); g.lineTo(0, 38); g.stroke(); }, // srebrny liść
+  g => { g.lineWidth = 9; g.beginPath(); g.arc(0, -26, 15, 0, Math.PI * 2); g.stroke(); g.fillRect(-5, -12, 10, 54); g.fillRect(5, 22, 20, 8); g.fillRect(5, 34, 14, 8); }, // klucz: grube ucho, trzon, dwa zęby
+];
+// Szyld z HEAD (tylko ?nosign=1): tło, deska, złota ramka i napis; kolory z W.hex (signBg, signBoard, gold)
+export function signTextTexture(text, col) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 320; const g = c.getContext('2d');
   g.fillStyle = hexStr(col.signBg); g.fillRect(0, 0, 512, 320);
   g.fillStyle = hexStr(col.signBoard); g.fillRect(12, 12, 488, 296);

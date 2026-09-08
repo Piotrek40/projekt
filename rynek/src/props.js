@@ -1,10 +1,10 @@
-// Rekwizyty z modeli (instancjonowane lub klonowane), latarnie ze światłem, wóz, chorągwie, szyld, dym z kominów.
+// Rekwizyty z modeli (instancjonowane lub klonowane), latarnie ze światłem, wóz, chorągwie, szyldy cechowe z herbami (motyw #10b), dym z kominów.
 // Modele stawia put(name, x, y, z, ry, scale) w ŚWIECIE (spód modelu na y); geometria wozu ma własny układ lokalny przez L() (+z = front). Metry.
 // Cięcia skanów (motyw #1, ?nocuts=1 wyłącza): W.cuts = CONFIG.props.cuts — limit instancji per model w put(), szkło bez transmisji, towar bez cienia.
 import * as THREE from 'three';
-import { box, plane, cylinder, M4 } from '../../engine/src/geometry.js';
-import { signTexture, smokeTexture } from './materials.js';
-import { check, checkHeight, checkAboveGround, checkCollisionCovers } from '../../engine/src/check.js';
+import { box, plane, cylinder, M4, rng } from '../../engine/src/geometry.js';
+import { signTexture, signTextTexture, smokeTexture } from './materials.js';
+import { check, checkHeight, checkAboveGround, checkCollisionCovers, checkInFrontOfWall, facadeNormal } from '../../engine/src/check.js';
 
 // Ładuje modele i przygotowuje put()/flushInstances() dla reszty modułów.
 export async function initProps(W) {
@@ -158,14 +158,87 @@ export function buildBanners(W) {
     const top = new THREE.Vector3(0, 1.6, 0).applyMatrix4(base.clone().multiply(tilt));
     B.add('banner' + (i % bannerMats.length), plane(0.9, 1.6, 1), M4(top.x, top.y - 0.85, top.z, t.ry));
   }
-  // szyld karczmy: pierwszy dom po prawej od ulicy południowej
+  if (!W.ctx.flags.nosign) { buildSigns(W); return; }
+  // ?nosign=1: szyld karczmy z HEAD (pierwszy dom po prawej od ulicy południowej) — jedna macierz na obiekt zamiast łańcucha multiply (K3; wynik identyczny:
+  // T(t)·R(ry)·T(0,3.05,0.8)·R(π/2) = M4(0,3.05,0.8,π/2)·M4(t), bo translacja w y komutuje z obrotem wokół y); normalna (−1,0,0) dla karczmy = tył DoubleSide = lustro (K2, celowo — stan sprzed cechy)
   {
     const tav = houses.find(h => h.side === 2 && h.along > 0 && !h.setback) || houses[0];
-    const t = sideTransform(tav.side, tav.along - tav.w / 2 + 2.0, -H.depth / 2 - 0.5);
-    mat.sign = new THREE.MeshStandardMaterial({ map: signTexture('Pod Złotym Gryfem', W.hex), roughness: 0.8, side: THREE.DoubleSide }); // kolory szyldu z palety (W.hex)
-    B.add('iron', box(0.05, 0.05, 1.1), M4(t.x, 3.6, t.z, t.ry).multiply(new THREE.Matrix4().makeTranslation(0, 0, 0.3)));
-    B.add('sign', plane(1.3, 0.8, 1), M4(t.x, 3.05, t.z, t.ry).multiply(new THREE.Matrix4().makeTranslation(0, 0, 0.8)).multiply(new THREE.Matrix4().makeRotationY(Math.PI / 2)));
+    const t = sideTransform(tav.side, tav.along - tav.w / 2 + 2.0, -H.depth / 2 - 0.5), T0 = M4(t.x, 0, t.z, t.ry); // HEAD: 2 m od krawędzi domu, t 0,5 m przed licem
+    mat.sign = new THREE.MeshStandardMaterial({ map: signTextTexture('Pod Złotym Gryfem', W.hex), roughness: 0.8, side: THREE.DoubleSide }); // kolory szyldu z palety (W.hex)
+    B.add('iron', box(0.05, 0.05, 1.1), M4(0, 3.6, 0.3).premultiply(T0)); // HEAD: wspornik 1,1 m ze środkiem 0,3 przed t (t = 0,5 m przed licem)
+    B.add('sign', plane(1.3, 0.8, 1), M4(0, 3.05, 0.8, Math.PI / 2).premultiply(T0)); // HEAD: szyld 0,8 przed t, obrócony o π/2 (front na −x w świecie dla side 2)
   }
+}
+
+// UV kafelka atlasu szyldów (A = CONFIG.houseDetail.sign.atlas): okno szyldu tile × win px wyśrodkowane w pionie w kafelku i; square = kwadrat plq × plq wokół
+// środka tarczy (plakieta herbowa; kafelek 0 ma tarczę wyżej, nad napisem: środek cyText). Canvas rośnie w dół, tekstura (flipY) ma v = 1 u góry → v1 = 1 − yTop/H.
+// PlaneGeometry: uv (0,1) w lewym górnym rogu.
+export function signTileUV(i, A, square = false) {
+  const Wpx = A.cols * A.tile, Hpx = A.rows * A.tile, winTop = Math.floor(i / A.cols) * A.tile + (A.tile - A.win) / 2, cx = (i % A.cols) * A.tile + A.tile / 2;
+  const cy = winTop + (i === 0 ? A.cyText : A.win / 2), half = square ? A.plq / 2 : 0;
+  const x0 = square ? cx - half : (i % A.cols) * A.tile, x1 = square ? cx + half : x0 + A.tile, yTop = square ? cy - half : winTop, yBot = square ? cy + half : winTop + A.win;
+  return { u0: x0 / Wpx, u1: x1 / Wpx, v0: 1 - yBot / Hpx, v1: 1 - yTop / Hpx };
+}
+export function tilePlane(w, h, uv) {
+  const g = new THREE.PlaneGeometry(w, h), a = g.attributes.uv;
+  for (let i = 0; i < a.count; i++) a.setXY(i, uv.u0 + a.getX(i) * (uv.u1 - uv.u0), uv.v0 + a.getY(i) * (uv.v1 - uv.v0));
+  return g;
+}
+// Rozmieszczenie szyldów (funkcja czysta, bez DOM — asercja F2 w test_geometria.mjs): dla domów przy placu (W.portals bez setback) udział S.share ze strumienia
+// rng(seedLocal + 7) (r() domu bez zmian), karczma (s2, along > 0, pierwsza) zawsze z kafelkiem S.tavernTile. Szyld na x = doorX − sign(along)·fromDoor (ku ulicy);
+// gdy wykusz (orielX, piętro 1: bryła od y 3,195 w dół do kroksztynów) bliżej niż oriel.r + orielGap — po drugiej stronie drzwi, inaczej bez szyldu.
+// Zwraca [{p, x, tile, m (signMatrix), mBack, bracket, hangers[], plaque|null, tr, dirToStreet}] — buildSigns tylko dodaje z tego geometrię i asercje.
+export function signPlacements(W) {
+  const { CONFIG, portals, sideTransform } = W, S = CONFIG.houseDetail.sign, O = CONFIG.houseDetail.oriel, C = O.corbel;
+  const tavern = portals.find(p => p.side === 2 && p.along > 0 && !p.setback);
+  const out = []; let pool = []; // pula kafelków bez powtórzeń (bez kafelka karczmy), uzupełniana po wyczerpaniu — 8 godeł na ~10 szyldów
+  for (const p of portals) {
+    if (p.setback) continue; // domy zamykające ulice: along = 0, brak „strony ulicy"
+    const Rg = rng(p.seedLocal + 7), has = Rg() < S.share, draw = Rg(); // oba losowania zawsze (ten sam strumień niezależnie od karczmy i puli)
+    if (!has && p !== tavern) continue;
+    if (!pool.length) pool = S.tiles.map((_, i) => i).filter(i => i !== S.tavernTile);
+    const tile = p === tavern ? S.tavernTile : pool.splice(Math.floor(draw * pool.length), 1)[0], sgn = Math.sign(p.along);
+    const clear = x => p.orielX === null || Math.abs(x - p.orielX) >= O.r + S.orielGap;
+    const x = [p.doorX - sgn * S.fromDoor, p.doorX + sgn * S.fromDoor].find(x => clear(x) && Math.abs(x) <= p.w / 2 - 0.3); // 0.3: zapas od krawędzi domu
+    if (x === undefined) continue;
+    const tr = sideTransform(p.side, p.along + x, p.setback), F = (lx, ly, lz, ry = 0) => M4(lx, ly, lz, ry).premultiply(M4(tr.x, 0, tr.z, tr.ry)); // układ domu przesunięty na x szyldu
+    const m = signMatrix(tr, p.along, { y: S.y, faceZ: p.faceZ1, out: S.out });
+    const mBack = M4(0, 0, -S.gapBack, Math.PI).premultiply(m); // druga płaszczyzna: obrócona o π wokół własnej osi y, gapBack za pierwszą (czytelna z drugiej strony, nie lustro)
+    const bracket = F(0, S.bracketY, p.faceZ1 - S.bracket.back + S.bracket.len / 2);
+    const hangers = [-1, 1].map(s => F(0, S.bracketY - S.bracket.t / 2 - S.hanger.h / 2 + 0.01, p.faceZ1 + S.out + s * (S.w / 2 - 0.15))); // 0.01: wieszak 1 cm w wsporniku; 0.15: od krawędzi szyldu
+    const plaqueOK = p.orielX === null || Math.abs(p.doorX - p.orielX) >= C.step / 2 + C.t / 2 + S.plaque.w / 2 + 0.01; // kroksztyny wykusza (x = cx ± step/2, grubość t) obok plakiety
+    const plaque = plaqueOK ? F(p.doorX - x, S.plaque.y, p.faceZ + S.plaque.out) : null;
+    out.push({ p, x, tile, m, mBack, bracket, hangers, plaque, tr, dirToStreet: new THREE.Vector3(-sgn, 0, 0).transformDirection(M4(0, 0, 0, tr.ry)) });
+  }
+  return out;
+}
+// Szyldy cechowe + herby (motyw #10b): geometria z signPlacements(W); klucz `sign` = atlas (1 materiał), wspornik i wieszaki `iron`. Flaga ?nosign=1 → buildBanners (szyld HEAD).
+function buildSigns(W) {
+  const { CONFIG, B, mat, ctx } = W, S = CONFIG.houseDetail.sign, A = S.atlas, Po = CONFIG.houseDetail.portal;
+  mat.sign = new THREE.MeshStandardMaterial({ map: signTexture(W.hex, A, S.tavernText), roughness: 0.8 }); // jednostronny: 2 płaszczyzny back-to-back
+  const placements = signPlacements(W);
+  check(placements.length >= 3 && placements.some(s => s.tile === S.tavernTile), 'szyldy: mniej niż 3 albo brak karczmy', { n: placements.length }); // 3: seed 7 daje ~10
+  for (const s of placements) {
+    const { p, m, tr } = s, id = `szyld s${p.side} along${p.along.toFixed(1)}`, nrm = facadeNormal(tr.ry), LP = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry));
+    B.add('sign', tilePlane(S.w, S.h, signTileUV(s.tile, A)), m);
+    B.add('sign', tilePlane(S.w, S.h, signTileUV(s.tile, A)), s.mBack);
+    check(new THREE.Vector3(0, 0, 1).transformDirection(m).dot(s.dirToStreet) > 0.9, `${id} tyłem do ulicy`, { n: new THREE.Vector3(0, 0, 1).transformDirection(m).toArray() }); // §5.2 #10; F2 offline
+    check(new THREE.Vector3(0, 0, 1).transformDirection(s.mBack).dot(s.dirToStreet) < -0.9, `${id} druga płaszczyzna nie tyłem`); // −0,9: jak próg F, z drugiej strony
+    checkInFrontOfWall(`${id} środek`, new THREE.Vector3().setFromMatrixPosition(m), LP(0, S.y, p.faceZ1), nrm, S.out - 0.005); // 0,8 przed licem piętra 1
+    B.add('iron', box(S.bracket.t, S.bracket.t, S.bracket.len), s.bracket);
+    const bBack = new THREE.Vector3(0, 0, -S.bracket.len / 2).applyMatrix4(s.bracket), bFront = new THREE.Vector3(0, 0, S.bracket.len / 2).applyMatrix4(s.bracket), wall = LP(0, S.bracketY, p.faceZ1);
+    check(bBack.clone().sub(wall).dot(nrm) <= -0.05 && bFront.clone().sub(wall).dot(nrm) >= S.out + S.w / 2, `${id} wspornik nie w ścianie / krótszy niż szyld`, { back: bBack.clone().sub(wall).dot(nrm), front: bFront.clone().sub(wall).dot(nrm) }); // −0,1 ≤ −0,05; 1,5 ≥ 1,45
+    check(S.y + S.h / 2 <= S.bracketY - S.bracket.t / 2 && S.y - S.h / 2 >= 2.6, `${id} szyld nie pod wspornikiem / za nisko`, { top: S.y + S.h / 2, bracketBottom: S.bracketY - S.bracket.t / 2 }); // 3,45 ≤ 3,475; spód 2,65 ≥ 2,6 (nad głową 1,65 + zapas)
+    for (const hm of s.hangers) B.add('iron', box(S.hanger.t, S.hanger.h, S.hanger.t), hm);
+    if (s.plaque) { // herb nad zwornikiem portalu (ten sam kafelek, kwadratowe okno)
+      B.add('sign', tilePlane(S.plaque.w, S.plaque.h, signTileUV(s.tile, A, true)), s.plaque);
+      const kTop = Po.impostY + Po.archOut + Po.keystone.up, pc = new THREE.Vector3().setFromMatrixPosition(s.plaque);
+      if (!ctx.flags.noportal) check(S.plaque.y - S.plaque.h / 2 >= kTop + 0.02, `${id} plakieta w zworniku`, { bottom: S.plaque.y - S.plaque.h / 2, kTop }); // 2,65 ≥ 2,645
+      check(S.plaque.y + S.plaque.h / 2 <= CONFIG.house.groundFloor - 0.16 - 0.02, `${id} plakieta w belkach jetty`, { top: S.plaque.y + S.plaque.h / 2 }); // 3,01 ≤ 3,02 (belki bt 0,16 od gf)
+      checkInFrontOfWall(`${id} plakieta`, pc, LP(p.doorX - s.x, S.plaque.y, p.faceZ), nrm, S.plaque.out - 0.005); // 2 cm przed licem parteru
+    }
+  }
+  W.signs = placements;
 }
 
 // Macierz szyldu (funkcja czysta — asercja F w audyt/testy/test_geometria.mjs, eksport w geo/entry.mjs): szyld wisi PROSTOPADLE do fasady,

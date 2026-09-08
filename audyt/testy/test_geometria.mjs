@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = [
   { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
@@ -38,8 +38,9 @@ for (const side of [0, 1, 2, 3]) {
 // B) domy pojedynczo (izolacja: buildHouses na liście z jednym domem)
 const allHouses = W.houses;
 let nWin = 0, nWinO = 0, nRoof = 0, nSupp = 0, nDormer = 0, nWalk = 0, known = 0;
+const allPortals = []; // W.portals z każdego izolowanego buildHouses (do F2)
 for (const h of allHouses) {
-  const n0 = rec.length; W.houses = [h]; buildHouses(W);
+  const n0 = rec.length; W.houses = [h]; buildHouses(W); allPortals.push(...W.portals);
   const items = rec.slice(n0);
   const t = W.sideTransform(h.side, h.along, h.setback), inv = M4(t.x, 0, t.z, t.ry).invert();
   const loc = r => ({ ...r, ml: r.m.clone().premultiply(inv) }); // macierz w układzie domu
@@ -182,6 +183,23 @@ for (const side of [0, 1, 2, 3]) for (const along of [-10, 10]) {
   if (V(0, 0, 1).transformDirection(old).dot(dirToStreet) >= 0.9) nSignOld++;
 }
 if (nSignOld !== 4) fails.push(`F kalibracja: stary łańcuch szyldu z HEAD daje ${nSignOld}/8 (oczekiwane 4/8)`);
+// F2) faktyczne szyldy (props.js signPlacements — funkcja czysta na W.portals z buildHouses): każdy frontem do ulicy (n·dirToStreet ≥ 0,9), środek out przed licem
+//     piętra 1 (faceZ1) na wysokości S.y, wspornik od bracket.back w ścianie, x szyldu ≥ oriel.r + orielGap od osi wykusza i w obrysie domu; karczma (s2, along > 0) ma kafelek 0.
+W.portals = allPortals;
+const signs = signPlacements(W), S = CONFIG.houseDetail.sign, O = CONFIG.houseDetail.oriel;
+if (allPortals.length !== allHouses.length) fails.push(`F2 W.portals ${allPortals.length} ≠ domów ${allHouses.length}`);
+if (signs.length < 3 || !signs.some(s => s.p.side === 2 && s.p.along > 0 && s.tile === S.tavernTile)) fails.push(`F2 szyldów ${signs.length} (< 3) albo karczma bez kafelka ${S.tavernTile}`);
+for (const s of signs) {
+  const idS = `F2 szyld side=${s.p.side} along=${s.p.along.toFixed(1)}`, n = V(0, 0, 1).transformDirection(s.m), c = new THREE.Vector3().setFromMatrixPosition(s.m);
+  const fn = V(0, 0, 1).transformDirection(M4(0, 0, 0, s.tr.ry)), d = c.clone().sub(V(s.tr.x, 0, s.tr.z)).dot(fn) - s.p.faceZ1;
+  if (n.dot(s.dirToStreet) < 0.9) fails.push(`${idS} tyłem do ulicy: n=${f2(n)}`);
+  if (V(0, 0, 1).transformDirection(s.mBack).dot(n) > -0.99) fails.push(`${idS}: druga płaszczyzna nie odwrócona`);
+  if (Math.abs(d - S.out) > 0.01 || Math.abs(c.y - S.y) > 0.01) fails.push(`${idS}: środek ${d.toFixed(3)} przed licem piętra 1 (ma być ${S.out}), y ${c.y.toFixed(2)}`);
+  const bb = new THREE.Vector3(0, 0, -S.bracket.len / 2).applyMatrix4(s.bracket), db = bb.clone().sub(V(s.tr.x, 0, s.tr.z)).dot(fn) - s.p.faceZ1;
+  if (db > -0.05) fails.push(`${idS}: tył wspornika ${db.toFixed(3)} nie w ścianie`);
+  if (s.p.orielX !== null && Math.abs(s.x - s.p.orielX) < O.r + S.orielGap) fails.push(`${idS}: szyld ${Math.abs(s.x - s.p.orielX).toFixed(2)} od osi wykusza (< ${O.r + S.orielGap})`);
+  if (Math.abs(s.x) > s.p.w / 2 - 0.3) fails.push(`${idS}: szyld poza obrysem domu (x ${s.x.toFixed(2)}, w ${s.p.w.toFixed(2)})`);
+}
 // G) wóz (props.js buildCart) — geometria Batch; modele przez stub put (rejestrowane w puts)
 buildCart(W);
 if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 'wicker_basket_01')) fails.push('G stub W.put: buildCart nie zarejestrował skrzyni i kosza na wozie');
@@ -206,7 +224,7 @@ if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);
