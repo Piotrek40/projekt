@@ -123,9 +123,9 @@ export function heraldry(field, charge, variant, gold) {
   for (let x = 0; x < 256; x += 64) { g.beginPath(); g.moveTo(x, 512); g.lineTo(x + 32, 470); g.lineTo(x + 64, 512); g.fill(); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-// Atlas szyldów cechowych (motyw #10b): A.cols × A.rows kafelków po A.tile px (4 × 2 × 256 = 1024 × 512); w kafelku okno szyldu A.tile × A.win px (256 × 158 ≈ 1,3 × 0,8 m,
+// Atlas szyldów cechowych (motyw #10b): A.cols × A.rows kafelków po A.tile px (4 × 3 × 256 = 1024 × 768 od motywu #11: 8 godeł domów + jabłko kramu owocarza); w kafelku okno szyldu A.tile × A.win px (256 × 158 ≈ 1,3 × 0,8 m,
 // wyśrodkowane w pionie): deska signBoard, złota ramka, tarcza herbowa (pole = kolejny kolor z col.fields = cloth0..3, godło gold albo signBg na jasnym polu) z godłem
-// rysowanym ścieżkami canvas w układzie 100 × 100 (EMBLEMS, kolejność = CONFIG.houseDetail.sign.tiles); kafelek 0 (gryf) z napisem karczmy pod mniejszą tarczą.
+// rysowanym ścieżkami canvas w układzie 100 × 100 (EMBLEMS, kolejność = CONFIG.houseDetail.sign.tiles + extraTiles); kafelek 0 (gryf) z napisem karczmy pod mniejszą tarczą.
 // UV kafelka (okno szyldu albo kwadrat A.win × A.win na plakietę): props.js signTileUV(). Kolory z W.hex (sRGB canvas — §4.1.7).
 export function signTexture(col, A, text) {
   const c = document.createElement('canvas'); c.width = A.cols * A.tile; c.height = A.rows * A.tile; const g = c.getContext('2d');
@@ -167,6 +167,8 @@ const EMBLEMS = [
   g => { g.fillRect(-30, -34, 60, 22); g.fillRect(-5, -12, 10, 54); }, // młot
   (g, fld) => { g.beginPath(); g.moveTo(0, -44); g.quadraticCurveTo(40, -12, 0, 44); g.quadraticCurveTo(-40, -12, 0, -44); g.fill(); g.strokeStyle = fld; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -36); g.lineTo(0, 38); g.stroke(); }, // srebrny liść
   g => { g.lineWidth = 9; g.beginPath(); g.arc(0, -26, 15, 0, Math.PI * 2); g.stroke(); g.fillRect(-5, -12, 10, 54); g.fillRect(5, 22, 20, 8); g.fillRect(5, 34, 14, 8); }, // klucz: grube ucho, trzon, dwa zęby
+  // kafelki 8+ = CONFIG.houseDetail.sign.extraTiles (szyldy kramów, motyw #11; poza pulą szyldów domów)
+  (g, fld) => { g.beginPath(); g.arc(0, 8, 32, 0, Math.PI * 2); g.fill(); g.lineWidth = 6; g.beginPath(); g.moveTo(2, -22); g.quadraticCurveTo(4, -36, 10, -44); g.stroke(); g.beginPath(); g.moveTo(4, -30); g.quadraticCurveTo(26, -44, 30, -24); g.quadraticCurveTo(12, -18, 4, -30); g.fill(); g.strokeStyle = fld; g.lineWidth = 3; g.beginPath(); g.moveTo(-14, -6); g.quadraticCurveTo(-18, 8, -12, 24); g.stroke(); }, // jabłko: owoc, ogonek, listek, blik w kolorze pola
 ];
 // Szyld z HEAD (tylko ?nosign=1): tło, deska, złota ramka i napis; kolory z W.hex (signBg, signBoard, gold)
 export function signTextTexture(text, col) {

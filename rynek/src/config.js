@@ -54,7 +54,29 @@ export const CONFIG = {
     wet: { r: 5.2, rFull: 4.6, seg: 32, y: 0.005, color: [0.55, 0.012, 80], roughness: 0.4 }, // mokry bruk: cobble tint L 0.55 (suchy 0xb9b3aa = L 0.75), gładszy; y 0.005 + polygonOffset; pełne krycie do r 4.6, zanik alfa do 0 na r 5.2 (cykl 2: ostra krawędź)
     water: { envMapIntensity: 0.8, drift: [0.02, 0.013] }, // własny envMap (§4.1.9); cykl 1: 1.2 → lustro basenu L 0.74–0.80 C < 0.01 (białe, tint H 200 znika, kręgi niewidoczne); dryf normal mapy jak dawniej
   },
-  stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6 },   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
+  stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6,   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
+    // motyw #11 „role kramów" (?nokinds=1 = stary placeGoods bez ról, bez szyldów kramów, nowe modele nieładowane). Kram i dostaje kinds[i % kinds.length]
+    // (kolejność = kolejność kramów: kram 0 = repoussoir z §5.3 = sukiennik, POI „Kram sukiennika" w ui.js). cloth = baldachim (te same klucze, które seed 7
+    // losował na HEAD → kadr startowy bez zmiany barw); sign = kafelek atlasu szyldów (houseDetail.sign.tiles + extraTiles); goods = [model, skala] w gniazdach
+    // lady (slotX); bales = bele sukiennika (W.B, klucze cloth*, 0 draw); ground = [model, skala] na ziemi przy tylnym słupie; back = zaplecze zamiast losowania.
+    kinds: [
+      { name: 'sukiennik', cloth: 'cloth2', sign: 'nożyce', bales: ['cloth0', 'cloth1', 'cloth3', 'cloth2', 'cloth1'], ground: ['wicker_basket_02', 1.3] },   // kosz ×1,3 = 0,45 × 0,26 m (bounds 0,35 × 0,20)
+      { name: 'piekarz',   cloth: 'cloth1', sign: 'bochen', goods: [['hamburger_buns', 1.6], ['wooden_bowl_01', 1], ['hamburger_buns', 1.6]], ground: ['wicker_basket_02', 1.3] },   // bułki ×1,6 (zasoby_etap2.md: 0,40 → 0,64 m)
+      { name: 'owocarz',   cloth: 'cloth2', sign: 'jabłko', goods: [['food_pears_asian_01', 1.3], ['wicker_basket_02', 1], ['food_pears_asian_01', 1.3]], ground: ['wicker_basket_02', 1.3] },   // gruszki ×1,3 (0,16 → 0,21 m), ≤ 3 instancje
+      { name: 'garncarz',  cloth: 'cloth0', sign: 'dzban',  goods: [['ceramic_vase_01', 1], ['ceramic_pot', 0.7], ['ceramic_vase_02', 1]], ground: ['ceramic_pot', 0.85] },   // garnek 0,66 m: ×0,7 na ladzie (0,46), ×0,85 na ziemi (0,56)
+      { name: 'kotlarz',   cloth: 'cloth3', sign: 'młot',   goods: [['brass_pot_01', 1], ['brass_vase_01', 1], ['brass_pot_01', 1]] },
+      { name: 'zielarz',   cloth: 'cloth1', sign: 'liść',   goods: [['wooden_bowl_01', 1], ['wicker_basket_02', 1], ['wooden_bowl_01', 1]], ground: ['wicker_basket_02', 1.3] },   // misy ziół + kosz
+      { name: 'winiarz',   cloth: 'cloth3', sign: 'kielich', goods: [['wine_bottles_01', 1], ['ceramic_vase_01', 1], ['wooden_bowl_01', 1]], back: 'wine_barrel_01' },
+    ],
+    // liczby towaru (lokalne kramu: początek na środku lady na ziemi, +z = front; blat = ch + 0,04 = 0,99 ze stalls.js). seedOffset: własny strumień rng na jitter
+    // i obrót towaru (W.R zużywa tyle samo losowań co stary placeGoods → reszta sceny bez przetasowania). Bele: przekrój w × w, długość len wzdłuż z (lada 1,0 →
+    // 5 cm zwisu z każdej strony), rzędy 3 + 2 w rozstawie step (górna bela x = ±step/2 zachodzi na dwie dolne po step − w = 0,12 → 0,08 m przekrycia — policzone).
+    // Szyld kramu: w × h z atlasu na zwisie baldachimu — środek below pod belką frontową (ph − below = 2,03: spód 1,87, wierzch 2,19 < spód belki 2,20), out przed
+    // płótnem zwisu (z 1,12 + 0,04 = 1,16 > lico belki 1,15). Kosz/garnek na ziemi: (∓x, z) przy tylnym słupie po stronie przeciwnej niż zaplecze
+    // (|p| 1,24 + r 0,23 = 1,47 ≤ collideR 1,6). overhang: towar może wystawać ≤ 0,15 m poza blat (check z W.bounds).
+    goods: { seedOffset: 1100, slotX: [-0.8, 0, 0.8], z: -0.05, jitter: 0.1, overhang: 0.15, models: ['hamburger_buns', 'food_pears_asian_01', 'ceramic_pot', 'brass_pot_01', 'brass_vase_01', 'wicker_basket_02'],   // models: nowe modele (zasoby_etap2.md) ładowane tylko z rolami
+      bale: { w: 0.28, len: 1.1, step: 0.4, rows: [3, 2] }, sign: { w: 0.52, h: 0.32, below: 0.27, out: 0.04 }, ground: { x: 0.95, z: -0.8 } },   // bele §5.2 #11 (0,28 × 0,28 × 1,1); szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158
+  },
   lanterns: { count: 8, ringRadius: 15.5 },
   // sunColor: motyw #9, hipoteza (a) §4.4 zaliczona na lineupie (lineup_v1_sunA, 2026-09-07): przy 0xfff1e0 (C 0,027) plaster4 w słońcu H 219 (≥ 180), roof2 H 231 (≥ 200),
   // plaster0 C 0,025 (≥ 0,025), tynk słońce/cień 0,803/0,589 = 1,36 (≥ 1,3); przy 0xffd6a6 chłodne tynki żółkły (plaster4 H 145 C 0,006). Predyktor: agx_predict.mjs SUN.
@@ -158,7 +180,8 @@ export const CONFIG = {
     // corbel.step/2 + corbel.t/2 + w/2 = 0,85 od doorX. Atlas: cols × rows kafelków po tile px, okno szyldu tile × win (256 × 158 ≈ 1,3 × 0,8 m).
     sign: { share: 0.4, y: 3.05, w: 1.3, h: 0.8, out: 0.8, fromDoor: 1.0, orielGap: 0.2, gapBack: 0.01, bracketY: 3.5, bracket: { t: 0.05, back: 0.1, len: 1.6 }, hanger: { t: 0.03, h: 0.1 }, // szyld, wspornik, wieszaki (m)
       plaque: { w: 0.36, h: 0.36, y: 2.83, out: 0.02 }, tiles: ['gryf', 'kielich', 'bochen', 'dzban', 'nożyce', 'młot', 'liść', 'klucz'], tavernTile: 0, tavernText: 'Pod Złotym Gryfem', // plakieta (m); kafelki = kolejność EMBLEMS w materials.js
-      atlas: { cols: 4, rows: 2, tile: 256, win: 158, plq: 112, cyText: 56 } }, // metry / px; plq: bok kwadratowego okna plakiety wokół środka tarczy (tarcza 108 × 132, nad napisem 78 × 88 ze środkiem cyText); słownik skali §3.7: szyld 3,05 / 1,3 × 0,8 / wysięg 0,8
+      extraTiles: ['jabłko'],   // kafelki 8+ tylko dla szyldów kramów (motyw #11): poza pulą szyldów domów (pula = tiles → losowania domów bez zmiany); EMBLEMS = tiles + extraTiles
+      atlas: { cols: 4, rows: 3, tile: 256, win: 158, plq: 112, cyText: 56 } }, // metry / px; rows 3 (motyw #11): 9 kafelków = 3 rzędy po 4, 1024 × 768 px; plq: bok kwadratowego okna plakiety wokół środka tarczy (tarcza 108 × 132, nad napisem 78 × 88 ze środkiem cyText); słownik skali §3.7: szyld 3,05 / 1,3 × 0,8 / wysięg 0,8
     portal: { doorW: 1.2, doorH: 2.2, archIn: 0.6, archOut: 0.9, impostY: 1.6, t: 0.25, seg: 8, key: 'blocks', keystone: { w: 0.28, h: 0.45, up: 0.125, out: 0.05 }, threshold: { h: 0.1, d: 0.35 }, front: 0.6 }, // metry; szczyt łuku wewn. 2,2 / zewn. 2,5, zwornik 2,175–2,625 < parter 3,2 i < belki jetty 3,04
   },
 
@@ -246,7 +269,7 @@ export const CONFIG = {
       // kępy zieleni u podnóża pierzei: liczba na model (baza losowała 14× z listy [trawa, paproć, trawa] → 10 traw × 7 842 tri + 4 paprocie × 6 232)
       scatter: { fern_02: 2, grass_medium_02: 0 },
       // cały towar bez cienia (także drobne modele z audyt/research/zasoby_etap2.md, ładowane przez motyw #11)
-      noShadow: ['wicker_basket_01', 'wooden_bowl_02', 'carved_wooden_plate', 'hamburger_buns', 'food_pears_asian_01'],
+      noShadow: ['wicker_basket_01', 'wooden_bowl_02', 'carved_wooden_plate', 'hamburger_buns', 'food_pears_asian_01', 'ceramic_pot', 'brass_pot_01', 'brass_vase_01', 'wicker_basket_02'],   // + towar ról kramów (motyw #11): garnek, kocioł, wazon, kosz (także na ziemi — 0,26 m)
       // szkło butelek: KHR_materials_transmission (transmissionFactor 1) każe rendererowi rysować całą nieprzezroczystą scenę drugi raz
       // (renderTransmissionPass); zamiast tego zwykła przezroczystość alfa z tą kryciem
       glassOpacity: 0.6,   // krycie alfa szkła butelek

@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, buildSkyline, skylinePlan, buntingCurves, buildBunting, fountainPlan, buildFountain, poiPlan, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, fountainPlan, buildFountain, poiPlan, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = [
   { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
@@ -11,6 +11,14 @@ const KNOWN_B6 = [
 // Znane wady HEAD (B5b ii): okna lukarn zakopane w połaci (buildings.js blok „lukarna" na HEAD: spód okna 0,44 m POD wierzchem płyty) — usuwa motyw #12 (lukarny NA połaci).
 const KNOWN_B5B = []; // 10 lukarn HEAD usunięte 2026-09-07 przez motyw #12a (lukarny NA połaci: spód okna +0,10 nad wierzchem płyty)
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+// Bryły modeli towaru kramów (motyw #11, asercja J): bboxMin/bboxMax z `gltf-transform inspect rynek/assets/models_jpg/<n>.glb` (2026-09-08) — stub 1×1×1 m dawałby
+// fałszywe FAIL asercji „wystaje poza blat" / „poza kołem kolizji" (kosz 1,3 m na ladzie 1,0 m); pozostałe modele nadal ze stubem.
+const GOODS_BOUNDS = {
+  hamburger_buns: [[-0.199, 0, -0.049], [0.198, 0.063, 0.065]], food_pears_asian_01: [[-0.08, 0, -0.101], [0.046, 0.071, 0.066]], ceramic_pot: [[-0.328, -0.001, -0.251], [0.328, 0.371, 0.251]],
+  brass_pot_01: [[-0.151, -0.001, -0.151], [0.151, 0.29, 0.151]], brass_vase_01: [[-0.114, 0.001, -0.114], [0.114, 0.694, 0.114]], wicker_basket_02: [[-0.108, 0, -0.145], [0.239, 0.2, 0.109]],
+  wooden_bowl_01: [[-0.157, 0.001, -0.154], [0.156, 0.094, 0.155]], ceramic_vase_01: [[-0.102, 0.001, -0.101], [0.102, 0.401, 0.102]], ceramic_vase_02: [[-0.109, 0.001, -0.109], [0.109, 0.31, 0.109]],
+  wine_bottles_01: [[-0.036, 0, -0.04], [0.64, 0.331, 0.04]], wine_barrel_01: [[-0.371, 0.002, -0.371], [0.371, 0.871, 0.381]], wooden_crate_01: [[-0.413, -0.008, -0.196], [0.413, 0.342, 0.213]], Barrel_01: [[-0.282, -0.007, -0.282], [0.282, 0.873, 0.282]],
+};
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {
   const rec = [];
@@ -21,6 +29,7 @@ function makeW() {
   // stub modeli (PROMPT §3.4): W.bounds = Map z Box3 (0,0,0)→(1,1,1) dla KAŻDEJ nazwy (modele z Poly Haven nie są ładowane offline), W.put rejestruje
   // {name, x, y, z, ry, scale} w `puts` (buildCart stawia nim skrzynię i kosz na wozie; motywy #5/#7/#10 mogą sprawdzać pozycje modeli z funkcji czystych)
   const bounds = new (class extends Map { get(n) { return super.get(n) ?? new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 1)); } })();
+  for (const [n, [lo, hi]] of Object.entries(GOODS_BOUNDS)) bounds.set(n, new THREE.Box3(V(...lo), V(...hi)));   // towar kramów: prawdziwe bryły (J)
   const puts = [];
   const put = (name, x, y, z, ry = 0, scale = 1) => { puts.push({ name, x, y, z, ry, scale }); return true; };
   return { W: { ctx, R: rng(CONFIG.seed), CONFIG, P: CONFIG.palette, T: CONFIG.textures, H: CONFIG.house, S: CONFIG.plaza.size, half: CONFIG.plaza.size / 2, B, put, bounds, mat: {}, scene: { add() {} } }, rec, col, puts };
@@ -233,6 +242,44 @@ for (const s of signs) {
   if (s.p.orielX !== null && Math.abs(s.x - s.p.orielX) < O.r + S.orielGap) fails.push(`${idS}: szyld ${Math.abs(s.x - s.p.orielX).toFixed(2)} od osi wykusza (< ${O.r + S.orielGap})`);
   if (Math.abs(s.x) > s.p.w / 2 - 0.3) fails.push(`${idS}: szyld poza obrysem domu (x ${s.x.toFixed(2)}, w ${s.p.w.toFixed(2)})`);
 }
+// J) role kramów (motyw #11, stalls.js stallGoodsPlan — funkcja czysta; buildStallGoods dodaje bele/szyldy do B i towar przez stub put): 7 różnych ról, kram 0 = sukiennik
+//    (repoussoir §5.3); szyld każdego kramu frontem kramu (n·front ≥ 0,98 dla 7 obrotów pierścienia) i sign.out przed płótnem zwisu; bele: spód dolnego rzędu na blacie
+//    ch + 0,04, górny rząd na dolnym (z TYCH SAMYCH macierzy), środek każdej beli w kole kolizji kramu (B6); towar z put: spód na blacie i środek w obrysie lady;
+//    kosz na ziemi w kole kolizji; asercje check() z buildStallGoods liczą się w E (0 FAIL na prawdziwych bryłach GOODS_BOUNDS).
+let nGoods = 0, nBales = 0;
+{
+  const n0 = rec.length, p0 = puts.length; buildStallGoods(W);
+  const plan = W.stallGoods, G = CONFIG.stalls.goods, S = CONFIG.stalls;
+  if (plan.length !== W.stalls.length) fails.push(`J: plan ról ${plan.length} ≠ kramów ${W.stalls.length}`);
+  if (new Set(plan.map(p => p.kind)).size !== Math.min(S.count, S.kinds.length)) fails.push(`J: role się powtarzają: ${plan.map(p => p.kind).join(',')}`);
+  if (W.stalls[0].kind !== 'sukiennik' || !W.stalls[0].repoussoir) fails.push(`J: kram 0 (repoussoir) ma rolę ${W.stalls[0].kind}, nie sukiennik`);
+  for (const p of plan) {
+    const s = p.s, id = `J kram ${p.kind} (${s.x.toFixed(1)}, ${s.z.toFixed(1)})`, front = V(0, 0, 1).transformDirection(M4(0, 0, 0, s.ry)), inv = M4(s.x, 0, s.z, s.ry).invert(), top = s.ch + 0.04;
+    const n = V(0, 0, 1).transformDirection(p.sign.m), d = p.sign.center.clone().sub(p.sign.valance).dot(front);
+    if (n.dot(front) < 0.98) fails.push(`${id}: szyld n=${f2(n)} nie frontem kramu ${f2(front)}`);
+    if (Math.abs(d - G.sign.out) > 0.005) fails.push(`${id}: szyld ${d.toFixed(3)} m przed zwisem (ma być ${G.sign.out})`);
+    if (p.sign.y1 > s.ph - 0.1) fails.push(`${id}: wierzch szyldu ${p.sign.y1.toFixed(3)} w belce frontowej (spód ${(s.ph - 0.1).toFixed(2)})`);
+    if (p.sign.tile < 0) fails.push(`${id}: brak kafelka szyldu`);
+    for (const b of p.bales) {
+      nBales++;
+      const lo = V(0, -G.bale.w / 2, 0).applyMatrix4(b.m).y, c = V(0, 0, 0).applyMatrix4(b.m);
+      if (Math.abs(lo - (top + b.row * G.bale.w)) > 0.005) fails.push(`${id}: bela rzędu ${b.row} spód ${lo.toFixed(3)} ≠ ${(top + b.row * G.bale.w).toFixed(3)}`);
+      if (Math.hypot(c.x - s.x, c.z - s.z) > S.collideR) fails.push(`${id}: bela poza kołem kolizji kramu`);
+    }
+    if (p.kind === 'sukiennik' && p.bales.length !== G.bale.rows[0] + G.bale.rows[1]) fails.push(`${id}: ${p.bales.length} bel zamiast ${G.bale.rows[0] + G.bale.rows[1]}`);
+    for (const g of p.goods) {
+      nGoods++;
+      const l = V(g.x, g.y, g.z).applyMatrix4(inv);
+      if (Math.abs(l.y - top) > 1e-6) fails.push(`${id}: ${g.name} spód ${g.y.toFixed(3)} ≠ blat ${top.toFixed(3)}`);
+      if (Math.abs(l.x) > s.cw / 2 || Math.abs(l.z) > s.cd / 2) fails.push(`${id}: ${g.name} środek (${l.x.toFixed(2)}, ${l.z.toFixed(2)}) poza ladą ${s.cw}×${s.cd}`);
+      if (!puts.slice(p0).some(q => q.name === g.name && Math.abs(q.x - g.x) < 1e-6 && Math.abs(q.z - g.z) < 1e-6)) fails.push(`${id}: ${g.name} nie postawiony przez put`);
+    }
+    if (p.ground && Math.hypot(p.ground.lx, p.ground.lz) > S.collideR) fails.push(`${id}: ${p.ground.name} na ziemi poza kołem kolizji`);
+  }
+  const bales = rec.slice(n0).filter(r => r.key.startsWith('cloth')), signs = rec.slice(n0).filter(r => r.key === 'sign');
+  if (bales.length !== nBales) fails.push(`J: w B ${bales.length} bel zamiast ${nBales}`);
+  if (signs.length !== plan.length) fails.push(`J: w B ${signs.length} szyldów kramów zamiast ${plan.length}`);
+}
 // G) wóz (props.js buildCart) — geometria Batch; modele przez stub put (rejestrowane w puts)
 buildCart(W);
 if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 'wicker_basket_01')) fails.push('G stub W.put: buildCart nie zarejestrował skrzyni i kosza na wozie');
@@ -396,7 +443,7 @@ if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, kramów J towar ${nGoods} bel ${nBales}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);

@@ -10,7 +10,7 @@ import { check, checkHeight, checkAboveGround, checkCollisionCovers, checkInFron
 export async function initProps(W) {
   const { ctx, scene, loaders, CONFIG } = W;
   const cuts = ctx.flags.nocuts ? null : CONFIG.props.cuts; W.cuts = cuts;   // ?nocuts=1: stan sprzed cięć skanów (motyw #1)
-  const names = ['wooden_crate_01', 'wine_barrel_01', 'Barrel_01', 'wicker_basket_01', 'wooden_bucket_02', 'ceramic_vase_01', 'ceramic_vase_02', 'wooden_bowl_01', 'food_apple_01', 'treasure_chest', 'wooden_stool_02', 'wooden_lantern_01', 'horse_statue_01', 'grass_medium_02', 'fern_02', 'tree_stump_01', 'rock_moss_set_02', 'potted_plant_02', 'wine_bottles_01', 'Lantern_01'].filter(n => !cuts || n !== 'treasure_chest');   // z cięciami skrzynia skarbów nieładowana (10 332 tri)
+  const names = ['wooden_crate_01', 'wine_barrel_01', 'Barrel_01', 'wicker_basket_01', 'wooden_bucket_02', 'ceramic_vase_01', 'ceramic_vase_02', 'wooden_bowl_01', 'food_apple_01', 'treasure_chest', 'wooden_stool_02', 'wooden_lantern_01', 'horse_statue_01', 'grass_medium_02', 'fern_02', 'tree_stump_01', 'rock_moss_set_02', 'potted_plant_02', 'wine_bottles_01', 'Lantern_01', ...(ctx.flags.nokinds ? [] : CONFIG.stalls.goods.models)].filter(n => !cuts || n !== 'treasure_chest');   // z cięciami skrzynia skarbów nieładowana (10 332 tri); towar ról kramów (motyw #11, zasoby_etap2.md) tylko bez ?nokinds=1
   const models = new Map(await Promise.all(names.map(async n => [n, await loaders.loadModel(n)])));
   const bounds = new Map();
   for (const [n, g] of models) { g.scene.updateMatrixWorld(true); bounds.set(n, new THREE.Box3().setFromObject(g.scene)); }
