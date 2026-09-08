@@ -114,7 +114,7 @@ export const CONFIG = {
     enter: 'Wejdź', hint: 'Lewy kciuk: chodzenie · prawy: rozglądanie', near: 'podejdź bliżej…',
     font: '"Noto Serif", Georgia, serif',                      // bez sieci: Noto Serif (Android) → Georgia → serif
     size: { title: 34, subtitle: 13, mood: 14, button: 48, hint: 11, caption: 16 }, // px
-    buttonWidth: 60, frameInset: 8, fadeMs: 600, vignetteBlur: 120,               // % szerokości; ramka 8 px od krawędzi; fade-out „Wejdź"; rozmycie winiety
+    buttonWidth: 60, frameInset: 8, fadeMs: 600, vignetteBlur: 120,               // % szerokości EKRANU (vw); ramka 8 px od krawędzi; fade-out „Wejdź"; rozmycie winiety
     colors: { bg0: '#1a1410', bg1: '#3a2a1a', gold: '#b8892e', goldA: 'rgba(184,137,46,.8)', ink: '#e8d9b5', mood: '#cdbb95', button: '#2a1e12', hint: '#8a7a5a', vignette: 'rgba(20,12,6,.45)' },
     stallCollide: 1.6,                                          // koło kolizji kramu (stalls.js addCircle 1.6) — do promienia POI kramu
   },

@@ -49,7 +49,7 @@ const el = id => document.getElementById(id);
 function applyTheme(U) {
   const root = document.documentElement.style, C = U.colors;
   const vars = { gold: C.gold, 'gold-a': C.goldA, ink: C.ink, mood: C.mood, btn: C.button, hint: C.hint, bg0: C.bg0, bg1: C.bg1, vig: C.vignette,
-                 'vig-blur': U.vignetteBlur + 'px', font: U.font, fade: U.fadeMs + 'ms', frame: U.frameInset + 'px', 'btn-w': U.buttonWidth + '%' };
+                 'vig-blur': U.vignetteBlur + 'px', font: U.font, fade: U.fadeMs + 'ms', frame: U.frameInset + 'px', 'btn-w': U.buttonWidth + 'vw' }; // vw: 60 % EKRANU, nie kontenera #start (padding 24 px)
   for (const [k, v] of Object.entries(vars)) root.setProperty('--ui-' + k, v);
   for (const [k, v] of Object.entries(U.size)) root.setProperty('--ui-size-' + k, v + 'px');
   document.body.classList.add('ui');
