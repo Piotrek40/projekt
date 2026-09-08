@@ -1,6 +1,44 @@
-# Etap 2 — motyw #6 „wykusze wieloboczne + kroksztyny" (?nooriel=1) — raport (cykl 1/3)
+# Etap 2 — motyw #6 „wykusze wieloboczne + kroksztyny" (?nooriel=1) — raport (cykl 2/3; sekcja cyklu 1 niżej)
 
 Stan wyjściowy: `5516ada` (po #12c naczółek). Bez pozycji §8 na własność (#6 nie jest właścicielem żadnej — osobnego commitu infrastruktury nie ma); zmiana testu (gałąź B1b) w tym samym commicie, bo dotyczy tylko tej cechy.
+
+## Cykl 2/3 — weryfikacja na HEAD `b9f8a45` (po #9 paleta/okiennice, #10 portale/szyldy, #7 kompozycja/lipy) + kroksztyny pod spód wykusza przy jetty
+
+Stan wyjściowy: `b9f8a45`; `git status` czysty; `geo_test.sh` na czystym HEAD exit 0, `rot_token.mjs buildings.js` exit 0. Lista „co ma być widać" PRZED renderem: `$SP/oriel/lista_cykl2.md` (7 punktów; p.7 dopisany PRZED kodem zmiany).
+
+ZMIANY (cykl 2):
+- rynek/src/buildings.js (`orielBay`, kroksztyny): profil kroksztynu `[[0,0],[w+ext,0],[ext,−h],[0,−h]]` z `ext = faceZ − faceZBelow` (jetty 0,35 / 0 bez jetty → trójkąt jak w cyklu 1; próg 0,01 z komentarzem: bez jetty punkty (ext,−h) i (0,−h) by się pokryły). Powód: u domów z jetty kroksztyn 0,35 z muru parteru kończył się NA osi wykusza (pod strefą jetty, nakładanie z podwaliną 0,07) — spód sześciokąta 0,95 m wisiał bez widocznego podparcia (ZNANE BRAKI cyklu 1). Teraz wierzch sięga `reach = w + ext = 0,70` → 0,35 przed oś wykusza, pod spód sześciokąta (spód sięga z 0,745 przy x = cx ± 0,67 — policzone), ścięcie 45° w × h na końcu; spód y − h = 2,85 bez zmian (nad zwornikiem 2,625 i plakietą #10b 2,65–3,01; warunek plakiety `plaqueOK` liczy tylko x — bez zmian). K13: `L(xc, y, faceZBelow, −π/2)`: (0.7,0,0) → (xc, y, faceZBelow+0.7), (0.35,−0.35,0) → (xc, y−0.35, faceZBelow+0.35) (jednolinijkowiec uruchomiony, wynik w komentarzu); normalne ścian k dla 4 pierzei policzone ponownie: ry 0 (∓0.866,0,0.5)/(0,0,1); −π/2 (−0.5,0,−0.866)/(−1,0,0)/(−0.5,0,0.866); π (±0.866,0,−0.5)/(0,0,−1); π/2 (0.5,0,0.866)/(1,0,0)/(0.5,0,−0.866).
+- Nowa asercja `check()`: `'… wykusz kroksztyn i nie sięga pod spód wykusza'` — przy ext ≥ 0,01 zewnętrzny górny róg ≥ w − 0,005 = 0,345 przed osią wykusza (lico piętra); `'… kroksztyn i'` (checkInFrontOfWall) próg `reach − 0,005`. Kalibracja: `reach = w + 0,5·ext` → CHECK „nie sięga pod spód" dla wszystkich kroksztynów domów z jetty (m.in. s3 0.0, s2 14.3, s2 0.0; geo_test exit 1); po przywróceniu 0 CHECK, exit 0. „nie styka się z podwaliną": min(dOut, bt) − max(dIn, 0) = 0,16 (jetty) / 0,09 (bez) ≥ 0,05 — PASS ×22.
+- rynek/src/config.js: komentarz przy `houseDetail.oriel.corbel` (reguła w + jetty; bez nowej liczby — ext wynika z geometrii domu). Nowe linie z ułamkiem bez komentarza (`git diff -U0 HEAD -- rynek/src`): 0. grep §3.1 Math.sin/cos poza `ring:`: 0.
+- rynek/app.js: bundle (§6 p.3, esbuild 106 ms).
+
+CO MIAŁO BYĆ / CO WIDAĆ (odhaczone na PNG, `audyt/testy/out/render/`, `noui=1&nosmoke=1&nosway=1&nowater=1`):
+1. [x] elew2 (`oriel2_on_orto/elew2.png` HEAD, `oriel2b_on_orto/elew2.png` po zmianie — identyczne, pctOver 0; ortho 1024², side 2, size 30, OBEJRZANA PIERWSZA): 3 daszki stożkowe wykuszy między piętrem 1 a 2 przy px x ≈ 150 (dom s2 −9.0, x 10,5), 470 (dom zamykający ulicę S, x 1,0, przez przerwę ulicy), 1010 (s2 14.3, x −15,1; skraj kadru); pod nimi bryły wykuszy w tynku domu z okiennicami #9 na sąsiednich oknach. elew2 on/off (`oriel2b_off_orto`): pctOver 1,73 %.
+2. [x] wykusz_L / wykusz_P (`oriel2b_on/*.png`; kamera (14,74; 17,41) yaw 2,356 / (6,26; 17,41) yaw −2,356, pitch 0,457 — cel wykusz (10,5; 4,63; 21,65)): sześcioboczna bryła, 2 widoczne ściany z oknem 0,6×1,3 (świecące / ciemne) w ramie, 4 słupki narożne, podwalina i oczep, płaski spód, skraj daszka jako ciemnoczerwony pas pod jetty piętra 2; **2 kroksztyny widoczne jako wsporniki pod środkiem spodu ze ściętym 45° czołem** (w cyklu 1: trójkąty tylko przy murze parteru — `oriel2_on/wykusz_L.png` na kodzie cyklu 1); okiennice #9 sąsiednich okien piętra 1 nie wchodzą w bryłę; szyld #10b „klucz" na prawo od wykusza ≥ 1,3 m od osi, wspornik nad kroksztynami; portal łukowy #10a pod spodem.
+3. [x] start_plac (`oriel2b_on/start_plac.png` vs `oriel2_off/start_plac.png`): maska diff (`diff_start_plac.png`, obejrzana) = tylko wykusz domu zamykającego ulicę N (x −2,3; z −37,65) na prawo od wieży (mała bryła ze świecącym oknem i ciemnym daszkiem) + cyfry HUD; plac, kramy, fontanna, lipy, wieża bez zmian; pctOver 0,31 %.
+4. [x] top (`oriel2b_on_orto/top.png`, obejrzany): nic nowego na placu ani w ulicach (wykusze pod okapem), on/off 0,06 %.
+5. [x] noinst (`oriel2b_on_noinst/`, `?noinst=1`): wykusz_L 88 draw / 195 079 tri (obejrzany — identyczny z trybem instancji), start_plac 122 / 249 688; errors [].
+6. [x] Budżet: 0 draw; +2 700 tri HUD na widok vs `?nooriel=1` (wykusz_L 275 131 → 277 975; start_plac 372 544 → 375 388); zmiana kroksztynów +144 tri HUD (profil 4-punktowy zamiast trójkąta u domów z jetty; HUD liczy z passem cieni).
+7. [x] Kroksztyny pod spód wykusza (p.7 listy): maska `oriel2b_on/diffc_wykusz_L.png` (obejrzana) = wyłącznie 2 kroksztyny; pctOver kod cyklu 2 vs kod cyklu 1 (ten sam HEAD): wykusz_L 0,78 %, wykusz_P 0,63 %, start_plac 0,02 % (szum).
+
+WIDOKI (cykl 2; każdy obejrzany): `oriel2_on_orto/{elew2,top}.png` (HEAD), `oriel2_on/{wykusz_L,wykusz_P,start_plac}.png` (HEAD), `oriel2_off/*` (`?nooriel=1`), `oriel2b_on/{wykusz_L,wykusz_P,start_plac}.png` + `diff_*.png` (vs off) + `diffc_*.png` (vs kod cyklu 1), `oriel2b_on_orto/{elew2,top}.png` + `diffoff_*.png`, `oriel2b_off_orto/*`, `oriel2b_on_noinst/{wykusz_L,start_plac}.png`.
+
+BUDŻET (HUD, tryb instancji; przed = `?nooriel=1`, po = cykl 2): start_plac 100 → 100 draw, 372 544 → 375 388 tri (HEAD b9f8a45 z cechą: 375 244; cel ≤ 600 k, zapas 225 k); wykusz_L 71 / 275 131 → 277 975; wykusz_P 77 / 317 315 → 320 159; elew2 79 / 315 493 → 318 337; top 124 / 420 831 → 423 675. noinst: start_plac 122 / 249 688, wykusz_L 88 / 195 079 (errors []). top-3 __stats start_plac: timber 1 / 29 240 (było 29 168), wooden_lantern_01 3 / 27 232, wicker_basket_01 1 / 17 776. Wszystko ≤ 250 / ≤ 700 000.
+
+KOLOR: n/d (bez zmian W.mat).
+
+ASERCJE: geo_test.sh exit 0 (okien/ram 1721, B1b 132, połaci 82, B5 3164, B5b 10, domów 28, kramów 7, wieża 16, szyldów F 8 / F2 9, lip H 2, B6 135, KNOWN 2 = dyszel wozu, CHECK nieudanych 0; 7 uwag C kramów); rot_token.mjs buildings.js exit 0; results.errors [] w 8 renderach cyklu 2 (orto HEAD, on HEAD, off, on cykl 2, noinst, orto cykl 2, orto off + kalibracja); nowa asercja „nie sięga pod spód wykusza" (próg w − 0,005 = 0,345 przed osią; skalibrowana: FAIL przy reach 0,525).
+
+DIFF (img_diff, próg 20): wykusz_L on/off 14,74 %, wykusz_P 12,46 %, elew2 1,73 %, start_plac 0,31 % (tylko wykusz w ulicy N), top 0,06 %; zmiana cyklu 2 (kroksztyny): wykusz_L 0,78 %, wykusz_P 0,63 %, elew2 0 %, top 0,01 %, start_plac 0,02 %.
+
+ZNANE BRAKI (po cyklu 2):
+- Daszek stożkowy pod jetty piętra 2: z poziomu placu widać tylko przedni skraj (pas 0,17–0,6 m); pełny stożek zasłania bryła piętra wyżej — z założenia.
+- Bez konsoli (odwrócony stożek) pod spodem — sprzeczna ze specyfikacją kroksztynów §5.2 #6 (schowałaby kroksztyny w bryle; policzone: kroksztyn w promieniu 0,62 od osi leży wewnątrz stożka o r górnym 0,85). Zamiast tego kroksztyny sięgają 0,35 przed oś przy jetty (cykl 2); u domów bez jetty jak w cyklu 1 (0,35 od muru = 0,35 przed oś).
+- Z góry (top) wykusze niewidoczne (pod okapem) — brak sygnału, nie błąd.
+- Dom zamykający ulicę: `cxMax` 2,5 → wykusz w pasie ±2,5 m od osi ulicy (N −2,3; E 0,1; S 1,0; W −0,9).
+- Cykle: 2/3.
+
+## Cykl 1/3 (stan wyjściowy `5516ada`)
 
 ZMIANY:
 - rynek/src/config.js: `CONFIG.houseDetail.oriel = { minW: 7, edgeGap: 6, floor: 1, r: 1.1, seg: 6, win: [0.6, 1.3], litShare: 0.35, capR: 1.3, capH: 0.8, edge: 0.3, cxMax: 2.5, corbel: { w: 0.35, h: 0.35, t: 0.14, step: 1.2 } }` (komentarz z policzonymi liczbami: apotema 0,953, okap daszka 0,17, 11 domów). Nowe linie z ułamkiem bez komentarza (§2.4): 0.

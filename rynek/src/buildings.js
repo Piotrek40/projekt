@@ -140,16 +140,20 @@ export function buildHouses(W) {
       const apex = new THREE.Vector3(0, O.capH / 2, 0).applyMatrix4(capM);
       check(apex.clone().sub(LP(cx, apex.y, faceZAbove)).dot(nrm) <= 0.005, `${idO} daszek przebija lico piętra wyżej`, { apex: apex.toArray(), faceZAbove }); // 0.005: bez jetty wierzchołek leży NA licu (d = 0)
       check(apOf(O.capR) >= ap + 0.1, `${idO} daszek bez okapu`, { capAp: apOf(O.capR), ap });                                 // 0.1: minimalny okap daszka przed ścianą wykusza (1,126 − 0,953 = 0,17)
-      // kroksztyny co step pod wykuszem (2 przy r 1,1): prism (trójkąt prostokątny w XY: (0,0) ściana-góra, (w,0) zewnętrzny-góra, (0,−h) ściana-dół), grubość t
-      const C = O.corbel, nC = Math.max(2, Math.round(2 * R / C.step));
+      // kroksztyny co step pod wykuszem (2 przy r 1,1): prism (profil w XY: (0,0) ściana-góra, (w + ext, 0) zewnętrzny-góra, (ext, −h) i (0, −h) ściana-dół), grubość t.
+      // ext = faceZ − faceZBelow (jetty 0,35 / 0 bez jetty — cykl 2): przy jetty kroksztyn z murem parteru sięga w + ext = 0,70 → wierzch 0,35 PRZED osią wykusza,
+      // pod spodem sześciokąta (spód sięga z 0,745 przy x = cx ± 0,67 — policzone), a nie tylko pod strefą jetty; ścięcie 45° w × h na końcu, spód y − h bez zmian
+      const C = O.corbel, nC = Math.max(2, Math.round(2 * R / C.step)), ext = faceZ - faceZBelow, reach = C.w + ext;
+      const corbelProfile = ext > 0.01 ? [[0, 0], [reach, 0], [ext, -C.h], [0, -C.h]] : [[0, 0], [C.w, 0], [0, -C.h]]; // 0.01: bez jetty punkty (ext,−h) i (0,−h) by się pokryły — trójkąt
       for (let i = 0; i < nC; i++) {
         const xc = cx + (i - (nC - 1) / 2) * C.step;
         const mC = L(xc, y, faceZBelow, -Math.PI / 2); // ry=−π/2: lokalne +x (wysięg) → +z domu, policzone (0.35,0,0) → (0,0,0.35); wierzch na y = spód podwaliny
-        B.add('timber', prism([[0, 0], [C.w, 0], [0, -C.h]], C.t, T.timber.mpt), mC);
-        const inner = new THREE.Vector3(0, 0, 0).applyMatrix4(mC), outer = new THREE.Vector3(C.w, 0, 0).applyMatrix4(mC);
-        checkInFrontOfWall(`${idO} kroksztyn ${i}`, outer, LP(xc, y, faceZBelow), nrm, C.w - 0.005);          // zewnętrzny górny róg w przed ścianą niżej (orientacja; 0.005: float)
+        B.add('timber', prism(corbelProfile, C.t, T.timber.mpt), mC);
+        const inner = new THREE.Vector3(0, 0, 0).applyMatrix4(mC), outer = new THREE.Vector3(reach, 0, 0).applyMatrix4(mC); // policzone: (0.7,0,0) → dom (xc, y, faceZBelow + 0.7), (0.35,−0.35,0) → (xc, y − 0.35, faceZBelow + 0.35)
+        checkInFrontOfWall(`${idO} kroksztyn ${i}`, outer, LP(xc, y, faceZBelow), nrm, reach - 0.005);        // zewnętrzny górny róg w + ext przed ścianą niżej (orientacja; 0.005: float)
+        check(ext < 0.01 || outer.clone().sub(LP(xc, y, faceZ)).dot(nrm) >= C.w - 0.005, `${idO} kroksztyn ${i} nie sięga pod spód wykusza`, { ext, reach }); // przy jetty róg zewnętrzny ≥ w przed osią wykusza (pod sześciokątem)
         const back = LP(xc, y, faceZ + 0.01 - bt / 2), dIn = inner.clone().sub(back).dot(nrm), dOut = outer.clone().sub(back).dot(nrm); // rzut wierzchu kroksztynu na normalną od tyłu podwaliny
-        check(Math.abs(inner.y - y) < 0.005 && Math.min(dOut, bt) - Math.max(dIn, 0) >= 0.05, `${idO} kroksztyn ${i} nie styka się z podwaliną`, { dIn, dOut, top: inner.y, y }); // nakładanie w rzucie ≥ 0,05 (0,07 z jetty / 0,09 bez), ten sam y
+        check(Math.abs(inner.y - y) < 0.005 && Math.min(dOut, bt) - Math.max(dIn, 0) >= 0.05, `${idO} kroksztyn ${i} nie styka się z podwaliną`, { dIn, dOut, top: inner.y, y }); // nakładanie w rzucie ≥ 0,05 (min(dOut, bt) = 0,16 z jetty przy reach 0,70 / 0,09 bez), ten sam y
       }
     }
     // parter: drzwi w portalu łukowym (motyw #10a, ?noportal=1 = drzwi 2,3 + nadproże belkowe HEAD) i okna
