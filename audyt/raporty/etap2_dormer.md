@@ -44,3 +44,20 @@ ZNANE BRAKI:
 - Profil lukarny (widok z boku) nie jest osiągalny elewacją ortho (near 16 m clipuje pierzeję, a sąsiedzi nakładają się w rzucie) — „na połaci" potwierdzają liczby z macierzy (spód ściany −0,15, okno +0,10) i zbliżenie z ukosa lukarna_N2.
 - Kominy nadal zakopane w połaci (poza zakresem; z #3). Elewacja side 0 ma po lewej blade płaszczyzny szczytów pierzei W (clipping near ortho) — stan jak w #3, nie moja zmiana.
 - Cykle: 1/3.
+
+## Cykl 2/3 (2026-09-08) — weryfikacja na HEAD `d0ca35e` (po motywach #6 wykusze, #9 paleta, #10 portale/szyldy, #7 kompozycja/lipy)
+
+Bez zmian kodu: bundle `rynek/app.js` przebudowany komendą §6 p.3 = identyczny z zacommitowanym (`cmp`); `geo_test.sh` exit 0 (połaci 82, lukarn B5b 10, B5 3164, B6 135, KNOWN_B6 2, CHECK 0); `rot_token.mjs buildings.js` exit 0; `check_test.mjs` 8/8. Dowód flagi z bundla geo (buildHouses ze stubem B, liczba trójkątów per klucz): `?nodormer=1` → −40 elementów, timber 27 260 → 27 020, plaster 1 844 → 1 604 (glass bez zmian: HEAD też ma 1 box szkła/lukarnę).
+
+CO WIDAĆ (PNG z tego cyklu, `out/render/m12_*`, wszystkie `noui=1&nosmoke=1&nosway=1&nowater=1`, QUALITY=high DPR=2 412×915):
+1. [x] `m12_on/lukarna_N.png` (9.5, −6, yaw 0, pitch 0.58): obie lukarny pierzei N — s0 6.1 (dachówka, okno świat (7.5, 13.8, −23)) i s0 13.9 (łupek, okno (11.3, 11.0, −22.3)) — pełne okno z parapetem i nadprożem NAD dachówką, ściana czołowa wychodzi z połaci bez szpary, daszek pulpitowy z wysięgiem; `m12_off/lukarna_N.png` (`?nodormer=1&nostep=1&nohip=1`): oba pudełka HEAD z oknem w połowie w dachówce. Maska `diff_lukarna_N.png` obejrzana: 2 lukarny + pas cienia daszka na łupku, reszta czarna; pctOver 1,88 %.
+2. [x] `m12_on2/hip_E3.png` (−3, −13, yaw −2.22, pitch 0.37): lukarna s1 7.7 (okno (22, 14.8, 5.2)) na dachu najwyższego domu pierzei E, nad połacią; OFF: pudełko zakopane.
+3. [x] `m12_on_top/elew1.png` (side 1, 1024², size 30): lukarna s1 7.7 jako prostokąt z oknem i daszkiem ponad połacią; `m12_on_elew/elew2w.png` (2048×1024): lukarna s2 −9.0 na dużym dachu (px ≈ 770–830); `elew3w.png`: lukarny s3 7.4 (px ≈ 1270–1310, łupek) i s3 15.2 (px ≈ 1530–1580). Brak połaci V.
+4. [x] `m12_on_top/top.png` (size 60): lukarny jako jasne prostokąty na połaciach od placu (pierzeja E: 3, N: 2, W: 2, S: 2 widoczne), nic nowego na placu/ulicach.
+5. [x] `m12_on2/start_plac.png` (4, 19, 0.15, 0.02) kontrolny: lukarna s0 6.1 w prawym górnym rogu (nad lipą); maska `diff_start_plac.png` (ON vs OFF 3 flagi): lukarna + 2 plamy cienia dachów pierzei S na bruku (naczółki), plac/kramy/fontanna/wieża/lipy czarne; pctOver 0,58 %. Ten sam widok vs `compose_on/start_plac.png` (render motywu #7): pctOver 0,01 % — HEAD renderuje się powtarzalnie.
+
+BUDŻET (HUD, tryb instancji; OFF = 3 flagi razem, ON = HEAD; różnica ON−OFF to cały motyw #12): lukarna_N 82 / 334 459 → 82 / 336 371; step_W 87 / 364 149 → 87 / 366 061; hip_E3 102 / 351 628 → 102 / 353 540; start_plac 100 / 373 332 → 100 / 375 244 (+1 912, 0 draw; cel ≤ 600 k spełniony, zapas 225 k); ulica_S 79 / 322 595, top 124 / 423 531, elew1 76 / 329 049, elew2 79 / 318 193, elew3 74 / 293 309, elew2w 84 / 338 141, elew3w 79 / 313 309 (tylko ON). noinst (`?noinst=1`, `m12_on_noinst`): start_plac 122 / 249 544, hip_E3 126 / 243 138, errors []. Wszystko ≤ 250 / ≤ 700 000. top-3 __stats start_plac: timber 1 / 29 168, wooden_lantern_01 3 / 27 232, wicker_basket_01 1 / 17 776. results.errors [] w 8 uruchomieniach render_scene (m12_on, m12_on2, m12_on3, m12_off, m12_off2, m12_on_top, m12_on_elew, m12_on_noinst).
+
+DIFF: lukarna_N 1,88 % / start_plac 0,58 % (tylko oczekiwane miejsca) / vs baza repo `rynek/start_plac.png` 31,66 % (kompozycja #7: lipy, kramy, nowy start; nie moja zmiana).
+
+ZNANE BRAKI (bez zmian z cyklu 1; cykle 2/3): lukarny tylko na dachach ∥ x; zawsze na połaci od placu; kominy nadal w połaci (poza zakresem).

@@ -42,3 +42,21 @@ ZNANE BRAKI:
 - Schodki bez gzymsów/sterczyn i bez cienia własnego wyłączonego (klucz 'blocks' rzuca cień; §8 #17 należy do #5).
 - Dom z łukiem szczytu s0 along −13.8 (4 piętra, w 6,6) nie jest schodkowy (losowanie Rd < 0,6 = nie) — kompozycja pierzei N przy wieży bez schodków; zmiana = share w CONFIG.
 - Cykle: 1/3.
+
+## Cykl 2/3 (2026-09-08) — weryfikacja na HEAD `d0ca35e` (po #6/#9/#10/#7)
+
+Bez zmian kodu (bundle identyczny, geo_test exit 0, rot_token exit 0 — szczegóły w `etap2_dormer.md`, cykl 2). Dowód flagi z bundla geo: `?nostep=1` → blocks 5 232 → 5 040 tri (−192 = 3 domy × 4/6/6 schodków × 12), timber +36 (3 belki szczytu HEAD).
+
+CO WIDAĆ (PNG z tego cyklu):
+1. [x] `m12_on/step_W.png` (−8, 8, yaw 2.27, pitch 0.58): dom (−26, 19.9) — 6 schodków muru `blocks` na tle nieba, górny wąski (półszer. 0,62), obie połacie schowane za murem, bez okapu przed szczytem; `m12_off/step_W.png` (3 flagi): trójkątny szczyt z belką pionową i łupkowym okapem. Maska `diff_step_W.png` obejrzana: tylko szczyt (schodki + skrócony okap), reszta czarna; pctOver 3,41 %.
+2. [x] `m12_on_elew/elew2w.png` (side 2, 2048×1024, size 30): schodki domu (19.1, 26) — 6 stopni z muru od okapu do 13,85 m (px x ≈ 300–490, ponad dachami sąsiadów po lewej); `elew3w.png` (side 3): schodki domu (−26, 19.9) do 16,45 m = najwyższy punkt pierzei W (px x ≈ 250–450). Elewacje 1024² (size 30, `m12_on_top/elew2.png`, `elew3.png`) NIE obejmują tych domów (kadr ±15 m, domy na along −19.1 / −19.9) — dlatego dodatkowy render 2048×1024.
+3. [x] `m12_on_top/top.png`: wierzch muru schodków (0,4 m przy licu) widoczny jako jasna kreska na dachach (19.1, 26) i (−26, 19.9); nic na placu/ulicach.
+4. [x] `m12_on2/start_plac.png` kontrolny: maska (ON vs OFF 3 flagi) bez śladu schodków w kadrze (dom s2 −19.1 za kamerą; cień poza kadrem przy pitch 0,02) — pctOver 0,58 % pochodzi z lukarny s0 6.1 i cieni naczółków.
+
+BUDŻET: step_W 87 / 364 149 (OFF) → 87 / 366 061 (ON, cały motyw #12); pozostałe widoki i noinst — patrz `etap2_dormer.md` cykl 2. errors [] we wszystkich.
+
+DIFF: step_W 3,41 % / start_plac 0,58 % / vs baza repo 31,66 % (kompozycja #7).
+
+ZNANE BRAKI (doprecyzowane, cykle 2/3):
+- Trzeci dom schodkowy s1 along −25.8 (świat (26, −25.8), 2 piętra, n=4, wierzch 11,23 m) jest W CAŁOŚCI wewnątrz domu narożnego pierzei N s0 24.2 (x 18,45–29,95, z −30,35–−21,65, okap 11,44, kalenica 14,89; policzone z bundla geo) — nie da się go pokazać ŻADNĄ kamerą; wpis cyklu 1 „widok step_E źle dobrany" był nieścisły: to nie kadr, tylko zamierzone przenikanie domów narożnych (§3.2 K8). Efektywnie schodkowe są 2 z 6 domów szczytowych; poprawa (pominięcie domów narożnych w losowaniu) = zmiana `layout`/warunek `|along| < half − w/2` w `buildings.js` — odłożone, bo przetasowałaby losowanie `rng(seedLocal+2)` tylko tego domu (0 wpływu na inne), ale wymaga cyklu 3 z pełnym renderem.
+- Mur schodków szerokości w + 2·ov (wystaje 0,55 m poza ściany boczne) — jak w cyklu 1.
