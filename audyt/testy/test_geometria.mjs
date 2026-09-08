@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, smokerChimneys, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, clockClearance, fountainPlan, buildFountain, poiPlan, greeneryPlan, buildGreenery, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, smokerChimneys, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, clockClearance, fountainPlan, buildFountain, poiPlan, poiInView, greeneryPlan, buildGreenery, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = []; // dyszel wozu (2 wpisy z 2026-09-07) usunięty 2026-09-08: buildCart dodaje koło L(−2,2, 0, 0) r 0,6 pod dyszlem (poprawka r1 reżyserii, wóz na (4,9, 11,3))
 // Znane wady HEAD (B5b ii): okna lukarn zakopane w połaci (buildings.js blok „lukarna" na HEAD: spód okna 0,44 m POD wierzchem płyty) — usuwa motyw #12 (lukarny NA połaci).
@@ -591,6 +591,18 @@ let nGreen = { planters: 0, sillBoxes: 0, beds: 0, benches: 0 };
   if (!col.circles.some(c => Math.abs(c.x) < 1e-6 && Math.abs(c.z) < 1e-6) || byAt.fountain.x !== 0 || byAt.fountain.z !== 0) fails.push('U: POI fontanny poza (0,0)');
   for (const p of pois) { const d = Math.hypot(p.x - 4, p.z - (CONFIG.plaza.size / 2 - 3)); if (d <= p.r) fails.push(`U: start w promieniu POI ${p.name} (d ${d.toFixed(2)} ≤ r ${p.r.toFixed(2)})`); }
   console.log(`POI: ${pois.map(p => `${p.at} (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) r ${p.r.toFixed(2)} d(start) ${Math.hypot(p.x - 4, p.z - (CONFIG.plaza.size / 2 - 3)).toFixed(2)}`).join('; ')}`);
+  // U2) bramka kadru (ui.js poiInView, wada ze zrzutów z S24: podpis „Kram sukiennika" wisiał, gdy kramu nie było w kadrze).
+  // Telefon w pionie: fov pionowe 70°, aspect 412/915 → połowa POZIOMEGO kadru ≈ 18°; do tego kąt bryłowy own i luz CONFIG.ui.captionSlack.
+  const halfH = Math.atan(Math.tan(CONFIG.bunting.clockClear.fov * Math.PI / 360) * (412 / 915)), sl = CONFIG.ui.captionSlack * Math.PI / 180;
+  for (const q of pois) {                                  // z odległości r na osi: patrząc wprost — widać, tyłem i bokiem (90°) — nie
+    const d = q.r, at = yaw => ({ x: q.x, z: q.z + d, yaw }); // gracz na południe od POI; app.js: yaw 0 → patrzy w −z, czyli na POI
+    const lim = (halfH + Math.asin(Math.min(1, q.own / d)) + sl) * 180 / Math.PI;
+    if (!poiInView(at(0), q, halfH, sl)) fails.push(`U2: ${q.name} niewidoczny mimo patrzenia wprost (d ${d.toFixed(2)}, limit ${lim.toFixed(1)}°)`);
+    if (poiInView(at(Math.PI), q, halfH, sl)) fails.push(`U2: ${q.name} „widoczny" tyłem (180°, limit ${lim.toFixed(1)}°)`);
+    if (lim < 90 && poiInView(at(Math.PI / 2), q, halfH, sl)) fails.push(`U2: ${q.name} „widoczny" bokiem (90°, limit ${lim.toFixed(1)}°)`);
+    if (!poiInView({ x: q.x, z: q.z, yaw: Math.PI }, q, halfH, sl)) fails.push(`U2: ${q.name} niewidoczny, gdy gracz stoi w jego obrysie`);
+    notes.push(`POI ${q.at}: połowa kadru ${(halfH * 180 / Math.PI).toFixed(1)}° + own ${(Math.asin(Math.min(1, q.own / d)) * 180 / Math.PI).toFixed(1)}° + luz ${CONFIG.ui.captionSlack}° = ${lim.toFixed(1)}° przy d = r = ${d.toFixed(2)} m`);
+  }
 }
 // M) dym (props.js smokerChimneys — funkcja czysta, poprawka r1 K8): ≥ 2 kominy z dymem, wszystkie w kadrze startu (rzut kamerą startową jak w funkcji: |NDC| ≤ 1 − margin), ≤ max
 { const smokers = smokerChimneys(W), Sm = CONFIG.props.smoke, st = CONFIG.composition.start, K = CONFIG.bunting.clockClear;

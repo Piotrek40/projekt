@@ -130,8 +130,11 @@ export function stallGoodsPlan(W) {
   return stalls.map((s, i) => {
     const K = S.kinds[i % S.kinds.length], d = legacyDraws(R, i), top = s.ch + 0.04, out = { s, kind: K.name, bales: [], goods: [], ground: null };   // 0,04 = pół deski lady (stalls.js box 0,08 na ch)
     // bele sukiennika: piramida rows[0] + rows[1], przekrój w × w, długość len wzdłuż z; górny rząd na dolnym (y + w)
-    if (K.bales) { const { w, len, step, rows } = G.bale; let k = 0;
-      rows.forEach((n, row) => { for (let j = 0; j < n; j++) { const x = (j - (n - 1) / 2) * step, y = top + w / 2 + row * w; out.bales.push({ key: K.bales[k++ % K.bales.length], m: s.L(x, y, 0), row, x, y }); } }); }
+    if (K.bales) { const { w, step, rows, len, yaw, lenVar } = G.bale, Rb = rng(CONFIG.seed + G.seedOffset + G.bale.jitterSeed); let k = 0;   // rolki wzdłuż lady: rozstaw wzdłuż x, długość wzdłuż z
+      rows.forEach((n, row) => { for (let j = 0; j < n; j++) {   // własny strumień Rb: obrót i długość rolek nie przesuwają gniazd towaru (Rg)
+        const x = (j - (n - 1) / 2) * step, y = top + w / 2 + row * w, ry = Rb.range(-yaw, yaw), bl = len * (1 - Rb.range(0, lenVar));
+        out.bales.push({ key: K.bales[k++ % K.bales.length], m: s.L(x, y, 0, ry), row, x, y, ry, len: bl });   // obrót wokół y: oś rolki zostaje pozioma, więc spód nadal y − w/2
+      } }); }
     // szyld kramu: kafelek roli z atlasu na zwisie baldachimu (zwis: plane 0,35 na (0, ph − 0,22, cd/2 + 0,62) w buildStalls), out przed płótnem
     const valZ = s.cd / 2 + 0.62, signY = s.ph - G.sign.below, tile = tiles.indexOf(K.sign);   // 0,62: z płótna zwisu w buildStalls
     out.sign = { tile, m: s.L(0, signY, valZ + G.sign.out), center: wp(s.L(0, signY, valZ + G.sign.out)), valance: wp(s.L(0, s.ph - 0.22, valZ)), normal: new THREE.Vector3(0, 0, 1).transformDirection(M4(0, 0, 0, s.ry)), y0: signY - G.sign.h / 2, y1: signY + G.sign.h / 2 };   // 0,22: y płótna zwisu (ph − 0,22) w buildStalls
@@ -154,14 +157,20 @@ export function buildStallGoods(W) {
   for (const p of plan) {
     const { s } = p, id = `kram ${p.kind} (${s.x.toFixed(1)}, ${s.z.toFixed(1)})`, top = s.ch + 0.04, { w } = G.bale;   // blat = ch + pół deski 0,08
     for (const b of p.bales) {
-      // bela = ROLKA sukna (poprawka po zrzutach z telefonu: sześciany 0,28 m czytały się z bliska jak klocki):
-      // walec r = w/2 wzdłuż lokalnego z; rotateX na GEOMETRII, nie w macierzy — asercje spodu z b.m zostają w mocy
-      B.add(b.key, cylinder(w / 2, w / 2, G.bale.len, G.bale.seg, 1).rotateX(Math.PI / 2), b.m);
+      // bela = ROLKA sukna na wałku, wzdłuż lokalnego z (poprawka po zrzutach z telefonu: sześciany 0,28 m czytały się z bliska jak klocki).
+      // rotateX(+π/2) na GEOMETRII (+y → +z), nie w macierzy — asercje spodu liczone z b.m zostają w mocy.
+      B.add(b.key, cylinder(w / 2, w / 2, b.len, G.bale.seg, 1).rotateX(Math.PI / 2), b.m);
+      // wałek: ta sama oś, wystaje `out` z obu końców sukna — bez niego denko rolki jest płaskim wielokątem i czyta się jak plastikowa rura
+      const co = G.bale.core;
+      B.add('timber', cylinder(co.r, co.r, b.len + 2 * co.out, co.seg, 1).rotateX(Math.PI / 2), b.m);
+      check(co.r < w / 2 && b.len + 2 * co.out <= s.cd + 2 * G.overhang, `${id}: wałek beli grubszy od sukna albo dłuższy niż lada + zwis`, { r: co.r, len: b.len + 2 * co.out });
       const lo = new THREE.Vector3(0, -w / 2, 0).applyMatrix4(b.m).y;   // spód beli z TEJ SAMEJ macierzy
       check(Math.abs(lo - (top + b.row * w)) < 0.005, `${id}: bela rzędu ${b.row} nie leży na ${b.row ? 'dolnych belach' : 'blacie'}`, { lo, top });   // 0,005: tolerancja float
       if (b.row) check(p.bales.filter(o => o.row === 0 && Math.min(o.x + w / 2, b.x + w / 2) - Math.max(o.x - w / 2, b.x - w / 2) >= 0.05).length >= 2, `${id}: górna bela bez dwóch podpór`, { x: b.x });   // przekrycie ≥ 0,05 m z dwiema dolnymi (jest 0,08)
     }
     check(p.bales.length === 0 || G.bale.len <= s.cd + 2 * G.overhang, `${id}: bela dłuższa niż lada + zwis`, { len: G.bale.len });
+    // obrócone rolki nie mogą wejść w sąsiednią w rzędzie: półzasięg w x = len/2 · sin(yaw) + w/2 · cos(yaw) ≤ step/2
+    check(p.bales.length === 0 || G.bale.len / 2 * Math.sin(G.bale.yaw) + w / 2 * Math.cos(G.bale.yaw) <= G.bale.step / 2 + 1e-9, `${id}: obrócone rolki zachodzą na siebie`, { yaw: G.bale.yaw, step: G.bale.step });
     if (!ctx.flags.nosign) {   // ?nosign=1: mat.sign to szyld tekstowy HEAD, bez atlasu — szyldy kramów pomijane
       check(p.sign.tile >= 0, `${id}: brak kafelka szyldu w atlasie`, { sign: S.kinds.find(k => k.name === p.kind).sign });
       if (p.sign.tile >= 0) B.add('sign', tilePlane(G.sign.w, G.sign.h, signTileUV(p.sign.tile, A)), p.sign.m);

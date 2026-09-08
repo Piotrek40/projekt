@@ -1,7 +1,7 @@
 // Warstwa UI sceny (motyw #15): ekran startowy z nazwą miejsca, pergaminowy HUD (joystick, przycisk jakości), podpisy miejsc (POI) i winieta.
 // Flaga: ?noui=1 (engine/app.js chowa #vignette/#caption/#start; tu chowa #hud/#gpu/#q i wczesny return — rendery pomiarowe bez żadnej nakładki). ?hud=1 pokazuje licznik fps/draw i GPU.
 // Układ: współrzędne świata (x, z) jak layout.js, metry; odległość gracza liczona w płaszczyźnie xz. Teksty, kolory (ekranowe CSS) i rozmiary
-// tylko z CONFIG.ui; POI z CONFIG.pois — pozycje NIE są wpisane, liczy je poiPlan(W) (funkcja czysta, test U w audyt/testy/test_geometria.mjs).
+// tylko z CONFIG.ui; POI z CONFIG.pois — pozycje NIE są wpisane, liczy je poiPlan(W) (funkcja czysta, test U); widoczność w kadrze: poiInView (test U2).
 // Elementy DOM: rynek/index.html (#start, #caption, #vignette, #hud, #gpu, #q, #joy). Bez interakcji poza „Wejdź", bez wejść.
 import { check } from '../../engine/src/check.js';
 
@@ -43,6 +43,20 @@ export function poiPlan(W) {
   return pois;
 }
 
+// Połowa POZIOMEGO fov kamery: three.js `fov` jest pionowe, a telefon w pionie ma aspect ≈ 0,45 —
+// przy fov 70° i 412×915 poziome pole widzenia to zaledwie ≈ 36° (połowa ≈ 18°). Liczone co klatkę, bo aspect zmienia się przy obrocie ekranu.
+const halfHFov = cam => Math.atan(Math.tan(cam.fov * Math.PI / 360) * cam.aspect);
+
+// Czy POI mieści się w poziomym kadrze. Kierunek patrzenia jak engine/src/app.js:146 — f = (−sin yaw, −cos yaw).
+// Obiekt nie jest punktem: dopuszczamy kąt do połowy kadru + kąt bryłowy własnego promienia (asin(own/d)) + luz CONFIG.ui.captionSlack.
+// Pion (pitch) świadomie pomijany: gracz patrzący pod nogi wciąż stoi przy miejscu, o którym mowa.
+export function poiInView(p, q, half, slack) {
+  const dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
+  if (d <= q.own) return true;                                    // gracz wewnątrz obrysu obiektu — obiekt jest dokoła niego
+  const cos = (-Math.sin(p.yaw) * dx - Math.cos(p.yaw) * dz) / d; // f · (kierunek do POI), oba jednostkowe
+  return Math.acos(Math.max(-1, Math.min(1, cos))) <= half + Math.asin(Math.min(1, q.own / d)) + slack;
+}
+
 const el = id => document.getElementById(id);
 
 // zmienne CSS --ui-* z CONFIG.ui (index.html ma fallbacki o tych samych wartościach)
@@ -66,13 +80,16 @@ function initStart(U) {
   s.hidden = false;
 }
 
-// podpisy miejsc: co klatkę najbliższy POI względem swojego r; DOM zmieniany tylko przy zmianie stanu
+// podpisy miejsc: co klatkę najbliższy POI względem swojego r, ale TYLKO taki, który widać w kadrze (poiInView);
+// bez tego warunku podpis „Kram sukiennika" wisiał, gdy gracz stał przy kramie tyłem do niego (zrzuty z S24). DOM zmieniany tylko przy zmianie stanu.
 function initCaption(W, U, pois) {
   const c = el('caption'); if (!c) return;
+  const cam = W.ctx.camera, slack = (U.captionSlack ?? 0) * Math.PI / 180;
   let last = '';
   W.ctx.updaters.push((dt, t, p) => {
+    const half = halfHFov(cam);
     let best = null, rel = Infinity;
-    for (const q of pois) { const k = dist(p, q) / q.r; if (k < 2 && k < rel) { rel = k; best = q; } }
+    for (const q of pois) { const k = dist(p, q) / q.r; if (k < 2 && k < rel && poiInView(p, q, half, slack)) { rel = k; best = q; } }
     const key = best ? (rel < 1 ? 'n:' : 'f:') + best.name : '';
     if (key === last) return; last = key;
     c.hidden = !best; c.classList.toggle('far', !!best && rel >= 1);

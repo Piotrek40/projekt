@@ -172,6 +172,18 @@ Zasoby: 17 nowych modeli CC0 z Poly Haven w obu wariantach (KTX2/meshopt i JPG) 
 
 Znane braki po Etapie 2 (świadomie zostawione): gradient w oknach `glassLit` (jednolite prostokąty w zbliżeniu), bele sukiennika poza kadrem startowym, ulica południowa uboga w rekwizyty, chroma wody i patyny posągu poniżej celu predyktora (L zmierzone w normie), rundy 3 krytyki nie było — limit modelu przerwał dwóch krytyków rundy 2.
 
+### Poprawki po zrzutach z telefonu Piotra (druga tura)
+
+| co było widać na zrzucie | przyczyna w kodzie | poprawka | jak sprawdzone |
+|---|---|---|---|
+| podpis „Kram sukiennika" wisiał, choć kramu nie było w kadrze | `initCaption` wybierał POI wyłącznie po odległości `d/r`; telefon w pionie ma poziome pole widzenia ≈ 36°, więc miejsce 90° w bok jest blisko, ale niewidoczne | `poiInView(p, q, halfHFov, slack)` w `rynek/src/ui.js`: kąt do POI ≤ połowa POZIOMEGO fov + `asin(own/d)` + `CONFIG.ui.captionSlack` (6°) | test U2 w `geo_test.sh` (wprost/tyłem/bokiem dla każdego POI) + zrzuty z Playwrighta: yaw 0° i 30° → podpis, 90° → brak |
+| liny girland jak czarne kable na tle nieba | lina i sznurki lampionów szły na materiale `iron` (metalness 0,9, tint L 0,30) | nowy materiał `rope` (konopie, OKLCH 0,58 / 0,040 / 78, roughness 0,95, metalness 0) w `materials.js`, użyty w `bunting.js` | render `start_plac` przed/po; +2 draw calle (115 → 117 z limitu 250) |
+| bele sukiennika jak plastikowe rury (a wcześniej jak klocki) | walec bez detalu: denko to płaski wielokąt bez cieniowania, pięć sztuk w równej kracie | drewniany wałek (`bale.core`, klucz `timber`) wystający 9 cm z obu końców, `seg` 12 → 14, obrót ±0,10 rad i skrócenie do 12 % na rolkę z własnego strumienia rng | `geo_test.sh` OK (asercje spodu, podpór, zasięgu w x); zbliżenie 2,5 m od lady |
+
+Wariant odrzucony po renderze: rolki **w poprzek** lady (długość 1,8 m wzdłuż x). Z 2 m czytały się gorzej niż wzdłuż — zlewały się w poziome pasy koloru bez sylwetki. Zapisane w komentarzu przy `goods.bale` w `config.js`, żeby nikt nie próbował drugi raz.
+
+Co nadal jest słabe w tym zbliżeniu (nie ukrywam): rolki sukna wciąż czytają się bardziej jak zwoje papieru niż tkanina — denka są dużymi płaskimi plamami koloru w pełnym słońcu, a faktura tkaniny na nich prawie nie pracuje. Zmierzone chromy są w normie palety (C 0,068–0,115 przy tle lady C 0,014), więc to nie kwestia „za jaskrawych" kolorów, tylko braku detalu na denku.
+
 ## 7. Co wymaga działania Piotra i co to odblokuje
 
 | Działanie | Odblokowuje |

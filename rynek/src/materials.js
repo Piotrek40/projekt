@@ -32,6 +32,8 @@ export async function buildMaterials(W) {
   const em = PK ? { color: oklch(...PK.emit.glassLit.color), emissive: oklch(...PK.emit.glassLit.emissive), k: PK.emit.glassLit.intensity } : { color: P.glassLit, emissive: P.glassLitEmissive, k: 1.6 }; // 1.6: HEAD emissiveIntensity
   mat.glassLit = new THREE.MeshStandardMaterial({ color: em.color, emissive: em.emissive, emissiveIntensity: em.k, roughness: 0.3, emissiveMap: paneTex(), map: paneTex() }); // roughness jak HEAD
   mat.iron = new THREE.MeshStandardMaterial({ color: hexOf('iron'), roughness: 0.55, metalness: 0.9 }); // parametry jak HEAD
+  // lina konopna girland i sznurki lampionów: matowa, NIEmetaliczna — na materiale iron (metalness 0,9, tint L 0,30) rysowały się na niebie jak czarne kable (zrzut start_plac)
+  mat.rope = new THREE.MeshStandardMaterial({ color: hexOf('rope'), roughness: 0.95, metalness: 0.0 });
   // --- fontanna (fountain.js, motyw #8) ---
   // Woda z WŁASNYM envMap: scene.environment to equirect HDR, renderer robi z niego PMREM (environments.get(material.envMap || environment), WebGLRenderer.js:2177);
   // bez własnego envMap envMapIntensity jest nadpisywany przez scene.environmentIntensity 0.6 (:2694, §4.1.9). Obrót: przy własnym envMap liczy się material.envMapRotation (:2178).

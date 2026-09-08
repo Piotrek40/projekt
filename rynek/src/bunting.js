@@ -112,13 +112,13 @@ export function buildBunting(W) {
   const sphere = new THREE.SphereGeometry(C.lantern.r, 8, 6), string = cylinder(C.lantern.stringR, C.lantern.stringR, C.lantern.string, 4, 1);
   let pennants = 0;
   for (const ln of buntingCurves(W)) {
-    B.add('iron', new THREE.TubeGeometry(ln.curve, C.rope.seg, C.rope.r, C.rope.radial, false));
+    B.add('rope', new THREE.TubeGeometry(ln.curve, C.rope.seg, C.rope.r, C.rope.radial, false));   // konopie, nie żelazo (mat.rope)
     const pg = pennantGeometry(ln.curve, C, colors); pennants += pg.attributes.position.count / 3;
     B.add('bunting', pg);
     for (const a of ln.anchors) B.add('iron', box(C.hook.size, C.hook.size, C.hook.len), M4(a.lx, a.y, a.faceZ + C.hook.len / 2 - C.hook.inWall).premultiply(a.M)); // hak: inWall w ścianie, reszta przed licem
     for (const p of ln.lanterns) {
       B.add('paperLit', sphere, M4(p.x, p.y, p.z));
-      B.add('iron', string, M4(p.x, p.y + C.lantern.drop - C.lantern.string / 2, p.z)); // sznurek od liny do kuli
+      B.add('rope', string, M4(p.x, p.y + C.lantern.drop - C.lantern.string / 2, p.z)); // sznurek od liny do kuli (konopie)
     }
   }
   check(pennants > 0, 'girlanda bez chorągiewek');

@@ -75,7 +75,16 @@ export const CONFIG = {
     // płótnem zwisu (z 1,12 + 0,04 = 1,16 > lico belki 1,15). Kosz/garnek na ziemi: (∓x, z) przy tylnym słupie po stronie przeciwnej niż zaplecze
     // (|p| 1,24 + r 0,23 = 1,47 ≤ collideR 1,6). overhang: towar może wystawać ≤ 0,15 m poza blat (check z W.bounds).
     goods: { seedOffset: 1100, slotX: [-0.8, 0, 0.8], z: -0.05, jitter: 0.1, overhang: 0.15, models: ['hamburger_buns', 'food_pears_asian_01', 'ceramic_pot', 'brass_pot_01', 'brass_vase_01', 'wicker_basket_02'],   // models: nowe modele (zasoby_etap2.md) ładowane tylko z rolami
-      bale: { w: 0.28, len: 1.1, step: 0.4, rows: [3, 2], seg: 12 }, sign: { w: 0.52, h: 0.32, below: 0.27, out: 0.04 }, ground: { x: 0.95, z: -0.8 } },   // bele §5.2 #11 jako ROLKI (seg: segmenty walca; poprawka po zrzutach z telefonu — sześciany czytały się jak klocki); szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158 sign: { w: 0.52, h: 0.32, below: 0.27, out: 0.04 }, ground: { x: 0.95, z: -0.8 } },   // bele §5.2 #11 (0,28 × 0,28 × 1,1); szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158
+      // bele §5.2 #11 jako ROLKI SUKNA na drewnianym wałku, ułożone wzdłuż lady (długość wzdłuż lokalnego z, rzędy w rozstawie step wzdłuż x).
+      // Poprawka po zrzutach z telefonu: sześciany 0,28 m czytały się z bliska jak klocki. Sam walec też nie wystarczył — denko to płaski
+      // wielokąt bez cieniowania (rura z plastiku); dopiero wałek (core, klucz timber) na tej samej osi, wystający `out` z obu końców,
+      // czyta się jak sukno nawinięte na drążek. Sprawdzone renderem: wariant „w poprzek lady" (len 1,8 wzdłuż x) z 2 m czytał się gorzej —
+      // rolki zlewały się w poziome pasy koloru bez sylwetki. len 1,1 + 2 · 0,09 = 1,28 ≤ lada cd 1,0 + 2 · overhang 0,15.
+      // seg: segmenty pobocznicy sukna (14 — przy 12 z 1,5 m widać graniastosłup), core.seg: wałka.
+      // yaw/lenVar: rolki nie są ustawione w równą kratę — każda dostaje własny obrót ±yaw i skrócenie do lenVar (własny strumień rng
+      // seedOffset + jitterSeed, żeby nie przetasować gniazd towaru). Zasięg rolki w x: len/2 · sin(yaw) + w/2 · cos(yaw) = 0,194 ≤ step/2 = 0,2 (asercja w stalls.js).
+      bale: { w: 0.28, len: 1.1, step: 0.4, rows: [3, 2], seg: 14, yaw: 0.10, lenVar: 0.12, jitterSeed: 7, core: { r: 0.035, out: 0.09, seg: 8 } },
+      sign: { w: 0.52, h: 0.32, below: 0.27, out: 0.04 }, ground: { x: 0.95, z: -0.8 } },   // szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158
   },
   lanterns: { count: 8, ringRadius: 15.5 },
   // sunColor: motyw #9, hipoteza (a) §4.4 zaliczona na lineupie (lineup_v1_sunA, 2026-09-07): przy 0xfff1e0 (C 0,027) plaster4 w słońcu H 219 (≥ 180), roof2 H 231 (≥ 200),
@@ -90,7 +99,7 @@ export const CONFIG = {
     timber: 0x5a4030,
     stone: 0xcfc6b8,
     water: 0x2f5a63,
-    cobble: 0xb9b3aa, slates: 0xb8b4ae, door: 0x6b4a33, planks: 0xffffff, blocks: 0xffffff, glass: 0x1a222c, glassLit: 0x3a2a14, glassLitEmissive: 0xffb257, iron: 0x2b2b2e, flame: 0xffc070,
+    cobble: 0xb9b3aa, slates: 0xb8b4ae, door: 0x6b4a33, planks: 0xffffff, blocks: 0xffffff, glass: 0x1a222c, glassLit: 0x3a2a14, glassLitEmissive: 0xffb257, iron: 0x2b2b2e, rope: 0x8a7550, flame: 0xffc070,
     roofTowerOKLCH: [0.75, 0.085, 200],                  // stan po motywie #2 (miedź z patyną na slates, roughness/metalness jak paletteOKLCH.params.roofTower)
     gold: 0xd9b34a, signBg: 0x3a2718, signBoard: 0x5a4030, silver: 0xd0d3d9, // pas/emblemat chorągwi (heraldry), tło i deska szyldu (signTexture); silver: liść herbu (atlas #10b)
     lanternLight: 0xffa452, smoke: 0xd8d2c8,             // PointLight latarni, cząstki dymu
@@ -130,6 +139,7 @@ export const CONFIG = {
       water:     [0.42, 0.090, 205, 'none'],     // woda fontanny (odbicie nieba przez environmentIntensity — §4.1.9)
       glass:     [0.25, 0.020, 250, 'none'],     // szkło ciemne (= #1a222b, jak HEAD 0x1a222c)
       iron:      [0.30, 0.005, 250, 'none'],     // żelazo (= #2c2e30 ≈ HEAD 0x2b2b2e)
+      rope:      [0.58, 0.040, 78,  'none'],     // konopna lina girland i sznurki lampionów; do motywu #14 szły na materiale iron (metalness 0,9, L 0,30) — na tle nieba czytały się jak czarne kable
     },
     params: { roofTower: { roughness: 0.55, metalness: 0.2 } },   // miedź: lekko metaliczna, matowa patyna (jak po motywie #2)
     // emisja (wprost do AgX, §4.1.6): płomień = nasycony pomarańcz × 1,6 (pred. ekran #e9a878 C 0,10; #ffc070 ×1 dawało beż #d2b691); okna świecące bez zmian
@@ -363,7 +373,7 @@ export const CONFIG = {
   roles: {
     color: { n: 0xff0000, w: 0x00ff00, a: 0x0000ff, x: 0xffffff, bg: 0x000000 },   // n neutralne, w wtórne, a akcent, x inne (bez wpisu), bg tło
     mat: { cobble: 'n', stone: 'n', blocks: 'n', slates: 'n', plaster0: 'n', plaster1: 'n', plaster2: 'n', plaster3: 'n', plaster4: 'n', roof2: 'n', far: 'n', wet: 'n', iron: 'n', glass: 'n', jet: 'n', soil: 'n',   // soil: ziemia (motyw #greenery)
-           roof0: 'w', roof1: 'w', roofTower: 'w', timber: 'w', planks: 'w', door: 'w', paint0: 'w', paint1: 'w', paint2: 'w', water: 'w', leaf0: 'w', leaf1: 'w', leafCard: 'w',   // leaf*: lipy (motyw #7) = zieleń bez kwiatów
+           roof0: 'w', roof1: 'w', roofTower: 'w', timber: 'w', rope: 'w', planks: 'w', door: 'w', paint0: 'w', paint1: 'w', paint2: 'w', water: 'w', leaf0: 'w', leaf1: 'w', leafCard: 'w',   // leaf*: lipy (motyw #7) = zieleń bez kwiatów
            cloth0: 'a', cloth1: 'a', cloth2: 'a', cloth3: 'a', banner0: 'a', banner1: 'a', banner2: 'a', banner3: 'a', sign: 'a', clock: 'a', bunting: 'a', paperLit: 'a', flame: 'a', glassLit: 'a' },
     props: { default: 'n', horse_statue_01: 'n', gothic_statue: 'n', marble_bust_01: 'n', rock_moss_set_02: 'n',   // kamień
              wine_barrel_01: 'w', Barrel_01: 'w', wooden_crate_01: 'w', wooden_crate_02: 'w', wooden_bucket_02: 'w', wooden_stool_02: 'w', wooden_lantern_01: 'w', Lantern_01: 'w', tree_stump_01: 'w', treasure_chest: 'w',
@@ -391,6 +401,7 @@ export const CONFIG = {
     buttonWidth: 60, frameInset: 8, fadeMs: 600, vignetteBlur: 120,               // % szerokości EKRANU (vw); ramka 8 px od krawędzi; fade-out „Wejdź"; rozmycie winiety
     colors: { bg0: '#1a1410', bg1: '#3a2a1a', gold: '#b8892e', goldA: 'rgba(184,137,46,.8)', ink: '#e8d9b5', mood: '#cdbb95', button: '#2a1e12', hint: '#8a7a5a', vignette: 'rgba(20,12,6,.45)' },
     stallCollide: 1.6,                                          // koło kolizji kramu (stalls.js addCircle 1.6) — do promienia POI kramu
+    captionSlack: 6,                                            // ° luzu przy bramkowaniu podpisu kadrem (ui.js poiInView): podpis tylko dla miejsca, które faktycznie widać
   },
 
   textures: {
