@@ -2,6 +2,7 @@
 // Układ lokalny kotwicy = układ domu (layout.js): początek na środku podstawy domu, +x wzdłuż pierzei, +y w górę, +z = FRONT (do placu).
 // Metry. Do świata tylko przez M4(tr).premultiply. Liny: QuadraticBezierCurve3 z punktem kontrolnym opuszczonym o 2·zwis, bo zwis krzywej
 // = połowa opuszczenia punktu kontrolnego (B(0.5) = ¼A + ½P + ¼B; policzone w Node: A,B y 6.5, P y 1.5 → min y 4.0). Liczby: CONFIG.bunting.
+// Poprawka r1: lina nie może zasłaniać tarczy zegara w kadrze startowym (clockClearance; ?noclockclear=1 = losowy zwis bez reguły).
 import * as THREE from 'three';
 import { box, cylinder, M4, rng } from '../../engine/src/geometry.js';
 import { check, checkInFrontOfWall, facadeNormal } from '../../engine/src/check.js';
@@ -42,19 +43,48 @@ export function buntingCurves(W) {
     if (!ha || !hb) continue;
     const yLine = Math.min(anchorY(C, H, ha.h), anchorY(C, H, hb.h));     // oba końce na tej samej wysokości → najniższy punkt = środek
     const A = anchorAt(W, sa, aa, yLine), B = anchorAt(W, sb, ab, yLine);
-    const zwis = Math.min(zwis0, yLine - C.minY);                          // zwis ograniczony tak, by środek liny był ≥ minY (4.0 m)
+    const zwisMax = yLine - C.minY;                                        // granica zwisu: środek liny ≥ minY (4.0 m)
+    let zwis = Math.min(zwis0, zwisMax);
     const mid = A.P.clone().add(B.P).multiplyScalar(0.5);
-    const curve = new THREE.QuadraticBezierCurve3(A.P, mid.clone().sub(new THREE.Vector3(0, 2 * zwis, 0)), B.P); // punkt kontrolny 2·zwis niżej
-    const m = curve.getPoint(0.5);
+    const curveOf = zw => new THREE.QuadraticBezierCurve3(A.P, mid.clone().sub(new THREE.Vector3(0, 2 * zw, 0)), B.P); // punkt kontrolny 2·zwis niżej
+    // zegar w kadrze startowym (poprawka r1): zwis rośnie co sagStep, aż pasmo liny zejdzie pod tarczę o margin (lina z = 12: 1,64 → 2,35, policzone w config)
+    const clockRule = !!W.clock && !W.ctx.flags.noclockclear, K = C.clockClear;
+    while (clockRule && zwis < zwisMax - 1e-9 && clockClearance(W, curveOf(zwis)).gap < K.margin) zwis = Math.min(zwisMax, zwis + K.sagStep);
+    const curve = curveOf(zwis), m = curve.getPoint(0.5);   // 0.5 = środek liny (najniższy punkt przy końcach na tej samej wysokości)
+    const clock = clockRule ? clockClearance(W, curve) : null;
+    if (clock) check(clock.gap >= K.margin, 'girlanda na tarczy zegara w kadrze startowym', { gap: +clock.gap.toFixed(3), margin: K.margin, zwis, t: clock.t });
     check(Math.abs(m.y - (A.P.y - zwis)) < 0.01, 'zwis girlandy', { mid: m.y, oczekiwane: A.P.y - zwis });
     check(m.y >= C.minY, 'girlanda za nisko', { mid: m.y, minY: C.minY });
     const lanterns = Array.from({ length: C.lantern.count }, (_, i) => {
       const p = curve.getPointAt((i + 1) / (C.lantern.count + 1)); p.y -= C.lantern.drop; return p;   // środek kuli lampionu
     });
     for (const p of lanterns) check(p.y - C.lantern.r >= C.lantern.minY, 'lampion za nisko', { y: p.y - C.lantern.r, minY: C.lantern.minY });
-    lines.push({ curve, A: A.P, B: B.P, zwis, anchors: [A, B], lanterns });
+    lines.push({ curve, A: A.P, B: B.P, zwis, zwis0, anchors: [A, B], lanterns, clock });
   }
   return lines;
+}
+
+// FUNKCJA CZYSTA: odstęp liny od tarczy zegara w kadrze startowym (CONFIG.composition.start; W.clock z tower.js — landmark „zaraz wybije czwarta").
+// Rzut kamerą startową (fov/oko z CONFIG.bunting.clockClear = app.js:44/18, aspect 1 → NDC x i y w tej samej skali); dla próbek liny w pionie tarczy
+// (|Δx| ≤ r_NDC + margin) liczy odstęp pasma lina → spód lampionu (drop + r = 0,5 m; proporczyk 0,335 m sięga płycej) od krawędzi tarczy w y.
+// Zwraca { gap, t, p } z najmniejszym odstępem (ujemny = pasmo na tarczy; Infinity = lina poza pionem tarczy) albo null, gdy nie ma zegara (?notower2=1).
+export function clockClearance(W, curve) {
+  const { CONFIG } = W, C = CONFIG.bunting, K = C.clockClear, st = CONFIG.composition.start, clock = W.clock;
+  if (!clock) return null;
+  const cam = new THREE.PerspectiveCamera(K.fov, 1, 0.05, 300);   // near/far jak app.js:44 (nieistotne dla NDC x/y)
+  cam.position.set(st.x, K.eye, st.z); cam.rotation.set(0, 0, 0, 'YXZ'); cam.rotation.y = st.yaw; cam.rotation.x = st.pitch;   // jak app.js:154
+  cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+  const pr = p => p.clone().project(cam);
+  const cc = pr(new THREE.Vector3(clock.x, clock.y, clock.z)), rN = pr(new THREE.Vector3(clock.x, clock.y + clock.r, clock.z)).y - cc.y;
+  const below = C.lantern.drop + C.lantern.r;
+  let best = null;
+  for (let k = 0; k <= K.samples; k++) {
+    const p = curve.getPoint(k / K.samples), top = pr(p), bot = pr(p.clone().setY(p.y - below));
+    if (Math.abs(top.x - cc.x) > rN + K.margin) continue;
+    const gap = (top.y > cc.y ? bot.y - cc.y : cc.y - top.y) - rN;   // odstęp pasma od krawędzi tarczy: pasmo nad tarczą → jego spód, pod → lina
+    if (!best || gap < best.gap) best = { gap, t: k / K.samples, p };
+  }
+  return best ?? { gap: Infinity, t: -1, p: null };
 }
 
 // Trójkątne chorągiewki jednej liny w JEDNEJ geometrii (klucz bunting, vertexColors): co `spacing` m łuku, wierzchołkiem w dół,

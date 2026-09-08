@@ -12,7 +12,7 @@ export { treePlacements, buildTrees } from '../../../rynek/src/trees.js';   // l
 export { stallPlacements, yawFrom } from '../../../rynek/src/stalls.js';   // kramy (motyw #7): pozycje (repoussoir + sektor bez kramu); asercja I
 export { stallGoodsPlan, buildStallGoods } from '../../../rynek/src/stalls.js';   // role kramów (motyw #11): plan towaru/bel/szyldów (funkcja czysta) + geometria; asercja J
 export { buildSkyline, skylinePlan, startVisibility } from '../../../rynek/src/skyline.js';   // startVisibility: funkcja czysta widoczności ze startu (asercja S5)
-export { buntingCurves, buildBunting } from '../../../rynek/src/bunting.js';
+export { buntingCurves, buildBunting, clockClearance } from '../../../rynek/src/bunting.js';   // clockClearance: funkcja czysta odstępu liny od tarczy zegara w kadrze startowym (asercja G-zegar)
 export { fountainPlan, buildFountain } from '../../../rynek/src/fountain.js';
 export { poiPlan } from '../../../rynek/src/ui.js';
 export { greeneryPlan, buildGreenery } from '../../../rynek/src/greenery.js';   // zieleń (motyw #greenery): plan (funkcja czysta) + geometria/modele przez stub W.put; asercja K2

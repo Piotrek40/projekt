@@ -292,6 +292,11 @@ export const CONFIG = {
                colors: [[0.50, 0.170, 25], [0.72, 0.150, 78], [0.58, 0.100, 190], [0.45, 0.130, 320], [0.90, 0.030, 85]] }, // karmazyn, szafran, turkus, purpura, krem
     lantern: { count: 3, r: 0.18, drop: 0.32, string: 0.16, stringR: 0.006, minY: 3.3,   // 3 na linę, kula 0.32 m pod liną; spód ≥ 3.3 (min 4.0 − 0.32 − 0.18 = 3.5)
                color: [0.88, 0.050, 80], emissive: [0.72, 0.160, 60], intensity: 1.4 },  // papier kremowy; emisja pomarańczowa ×1.4 (cykl 1: [0.80,0.12,72]×1.0 → ekran L 0.88 C 0.034 = blada kula; AgX zjada chromę, §4.1.6)
+    // poprawka r1 (reżyseria): lina z = 12 (7,5 m przed startem) przecinała tarczę zegara w kadrze startowym (zwis 1,64 → pasmo NDC y 0,393–0,451 na tarczy 0,401–0,493).
+    // Reguła (?noclockclear=1 wyłącza): zwis liny powiększany co sagStep (do granicy minY) aż pasmo lina → spód lampionu zejdzie w NDC pod tarczę (W.clock z tower.js) o margin;
+    // rzut kamerą startową CONFIG.composition.start, fov/oko jak engine/src/app.js:44/18, aspect 1 (test tylko w pionie tarczy). Policzone: zwis 2,35 → pasmo 0,27–0,34 przy tarczy 0,401
+    // (odstęp 0,061) i nad oknem y 10,2 (NDC 0,167–0,223); z = 11 + zwis 2,5 (propozycja krytyka) dałoby pasmo 0,203–0,256 — na tym oknie. samples 200 = próbka co 0,22 m (< r tarczy 1,4).
+    clockClear: { margin: 0.06, sagStep: 0.05, samples: 200, fov: 70, eye: 1.65 },   // margin NDC (0,06 · 5,25 m/NDC przy 7,5 m = 0,32 m), krok zwisu m, próbki liny, kamera startowa
   },
 
   props: {            // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute

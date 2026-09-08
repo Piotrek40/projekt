@@ -125,6 +125,7 @@ export function buildTower(W) {
     B.add('blocks', cylinder(t.clock.backR, t.clock.backR, t.clock.backT, 24, T.blocks.mpt), LR(0, backCenter, y, 0, Math.PI / 2)); // rot: rx=+π/2 → oś walca (0,1,0) → (0,0,1) = wzdłuż promienia; przód na z = tz + r0 + 0.02 (policzone −19.912)
     B.add('clock', new THREE.CircleGeometry(t.clock.r, 24), LR(0, r0 + t.clock.out, y));
     checkInFrontOfWall('wieża tarcza zegara', P(LR(0, r0 + t.clock.out, y)), P(LR(0, r0 + 0.02, y)), radialN(0), 0.01);   // 1,5 cm przed podkładem
+    const cp = P(LR(0, r0 + t.clock.out, y)); W.clock = { x: cp.x, y: cp.y, z: cp.z, r: t.clock.r };   // kontrakt dla bunting.js (poprawka r1: lina girlandy nie może zasłaniać tarczy w kadrze startowym): środek tarczy w świecie (−6,7, 18,6, −19,90) i promień
     check(y + t.clock.r < t.bands[t.bands.length - 1] - t.bandH / 2, 'tarcza zegara wchodzi w pas', { top: y + t.clock.r });   // 20,0 < 20,8
   }
   // gzyms i dach: stożek od y = trunkH do trunkH + roofH; okap 0,5 m za gzyms

@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, fountainPlan, buildFountain, poiPlan, greeneryPlan, buildGreenery, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, clockClearance, fountainPlan, buildFountain, poiPlan, greeneryPlan, buildGreenery, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = [
   { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
@@ -464,6 +464,12 @@ let nGreen = { planters: 0, sillBoxes: 0, beds: 0, benches: 0 };
     for (const p of ln.lanterns) if (p.y - C.lantern.r < C.lantern.minY) fails.push(`${id}: lampion spód ${(p.y - C.lantern.r).toFixed(2)} < ${C.lantern.minY}`);
     // środek placu wolny (posąg 5.3 m): żaden punkt liny w promieniu 2.5 m od (0,0)
     for (let i = 0; i <= 64; i++) { const p = ln.curve.getPoint(i / 64); if (Math.hypot(p.x, p.z) < 2.5) { fails.push(`${id}: lina nad posągiem (${f2(p)})`); break; } }
+    // G-zegar (poprawka r1): pasmo liny (lina → spód lampionu) w kadrze startowym poza tarczą zegara o ≥ clockClear.margin NDC (kalibracja: HEAD przed poprawką
+    // lina z=12 zwis 1,64 → gap −0,129 = FAIL, uruchomione 2026-09-08; po regule zwis 2,34 → +0,063). W.clock z buildTower (D) na tym samym W; brak = test pusty → FAIL.
+    const cl = clockClearance(W, ln.curve);
+    if (!cl) fails.push(`${id}: brak W.clock (tower.js) — asercja G-zegar pusta`);
+    else if (cl.gap < C.clockClear.margin) fails.push(`${id}: na tarczy zegara w kadrze startowym: odstęp ${cl.gap.toFixed(3)} < ${C.clockClear.margin} (t ${cl.t}, p ${f2(cl.p)}, zwis ${ln.zwis.toFixed(2)})`);
+    if (ln.zwis > ln.zwis0 + 1e-6 && (!cl || cl.gap >= C.clockClear.margin + C.clockClear.sagStep)) fails.push(`${id}: zwis podniesiony ${ln.zwis0.toFixed(2)} → ${ln.zwis.toFixed(2)} bez potrzeby (odstęp ${cl?.gap.toFixed(3)})`);
   }
   const n4 = rec.length; buildBunting(W); const bun = rec.slice(n4);
   const keys = {}; for (const r of bun) keys[r.key] = (keys[r.key] || 0) + 1;
@@ -471,7 +477,7 @@ let nGreen = { planters: 0, sillBoxes: 0, beds: 0, benches: 0 };
   if ((keys.paperLit || 0) !== lines.length * C.lantern.count) fails.push(`G: lampionów ${keys.paperLit} ≠ ${lines.length * C.lantern.count}`);
   const lowest = Math.min(...bun.map(r => r.bb.clone().applyMatrix4(r.m).min.y));
   if (lowest < C.lantern.minY - 0.01) fails.push(`G: element girlandy poniżej ${C.lantern.minY}: y=${lowest.toFixed(2)}`);
-  console.log(`girlandy: lin ${lines.length}, zwisy ${lines.map(l => l.zwis.toFixed(2)).join('/')}, y lin ${lines.map(l => l.A.y.toFixed(1)).join('/')}, lampionów ${keys.paperLit || 0}, elementów iron ${keys.iron || 0}, najniższy element ${lowest.toFixed(2)} m`);
+  console.log(`girlandy: lin ${lines.length}, zwisy ${lines.map(l => l.zwis.toFixed(2)).join('/')}, y lin ${lines.map(l => l.A.y.toFixed(1)).join('/')}, lampionów ${keys.paperLit || 0}, elementów iron ${keys.iron || 0}, najniższy element ${lowest.toFixed(2)} m; zegar w kadrze startowym: odstępy ${lines.map(l => l.clock ? (l.clock.gap === Infinity ? '∞' : l.clock.gap.toFixed(3)) : '-').join('/')} (zwis losowy ${lines.map(l => l.zwis0.toFixed(2)).join('/')})`);
 }
 // F) fontanna 3-poziomowa (fountain.js): plan z funkcji czystej fountainPlan + bryły z buildFountain (ten sam rejestrator B; stub W.mat = {} → bez Points)
 {
