@@ -38,10 +38,11 @@
 - **Zakazy etapu:** żadnego ręcznego rozstawiania domów — pierzeje wynikają z rozmiaru placu i ziarna; żadnych zasobów spoza CC0; brak postprocesu do czasu pomiaru na telefonie.
 - **Test eskalacji:** tak — `CONFIG.plaza.size`, `CONFIG.seed`, liczba kramów i latarni to parametry; większy rynek albo inne miasto to zmiana liczb, nie kodu. Ograniczenie: kolizje domów są osiowe, więc pierzeje pod kątem wymagałyby rozszerzenia silnika.
 
-### Etap 2 — [do ustalenia po pomiarze na telefonie Piotra]
-- **Widać:**
-- **Zakazy etapu:**
-- **Test eskalacji:**
+### Etap 2 — dopracowanie rynku jako pierwszej sceny gry RPG (2026-09-08, zrobione)
+- **Widać:** okrągła wieża zegarowa 36 m z miedzianym hełmem i tarczą zegara jako punkt skupienia kadru startowego; kamienice o różnych wysokościach (2–4 piętra), spadkach dachów, z wykuszami wielobocznymi na kroksztynach, lukarnami, szczytami schodkowymi, naczółkami, portalami łukowymi, okiennicami i szyldami cechowymi z herbami; paleta OKLCH (5 tynków różniących się odcieniem, dachówka ciepła/zgaszona/łupek, patyna wieży, cztery barwy heraldyczne); fontanna trzypoziomowa ze strumieniami, kręgami na wodzie i mokrym brukiem; girlandy chorągiewek z lampionami nad placem; dwie lipy przy fontannie, kwiaty w skrzynkach na parapetach, donice przy portalach, ławki; role kramów (piekarz, owocarz, garncarz, kotlarz, sukiennik, zielarz, winiarz) z towarem z modeli CC0; medalion i kałuże na bruku; druga linia dachów, wieże w oddali, bramy zamykające ulice, mgła i ptaki; ekran startowy „Rynek Srebrnych Liści”, pergaminowy HUD i podpisy miejsc.
+- **Zakazy etapu:** żadnego ręcznego stawiania obiektu, którego pozycja może wynikać z `CONFIG` i ziarna; żadnej liczby obrotu wpisanej „na czucie” (każda policzona w Node i zapisana w komentarzu); żadnego koloru poza `CONFIG.paletteOKLCH` (hex tylko przez `oklch()`); budżet `calls ≤ 250`, `triangles ≤ 700 000` w każdym widoku, w obu trybach (instancje i `noinst`); brak postprocesu.
+- **Test eskalacji:** tak — nowa lokacja to nowe `CONFIG` (rozmiar placu, ziarno, paleta, role kramów, liczba girland, wież w oddali) plus te same moduły; ograniczenie: pierzeje nadal osiowe (kolizje `addRect`), a wieża i kompozycja startu są dostrojone do jednego kadru — inne miasto wymaga przeliczenia kompozycji.
+- **Jak to powstało:** `rynek/PROMPT.md` (protokół przestrzenny i kolorystyczny) + 15 motywów wykonanych przez agentów w dwóch torach, scalenie, dwie rundy krytyki (reżyseria, geometria, budżet) i poprawki. Raporty motywów: `audyt/raporty/etap2_*.md`.
 
 ## 5. Reguły zamiast danych
 
@@ -50,9 +51,10 @@
 
 ## 6. Stan bieżący
 
-- **Etap:** 1 — pierwsza wersja rynku gotowa, czeka na pomiar z telefonu.
-- **Ostatnio powstało:** wspólny silnik (`engine/`), rynek (`rynek/`, https://piotrek40.github.io/projekt/rynek/), wariant jednoplikowy do Artifact (`demo_artifact/build_artifact.mjs rynek`, 13 MB), dziedziniec przepięty na silnik.
-- **Następny krok:** Piotr podaje z telefonu FPS/p95/GPU dla rynku w trzech jakościach. Potem: wypalone oświetlenie pośrednie (Blender), drzewa (własne, lekkie — skany Poly Haven mają 40–950 MB geometrii), postaci/NPC, dźwięk.
+- **Etap:** 2 — rynek dopracowany jako pierwsza scena gry, czeka na pomiar z telefonu.
+- **Ostatnio powstało:** Etap 2 rynku (wieża, paleta, fontanna, zieleń, girlandy, panorama, role kramów, UI) — https://piotrek40.github.io/projekt/rynek/ i Artifact (15,4 MB z limitu 16 MB); narzędzia weryfikacji (`engine/src/check.js`, `?top/?side/?boxes/?lineup/?roles`, `audyt/testy/geo_test.sh`, `audyt/testy/tools/*`), 17 nowych zasobów CC0 (`audyt/research/zasoby_etap2.md`), `rynek/PROMPT.md`.
+- **Pomiar (SwiftShader, 824×1830, high):** start_plac 114 draw / 600 k tri w HUD (limit 250 / 700 k), errors [] we wszystkich widokach; w trybie telefonu (`noinst`) ok. 122 draw / 250 k tri. FPS z SwiftShader nie jest miarą telefonu.
+- **Następny krok:** Piotr podaje z telefonu FPS/p95 dla rynku w trzech jakościach (Etap 2). Dopiero potem decyzja, co dalej: wnętrza i interakcja, NPC, dźwięk, czy wypalone światło. Potem: wypalone oświetlenie pośrednie (Blender), drzewa (własne, lekkie — skany Poly Haven mają 40–950 MB geometrii), postaci/NPC, dźwięk.
 - **Odłożone świadomie:** drzewa ze skanów (za ciężkie), generowanie zasobów AI (token HF), WebGPU, lightmapy (najpierw pomiar).
 
 ## 7. Zmiany decyzji
@@ -63,3 +65,7 @@
 - 2026-09-07 — Silnik: three.js (WebGL2). Powód: wynik audytu (`audyt/RAPORT.md`).
 - 2026-09-07 — Repo publiczne, hosting GitHub Pages z brancha `claude/repo-cleanup-q1fkk3`. Powód: darmowy link na telefon bez limitu 16 MB Artifactu.
 - 2026-09-07 — Pierwsza lokacja: rynek high fantasy o złotej godzinie (HDRI kloppenheim_06, słońce podniesione do 30°, bo przy prawdziwym zachodzie cały plac był w cieniu kamienic).
+
+- 2026-09-08 — Nazwa lokacji: „Rynek Srebrnych Liści" w mieście Srebrny Bród (Wybrzeże Mieczy); karczma „Pod Złotym Gryfem". Nazwy własne nasze, nie z podręczników WotC. Powód: Etap 2 wymagał tożsamości miejsca (heraldyka, podpisy, ekran startowy).
+- 2026-09-08 — Kolory sceny wyłącznie jako OKLCH w `CONFIG.paletteOKLCH` (hex przez `oklch()`), tinty liczone z mnożnika tekstury i sprawdzane sondą na zrzucie. Powód: tint mnoży teksturę, a AgX kompresuje jasność i chromę — dobór „na oko" dawał czarne belki i mleczną wodę.
+- 2026-09-08 — Każda cecha ma flagę URL `?no<cecha>=1` i asercję `check()`; render pomiarowy zawsze z `?noui=1&nosmoke=1&nosway=1&nowater=1`. Powód: bisekcja na telefonie i porównywalność zrzutów.
