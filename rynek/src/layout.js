@@ -101,6 +101,15 @@ export function buildLayout(W) {
       default: return { x: -dist, z: -along, ry: Math.PI / 2 };
     }
   }
+  markOpenSides(houses);
+  // Poprawka r1 (reżyseria): odsłonięte ściany boczne — krawędź domu (along ± w/2) bez sąsiada w tej samej pierzei i nie w narożniku placu (|krawędź| < half:
+  // domy narożne sąsiednich pierzei przenikają się — K8, zamierzone); domy zamykające ulice pomijane (ściany boczne za domami narożnymi). buildings.js stawia
+  // na nich belki i okna (?nosidewall=1). Policzone: zawsze 8 (2 segmenty pierzei × 4, każdy z jednym końcem przy ulicy albo przy luce wieży) — asercja.
+  function markOpenSides(houses) {
+    for (const h of houses) h.open = [-1, 1].map(sx => { const xe = h.along + sx * h.w / 2; return !h.setback && Math.abs(xe) < half && !houses.some(o => o !== h && o.side === h.side && !o.setback && xe > o.along - o.w / 2 - 0.1 && xe < o.along + o.w / 2 + 0.1); }); // 0.1: luz na styk krawędzi
+    const n = houses.reduce((k, h) => k + h.open.filter(Boolean).length, 0);
+    check(n === 8, 'liczba odsłoniętych ścian bocznych ≠ 8', { n, open: houses.filter(h => h.open.some(Boolean)).map(h => [h.side, +h.along.toFixed(1), h.open]) });
+  }
   W.sw = sw; W.sl = sl; W.houses = houses; W.sideTransform = sideTransform;
   if (!ctx.flags.noground) buildGround(W);   // motyw #13: medalion wokół fontanny + kałuże pierwszego planu (CONFIG.ground)
 }

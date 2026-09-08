@@ -2,12 +2,25 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, clockClearance, fountainPlan, buildFountain, poiPlan, greeneryPlan, buildGreenery, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, smokerChimneys, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, clockClearance, fountainPlan, buildFountain, poiPlan, greeneryPlan, buildGreenery, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = []; // dyszel wozu (2 wpisy z 2026-09-07) usunięty 2026-09-08: buildCart dodaje koło L(−2,2, 0, 0) r 0,6 pod dyszlem (poprawka r1 reżyserii, wóz na (4,9, 11,3))
 // Znane wady HEAD (B5b ii): okna lukarn zakopane w połaci (buildings.js blok „lukarna" na HEAD: spód okna 0,44 m POD wierzchem płyty) — usuwa motyw #12 (lukarny NA połaci).
 const KNOWN_B5B = []; // 10 lukarn HEAD usunięte 2026-09-07 przez motyw #12a (lukarny NA połaci: spód okna +0,10 nad wierzchem płyty)
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
+// Wierzch powierzchni dachu nad punktem (x, z) w układzie domu: najwyższe przecięcie pionu z trójkątami elementów roof* (pos z rejestratora, macierz ml) — null poza połacią (B7, B5c)
+function roofSurfaceY(L, x, z) {
+  const ray = new THREE.Ray(V(x, 1000, z), V(0, -1, 0)), a = V(0, 0, 0), b = V(0, 0, 0), c = V(0, 0, 0), hit = V(0, 0, 0);
+  let best = null;
+  for (const r of L) {
+    if (!r.pos) continue;
+    for (let i = 0; i < r.pos.length; i += 9) {
+      a.set(r.pos[i], r.pos[i + 1], r.pos[i + 2]).applyMatrix4(r.ml); b.set(r.pos[i + 3], r.pos[i + 4], r.pos[i + 5]).applyMatrix4(r.ml); c.set(r.pos[i + 6], r.pos[i + 7], r.pos[i + 8]).applyMatrix4(r.ml);
+      if (ray.intersectTriangle(a, b, c, false, hit) && (best === null || hit.y > best)) best = hit.y;
+    }
+  }
+  return best;
+}
 // Bryły modeli towaru kramów (motyw #11, asercja J): bboxMin/bboxMax z `gltf-transform inspect rynek/assets/models_jpg/<n>.glb` (2026-09-08) — stub 1×1×1 m dawałby
 // fałszywe FAIL asercji „wystaje poza blat" / „poza kołem kolizji" (kosz 1,3 m na ladzie 1,0 m); pozostałe modele nadal ze stubem.
 const WICKER1 = [[-0.192, -0.001, -0.147], [0.191, 0.116, 0.147]];   // wicker_basket_01: gltf-transform inspect rynek/assets/models_jpg (2026-09-08), płaski kosz 0,38 × 0,29 × 0,12 m
@@ -27,7 +40,7 @@ const GREENERY_BOUNDS = {
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {
   const rec = [];
-  const B = { add(key, g, m) { g.computeBoundingBox(); rec.push({ key, bb: g.boundingBox.clone(), m: m ? m.clone() : new THREE.Matrix4(), type: g.type, params: g.parameters }); }, // type/params: klasyfikacja trzonu wieży w D (box vs walec)
+  const B = { add(key, g, m) { g.computeBoundingBox(); rec.push({ key, bb: g.boundingBox.clone(), m: m ? m.clone() : new THREE.Matrix4(), type: g.type, params: g.parameters, pos: /^roof/.test(key) ? (g.index ? g.toNonIndexed() : g).attributes.position.array.slice() : null }); }, // type/params: klasyfikacja trzonu wieży w D (box vs walec); pos: trójkąty połaci (B7: powierzchnia dachu pod kominem)
               place(key, g, x, y, z, ry = 0, rx = 0, rz = 0) { this.add(key, g, M4(x, y, z, ry, rx, rz)); } };
   const col = { rects: [], circles: [] };
   const ctx = { addWalkable() {}, addRect: (x, z, hw, hd) => col.rects.push({ x, z, hw, hd }), addCircle: (x, z, r) => col.circles.push({ x, z, r }), flags: {}, updaters: [] };
@@ -52,9 +65,10 @@ for (const side of [0, 1, 2, 3]) {
 // B) domy pojedynczo (izolacja: buildHouses na liście z jednym domem)
 const allHouses = W.houses;
 let nWin = 0, nWinO = 0, nRoof = 0, nSupp = 0, nDormer = 0, nWalk = 0, known = 0;
+let nChim = 0, nBrace = 0, nGlass = 0, nBraceHit = 0, nStep = 0, nSideWin = 0; const allChimneys = []; // poprawki r1: B7 kominy, B8 zastrzał/okno, B5c schodki, B1c okna ścian bocznych, M dym
 const allPortals = [], allSills = []; // W.portals / W.sills z każdego izolowanego buildHouses (do F2 / K1)
 for (const h of allHouses) {
-  const n0 = rec.length; W.houses = [h]; buildHouses(W); allPortals.push(...W.portals); allSills.push(...W.sills);
+  const n0 = rec.length; W.houses = [h]; buildHouses(W); allPortals.push(...W.portals); allSills.push(...W.sills); allChimneys.push(...W.chimneys);
   const items = rec.slice(n0);
   const t = W.sideTransform(h.side, h.along, h.setback), inv = M4(t.x, 0, t.z, t.ry).invert();
   const loc = r => ({ ...r, ml: r.m.clone().premultiply(inv) }); // macierz w układzie domu
@@ -132,18 +146,48 @@ for (const h of allHouses) {
       if (top === null) fails.push(`B5b ${idH}: ściana lukarny poza połacią (zFront ${zFront.toFixed(2)})`);
       else if (b.min.y > top - 0.05) fails.push(`B5b(i) ${idH}: lukarna wisi nad połacią — spód ściany ${b.min.y.toFixed(2)} > wierzch połaci ${top.toFixed(2)} − 0,05 przy zFront ${zFront.toFixed(2)}`);
     }
-    if (r.key.startsWith('glass')) {
+    if (r.key.startsWith('glass') && Math.abs(r.ml.elements[0] - 1) < 1e-6) { // okno lukarny (bez obrotu); okna poddasza ścian bocznych (ry ±π/2, poprawka r1) → B1c
       const top = roofTopAt(c.z);
       if (top === null) fails.push(`B5b ${idH}: okno lukarny poza połacią (z ${c.z.toFixed(2)})`);
       else if (b.min.y < top + 0.05) { const msg = `B5b(ii) ${idH}: okno lukarny zakopane — spód ${b.min.y.toFixed(2)} < wierzch połaci ${top.toFixed(2)} + 0,05 przy z ${c.z.toFixed(2)}`; if (KNOWN_B5B.some(k => k.side === h.side && Math.abs(k.along - h.along) < 0.05)) { known++; notes.push('znane (KNOWN_B5B): ' + msg); } else fails.push(msg); }
     }
+  }
+  const idH = `dom side=${h.side} along=${h.along.toFixed(1)}`;
+  // B7) komin nad połacią (poprawka r1 K8/K9; HEAD z ?nochimridge=1: FAIL 26/28 — kalibracja kominy_kalib.mjs): wierzch komina (stone box w×w, CONFIG.houseDetail.chimney)
+  //     − wierzch powierzchni dachu pod jego środkiem (roofSurfaceY: trójkąty roof* domu) ≥ minAbove; dokładnie 1 komin na dom
+  { const Chm = CONFIG.houseDetail.chimney;
+    const chims = L.filter(r => r.key === 'stone' && Math.abs(r.bb.max.x - r.bb.min.x - Chm.w) < 1e-6 && Math.abs(r.bb.max.z - r.bb.min.z - Chm.w) < 1e-6);
+    if (chims.length !== 1) fails.push(`B7 ${idH}: ${chims.length} kominów (oczekiwany 1)`);
+    for (const r of chims) {
+      const b = r.bb.clone().applyMatrix4(r.ml), c = V(0, 0, 0).applyMatrix4(r.ml), top = roofSurfaceY(L, c.x, c.z); nChim++;
+      if (top === null) fails.push(`B7 ${idH}: komin (${c.x.toFixed(2)}, ${c.z.toFixed(2)}) poza połacią (pion nie trafia w dach)`);
+      else if (b.max.y - top < Chm.minAbove) fails.push(`B7 ${idH}: komin zakopany — wierzch ${b.max.y.toFixed(2)} − połać ${top.toFixed(2)} = ${(b.max.y - top).toFixed(2)} < ${Chm.minAbove} przy (${c.x.toFixed(2)}, ${c.z.toFixed(2)})`);
+    } }
+  // B8) zastrzał nie przecina okna (poprawka r1; HEAD 148/316 okien pięter z belką przez szkło): AABB (układ domu) zastrzału (timber obrócony rz albo rx: e[1] ≠ 0 albo e[6] ≠ 0,
+  //     wysokość > 1 m) ∩ AABB okna (glass*) tego domu = ∅ — AABB zastrzału obejmuje całe pole (0,7 przekątnej), sąsiednie pola są ≥ 0,45 m dalej (policzone: pole 1,6, okno 1,0)
+  { const braces = L.filter(r => r.key === 'timber' && (Math.abs(r.ml.elements[1]) > 1e-6 || Math.abs(r.ml.elements[6]) > 1e-6) && r.bb.max.y - r.bb.min.y > 1).map(r => r.bb.clone().applyMatrix4(r.ml));
+    const glasses = L.filter(r => r.key.startsWith('glass')).map(r => r.bb.clone().applyMatrix4(r.ml));
+    nBrace += braces.length; nGlass += glasses.length;
+    for (const b of braces) for (const g of glasses) if (b.intersectsBox(g)) { nBraceHit++; fails.push(`B8 ${idH}: zastrzał ${f2(b.min)}..${f2(b.max)} przecina okno ${f2(g.min)}..${f2(g.max)}`); } }
+  // B5c) mur szczytu schodkowego (poprawka r1 K9; HEAD: mur w + 2·ov, narożnik 0,55 m poza ścianą boczną w powietrzu): schodki = blocks ze spodem ≥ wierzch ostatniej kondygnacji;
+  //      najszerszy (najniższy) ma |x| ≤ w/2 + 0,05 (narożnik nad ścianą boczną); każdy schodek: spód ≤ wierzch dachu przy zewnętrznym narożniku + 0,02 (bez szpary), z 0,05 za licem tylnym muru
+  { const wallTop = Math.max(...L.filter(r => r.key.startsWith('plaster') && r.type === 'BoxGeometry' && r.bb.max.x > 2.5 && r.bb.max.y - r.bb.min.y > 2).map(r => r.bb.clone().applyMatrix4(r.ml).max.y)); // wierzch ostatniej kondygnacji (box; `floors`/eaveY łapie też trójkąt poddasza gable() → kalenica)
+    const steps = L.filter(r => r.key === 'blocks' && r.bb.clone().applyMatrix4(r.ml).min.y >= wallTop - 0.01).map(r => r.bb.clone().applyMatrix4(r.ml));
+    if (steps.length) { nStep++;
+      const low = [...steps].sort((a, b) => (b.max.x - b.min.x) - (a.max.x - a.min.x))[0];
+      if (low.max.x > h.w / 2 + 0.05 || low.min.x < -h.w / 2 - 0.05) fails.push(`B5c ${idH}: mur schodków x ${low.min.x.toFixed(2)}..${low.max.x.toFixed(2)} poza ścianą boczną ±${(h.w / 2).toFixed(2)} + 0,05 (narożnik w powietrzu)`);
+      for (const st of steps) { if (st.min.y <= wallTop + 0.01) continue; const top = roofSurfaceY(L, st.max.x - 0.02, st.min.z + 0.05); if (top === null || st.min.y > top + 0.02) fails.push(`B5c ${idH}: schodek ${f2(st.min)}..${f2(st.max)} wisi nad połacią (wierzch dachu przy narożniku ${top === null ? 'brak' : top.toFixed(2)})`); } } }
+  // B1c) okna ścian bocznych (poprawka r1; ry = ±π/2 → B1 je pomija): glass z |e[0]| < 1e-6 (lokalne +z okna wzdłuż ±x domu): lico przednie |c.x| + t/2 ≥ w/2 + 0,005, tył ≤ w/2 + 0,05 (przy ścianie)
+  for (const r of L.filter(r => r.key.startsWith('glass') && Math.abs(r.ml.elements[0]) < 1e-6)) {
+    const c = V(0, 0, 0).applyMatrix4(r.ml), t = (r.bb.max.z - r.bb.min.z) / 2; nSideWin++;
+    if (Math.abs(c.x) + t < h.w / 2 + 0.005 || Math.abs(c.x) - t > h.w / 2 + 0.05) fails.push(`B1c ${idH}: okno ściany bocznej x ${c.x.toFixed(3)} ± ${t.toFixed(3)} vs ściana ±${(h.w / 2).toFixed(2)}`);
   }
   // B3) kolizja: obrys parteru w świecie zawarty w prostokącie kolizji
   const stone = items.find(r => r.key === 'stone' && r.bb.max.y - r.bb.min.y > 3); const wb = stone.bb.clone().applyMatrix4(stone.m);
   if (!col.rects.some(rc => wb.min.x >= rc.x - rc.hw - 0.05 && wb.max.x <= rc.x + rc.hw + 0.05 && wb.min.z >= rc.z - rc.hd - 0.05 && wb.max.z <= rc.z + rc.hd + 0.05)) fails.push(`B3 parter bez kolizji: ${f2(wb.min)}..${f2(wb.max)}`);
   // B4) nic nie wisi: każdy element ma dolną krawędź <= 0.05 nad ziemią ALBO styka się (w pionie) z innym elementem domu — uproszczenie: najniższy element domu stoi na ziemi
 }
-W.houses = allHouses;
+W.houses = allHouses; W.chimneys = allChimneys;
 const lowest = Math.min(...rec.filter(r => r.key === 'stone').map(r => r.bb.clone().applyMatrix4(r.m).min.y));
 if (Math.abs(lowest) > 0.01) fails.push(`B4 najniższy parter nie stoi na ziemi: y=${lowest}`);
 // C) kramy: rogi słupów vs koło kolizji (uwzględniając promień gracza 0.35)
@@ -541,9 +585,17 @@ let nGreen = { planters: 0, sillBoxes: 0, beds: 0, benches: 0 };
   for (const p of pois) { const d = Math.hypot(p.x - 4, p.z - (CONFIG.plaza.size / 2 - 3)); if (d <= p.r) fails.push(`U: start w promieniu POI ${p.name} (d ${d.toFixed(2)} ≤ r ${p.r.toFixed(2)})`); }
   console.log(`POI: ${pois.map(p => `${p.at} (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) r ${p.r.toFixed(2)} d(start) ${Math.hypot(p.x - 4, p.z - (CONFIG.plaza.size / 2 - 3)).toFixed(2)}`).join('; ')}`);
 }
+// M) dym (props.js smokerChimneys — funkcja czysta, poprawka r1 K8): ≥ 2 kominy z dymem, wszystkie w kadrze startu (rzut kamerą startową jak w funkcji: |NDC| ≤ 1 − margin), ≤ max
+{ const smokers = smokerChimneys(W), Sm = CONFIG.props.smoke, st = CONFIG.composition.start, K = CONFIG.bunting.clockClear;
+  const cam = new THREE.PerspectiveCamera(K.fov, 412 / 915, 0.05, 300); cam.position.set(st.x, K.eye, st.z); cam.rotation.set(0, 0, 0, 'YXZ'); cam.rotation.y = st.yaw; cam.rotation.x = st.pitch; cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+  const ndc = c => V(c.x, c.y, c.z).project(cam);
+  if (smokers.length < 2 || smokers.length > Sm.max) fails.push(`M: ${smokers.length} kominów z dymem (oczekiwane 2..${Sm.max})`);
+  for (const c of smokers) { const p = ndc(c); if (p.z >= 1 || Math.abs(p.x) > 1 - Sm.margin || Math.abs(p.y) > 1 - Sm.margin) fails.push(`M: komin s${c.side} along ${c.along.toFixed(1)} poza kadrem startu NDC (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`); }
+  notes.push(`dym: ${smokers.length}/${W.chimneys.length} kominów w kadrze startu: ${smokers.map(c => `s${c.side} along ${c.along.toFixed(1)} NDC (${ndc(c).x.toFixed(2)}, ${ndc(c).y.toFixed(2)})`).join('; ')}`);
+}
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, parapetów K1 ${nSill}, zieleń K2 donic ${nGreen.planters}/skrzynek ${nGreen.sillBoxes}/rabatek ${nGreen.beds}/ławek ${nGreen.benches}, kramów J towar ${nGoods} bel ${nBales}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, kominów B7 ${nChim}, zastrzałów B8 ${nBrace} × okien ${nGlass} (przecięć ${nBraceHit}), szczytów schodkowych B5c ${nStep}, okien ścian bocznych B1c ${nSideWin}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, parapetów K1 ${nSill}, zieleń K2 donic ${nGreen.planters}/skrzynek ${nGreen.sillBoxes}/rabatek ${nGreen.beds}/ławek ${nGreen.benches}, kramów J towar ${nGoods} bel ${nBales}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);

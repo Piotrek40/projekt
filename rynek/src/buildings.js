@@ -1,5 +1,6 @@
 // Kamienice szachulcowe (parter kamienny z portalem łukowym, piętra z jetty, belki, okna z okiennicami, wykusz wieloboczny na kroksztynach, dach, komin).
 // W.portals = [{x, z, ry, …}] — punkt na ziemi przed drzwiami każdego domu (kontrakt z greenery.js; szyldy w props.js czytają doorX/faceZ1/orielX).
+// W.chimneys = [{x, y, z, side, along, setback}] — wierzch komina w świecie (props.js buildSmoke wybiera kominy w kadrze startu).
 // W.sills = [{x, y, z, ry, w, floor, side, along, setback, shut, braced}] — środek górnej-PRZEDNIEJ krawędzi parapetu (timber box(w+0.16, 0.08, 0.1) na front+0.02 →
 // wierzch +0.04, lico +0.07) okien parteru (floor 0) i piętra 1 (floor 1), ry = obrót fasady, w = szerokość okna, shut = okno z okiennicami, braced = pole z zastrzałem (kontrakt z greenery.js: skrzynki kwiatowe).
 // Układ lokalny: początek na środku podstawy, +x wzdłuż pierzei, +y w górę, +z = FRONT (do placu). Metry. Do świata tylko przez L().
@@ -56,6 +57,55 @@ export function buildHouses(W) {
     // Motyw #9 „okiennice" (?noshutters=1; CONFIG.shutters): skrzydła w paint0..2 (kolor per dom), uchylone od ściany. Liczby policzone (§5.2 #9 K13):
     // zawias 0,030 przed licem ramy, wolny koniec 0,092 dla 4 pierzei i obu skrzydeł; przesunięcia cos/sin przez M4 (bez ręcznego sin/cos — §3.1).
     const Sh = CONFIG.shutters, Rs = rng(h.seedLocal + 6), paintKey = 'paint' + Rs.int(0, 2), noShut = ctx.flags.noshutters || ctx.flags.nopalette; // ?nopalette=1: nie ma kluczy paint*
+    const Tb = CONFIG.houseDetail.timber, Ch = CONFIG.houseDetail.chimney; // poprawki r1: reguła zastrzał/okno, komin na kalenicy
+    // Poprawka r1 (reżyseria): odsłonięte ściany boczne (h.open z layout.js: krawędź przy ulicy albo przy luce wieży) dostają siatkę belek jak fasada
+    // (podwalina, oczep, słupki co Sw.field, zastrzały w polach nieparzystych, okna w parzystych), okno parteru i okna poddasza w szczycie bocznym; ?nosidewall=1.
+    // Własny strumień rng(seedLocal + 8) → wywołania r() domu bez zmian. Lico ściany bocznej x = sx·w/2 (bryły pięter box(fw, …) bez wysunięcia w x),
+    // element 0,01 przed licem jak na fasadzie (K4/K5); normalna ściany w świecie = lokalne (sx,0,0) = facadeNormal(tr.ry + sx·π/2) (policzone ry 0: (1,0,0) dla sx=+1).
+    const Sw = CONFIG.houseDetail.sideWall, Rw = rng(h.seedLocal + 8), openSides = ctx.flags.nosidewall ? [] : [-1, 1].filter(sx => h.open?.[sx > 0 ? 1 : 0]);
+    function sideWall(sx, f, y, fh, jet) {
+      const xs = sx * w / 2, xf = xs + sx * 0.01, fd = d + jet, zc0 = jet / 2, nz = Math.max(2, Math.round(fd / Sw.field)), nS = facadeNormal(tr.ry + sx * Math.PI / 2), bt = 0.16; // bt jak belki fasady
+      const idS = `${id} ściana ${sx > 0 ? '+x' : '-x'} p${f}`;
+      B.add('timber', box(bt, bt, fd + bt, T.timber.mpt), L(xf, y + bt / 2, zc0));       // podwalina (długość fd + bt: końce w słupkach narożnych)
+      B.add('timber', box(bt, bt, fd + bt, T.timber.mpt), L(xf, y + fh - bt / 2, zc0));  // oczep
+      for (let i = 0; i <= nz; i++) {
+        const z = zc0 - fd / 2 + i * fd / nz, field = fd / nz;
+        B.add('timber', box(bt, fh, bt, T.timber.mpt), L(xf, y + fh / 2, z));
+        if (i >= nz) continue;
+        const zc = z + field / 2;
+        if (i % 2 === 1) { // pole nieparzyste: zastrzał (w płaszczyźnie yz — obrót rx)
+          if (Rw() < Sw.braceShare) { const sgn = Rw() < 0.5 ? 1 : -1; B.add('timber', box(bt * 0.8, Math.hypot(field, fh) * 0.7, bt * 0.8, T.timber.mpt), L(xf, y + fh / 2, zc, 0, Math.atan2(field, fh) * sgn)); } // rot: rx=+atan2(field, fh) → góra zastrzału (0,1,0) ku +z: rx=+0.540 → (0, 0.857, 0.514) (policzone); znak losowy = kierunek
+        } else if (Rw() < Sw.windowShare) { // pole parzyste: okno (ry = sx·π/2: lokalne +z okna → ±x domu — policzone (0,0,1) → (±1,0,0))
+          const [ww, wh] = Sw.win, wy = y + fh * 0.55, ry = sx * Math.PI / 2; // 0.55: wysokość środka jak okna fasady
+          B.add(Rw() < Sw.litShare ? 'glassLit' : 'glass', box(ww, wh, 0.04), L(xf, wy, zc, ry)); // szkło 0,04 jak okna fasady, 1 cm przed licem
+          checkInFrontOfWall(`${idS} okno`, LP(xf, wy, zc), LP(xs, wy, zc), nS); // środek 1 cm przed licem ściany bocznej (d = 0,01 ≥ 0,005) — test dla 4 pierzei × 2 znaki sx w test_geometria
+          B.add('timber', box(ww + 0.16, 0.08, 0.1), L(xs + sx * 0.02, wy - wh / 2, zc, ry)); // parapet / nadproże / słupek ramy jak okna fasady
+          B.add('timber', box(ww + 0.16, 0.08, 0.1), L(xs + sx * 0.02, wy + wh / 2, zc, ry)); // nadproże (wymiary ram jak okna fasady)
+          B.add('timber', box(0.06, wh, 0.1), L(xs + sx * 0.02, wy, zc, ry)); // słupek ramy
+        }
+      }
+    }
+    // parter i szczyt boczny odsłoniętej ściany: okno parteru w połowie głębokości; w szczycie bocznym (dom ∥ x) słup królewski + 2 okna poddasza po obu stronach kalenicy
+    function sideWallGround(sx) {
+      const xs = sx * w / 2, nS = facadeNormal(tr.ry + sx * Math.PI / 2), ry = sx * Math.PI / 2, [ww, wh] = Sw.groundWin, wy = 1.8; // 1.8: środek okna parteru jak na fasadzie
+      B.add(Rw() < Sw.litShare ? 'glassLit' : 'glass', box(ww, wh, 0.04), L(xs + sx * 0.01, wy, 0, ry)); // szkło 0,04, 1 cm przed licem parteru (x = sx·w/2), w połowie głębokości
+      checkInFrontOfWall(`${id} ściana ${sx > 0 ? '+x' : '-x'} okno parteru`, LP(xs + sx * 0.01, wy, 0), LP(xs, wy, 0), nS); // d = 0,01 ≥ 0,005
+      B.add('timber', box(ww + 0.15, 0.08, 0.1), L(xs + sx * 0.02, wy - wh / 2, 0, ry)); // rama 1,05 jak parter fasady
+      B.add('timber', box(ww + 0.15, 0.08, 0.1), L(xs + sx * 0.02, wy + wh / 2, 0, ry)); // nadproże jak parter fasady
+    }
+    function sideWallAttic(sx, y, rise, topD, jet) {
+      const xs = sx * w / 2, nS = facadeNormal(tr.ry + sx * Math.PI / 2), ry = sx * Math.PI / 2, [ww, wh] = Sw.atticWin, bt = 0.16; // szczyt boczny: gable(topD, rise, 0.3) z licem na x = sx·w/2
+      B.add('timber', box(bt, rise * 0.9, bt, T.timber.mpt), L(xs + sx * 0.01, y + rise * 0.45, jet / 2)); // słup królewski (jak belka szczytu HEAD)
+      for (const sz of [-1, 1]) {
+        const zc = jet / 2 + sz * Sw.atticZ, wy = y + Sw.atticY, edge = y + rise * (1 - (Math.abs(zc - jet / 2) + ww / 2) / (topD / 2)); // krawędź szczytu nad skrajem okna
+        check(wy + wh / 2 <= edge - 0.1, `${id} okno poddasza poza szczytem bocznym`, { top: wy + wh / 2, edge }); // 0.1: rama 0,08 + luz
+        B.add(Rw() < Sw.litShare ? 'glassLit' : 'glass', box(ww, wh, 0.04), L(xs + sx * 0.01, wy, zc, ry)); // szkło 0,04, 1 cm przed licem szczytu bocznego
+        checkInFrontOfWall(`${id} ściana ${sx > 0 ? '+x' : '-x'} okno poddasza`, LP(xs + sx * 0.01, wy, zc), LP(xs, wy, zc), nS); // d = 0,01 ≥ 0,005
+        B.add('timber', box(ww + 0.16, 0.08, 0.1), L(xs + sx * 0.02, wy - wh / 2, zc, ry)); // parapet (rama jak okna fasady)
+        B.add('timber', box(ww + 0.16, 0.08, 0.1), L(xs + sx * 0.02, wy + wh / 2, zc, ry)); // nadproże
+      }
+    }
+    for (const sx of openSides) sideWallGround(sx);
     const wingTip = new THREE.Vector3(Sh.wing / 2, 0, 0).applyMatrix4(M4(0, 0, 0, Sh.open)); // koniec skrzydła (wing/2, 0, 0) po obrocie open: x = wing/2·cos (0,121), z = wing/2·sin (0,031)
     const shutterReach = (ww, wing) => ww / 2 + Sh.gap + wingTip.x * (wing / Sh.wing) + wing / 2; // odległość środek okna → zewnętrzny skraj skrzydła (0,641 przy ww 0,75; 0,913 na parterze)
     const shutterOK = (field, cx, ground) => !noShut && (ground ? Math.abs(cx) + shutterReach(Sh.ground.ww, Sh.ground.wing) + Sh.ground.edgeGap <= w / 2 : field >= 2 * (shutterReach(Sh.ww, Sh.wing) + Sh.postClear)); // parter: w obrysie domu; piętro: pole ≥ 1,442
@@ -87,18 +137,19 @@ export function buildHouses(W) {
       for (let i = 0; i <= n; i++) {
         const x = -fw / 2 + i * fw / n;
         if (!hidden(x, 0.2)) B.add('timber', box(bt, fh, bt, T.timber.mpt), L(x, y + fh / 2, zf)); // 0.2: pół słupka 0,08 + luz — słupek fasady nie zlewa się ze słupkiem narożnym wykusza (na ±1,11)
-        if (i < n && (braced[i] = r() < 0.5)) { // zastrzał w polu
-          const len = Math.hypot(fw / n, fh) * 0.7, sgn = r() < 0.5 ? 1 : -1; // HEAD: zastrzał 0,7 przekątnej pola, znak losowy pół na pół
-          if (!hidden(x + fw / n / 2, 0.7 * fw / n / 2 + 0.1)) B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * sgn)); // rot: rz=±atan2(fw/n, fh) → góra zastrzału (0,1,0) ku ∓x: rz=+0.5 → (−0.479, 0.878, 0) (policzone); znak losowy = kierunek zastrzału; zasięg zastrzału w x = 0,7·pół pola + luz 0,1
+        if (i < n) { // zastrzał w polu — poprawka r1 (geometria): TYLKO pola nieparzyste (parzyste = okna; §5.2 „przęsła: parzyste okno, nieparzyste X"); na HEAD zastrzał i okno w środku TEGO SAMEGO pola: 148/316 okien pięter z belką przez szkło
+          const draw = r() < Tb.braceShare; braced[i] = draw && i % 2 === 1; // to samo wywołanie r() co na HEAD (r() < 0.5) — kolejność losowań domu bez zmian; próg z CONFIG
+          const len = Math.hypot(fw / n, fh) * 0.7, sgn = draw ? (r() < 0.5 ? 1 : -1) : 1; // HEAD: zastrzał 0,7 przekątnej pola, znak losowy pół na pół (r() znaku przy każdym losowaniu jak na HEAD)
+          if (braced[i] && !hidden(x + fw / n / 2, 0.7 * fw / n / 2 + 0.1)) B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * sgn)); // rot: rz=±atan2(fw/n, fh) → góra zastrzału (0,1,0) ku ∓x: rz=+0.5 → (−0.479, 0.878, 0) (policzone); znak losowy = kierunek zastrzału; zasięg zastrzału w x = 0,7·pół pola + luz 0,1
         }
       }
       // belki stropowe wystające pod jetty (nie w zasięgu wykusza: pod nim kroksztyny, nad nim daszek)
       if (h.jetty) for (let i = 0; i <= n; i++) { const x = -fw / 2 + i * fw / n; if (!inOriel(f, x)) B.add('timber', box(bt, bt, H.jetty + 0.3, T.timber.mpt), L(x, y - bt / 2, front - (H.jetty + 0.3) / 2 - 0.05)); } // HEAD: belka jetty + 0,3 w ścianie, koniec 0,05 za licem
       // okna piętra: w polach między słupkami
       for (let i = 0; i < n; i++) {
-        if (r() < 0.25) continue;
+        const skip = r() < 1 - Tb.windowShare, lit = !skip && r() < 0.35; // r() jak na HEAD (okno 75 %, świecące 35 % — losowane tylko przy oknie)
+        if (braced[i] || (skip && i % 2 === 1)) continue; // poprawka r1: pole z zastrzałem bez okna (AABB zastrzału ∩ AABB okna = ∅, asercja B8 w teście); pole parzyste zawsze z oknem
         const cx = -fw / 2 + (i + 0.5) * fw / n, wh = 1.3; // HEAD: środek pola, okno 1,3 wys.
-        const lit = r() < 0.35;
         const shut = shutterOK(fw / n, cx, false) && !braced[i] && Rs() < Sh.share; // okiennice: pole bez zastrzału, dość szerokie, udział share (strumień Rs — r() domu bez zmian)
         const ww = shut ? Sh.ww : Math.min(1.0, fw / n - 0.5); // okno z okiennicami zwężone do Sh.ww (0,75), inaczej HEAD
         if (hidden(cx, (shut ? shutterReach(Sh.ww, Sh.wing) : ww / 2 + 0.16) + 0.1)) continue; // pół okna + rama 0,08 z każdej strony (box ww + 0,16) albo zasięg okiennic + luz 0,1: nic nie wchodzi w słupek narożny wykusza
@@ -111,6 +162,7 @@ export function buildHouses(W) {
         if (f === 1) { const sp = LP(cx, y + fh * 0.55 - wh / 2 + 0.08 / 2, front + 0.02 + 0.1 / 2); sills.push({ x: sp.x, y: sp.y, z: sp.z, ry: tr.ry, w: ww, floor: f, side: h.side, along: h.along, setback: h.setback || 0, shut, braced: !!braced[i] }); } // W.sills (greenery.js): wierzch parapetu = środek + 0,08/2, lico = front + 0,02 + 0,1/2 (wymiary parapetu wyżej)
       }
       if (orielHere) orielBay(y, front, frontBelow, front + (h.jetty ? H.jetty : 0), bt);
+      for (const sx of openSides) sideWall(sx, f, y, fh, jet);
       frontBelow = front;
       y += fh;
     }
@@ -203,25 +255,34 @@ export function buildHouses(W) {
     // dach
     const roofKey = 'roof' + h.roof, ov = H.overhang, pitch = h.pitch; // spadek per dom (layout.js, motyw #3)
     const topD = d + jet;
+    let ridge, roofTopAt; // kalenica {topY, xHalf, zMid, zHalf} i wierzch połaci nad (x, z) w układzie domu — do komina (poprawka r1 K8/K9)
     if (h.gableFront) {
       // kalenica wzdłuż z: szczyt widoczny od placu
       const rise = (w / 2) * Math.tan(pitch), slope = Math.hypot(w / 2 + ov, rise), aG = Math.atan2(rise, w / 2 + ov), faceZ = topD / 2 + jet / 2; // faceZ: lico fasady poddasza
       // Motyw #12b „szczyt schodkowy" (?nostep=1 = trójkąt HEAD): decyzja i liczba schodków z osobnego strumienia rng(seedLocal + 2) (r() domu bez zmian)
       const St = CONFIG.houseDetail.step, Rd = rng(h.seedLocal + 2), stepped = !ctx.flags.nostep && Rd() < St.share, nSteps = Rd.int(...St.steps);
       const cut = stepped ? ov + St.slabIn : 0; // skrócenie połaci i kalenicy z przodu: koniec slabIn m za licem, schowany w murze schodków (bez okapu przed szczytem)
-      for (const sx of [-1, 1]) B.add(roofKey, box(slope, 0.14, topD + 2 * ov - cut, T.roof.mpt, off), L(sx * (w / 4 + ov / 2), y + rise / 2, jet / 2 - cut / 2, 0, 0, -sx * aG)); // rot: rz=−sx·a → koniec sx·x (okap) W DÓŁ, koniec x=0 (kalenica) w górze; policzone w 8, pitch 0.85, sx=+1: okap (4.55, y, jet/2), kalenica (0, y+4.55, jet/2)
+      const hw0 = w / 2 + ov, roofTopG = x => y + rise * (1 - Math.abs(x) / hw0) + 0.07 * slope / hw0; // wierzch połaci szczytowej nad x (płyta 0,14: +0,07/cos = ·slope/hw0)
+      // poprawka r1 (K9, schodki): przy schodkach płyta kończy się out m WEWNĄTRZ muru szczytu (mur w + 2·side), bez okapu bocznego — na HEAD mur w + 2·ov miał narożniki 0,55 m poza ścianą boczną w powietrzu
+      const xEnd = stepped ? w / 2 + St.side - St.out : hw0, fr = xEnd / hw0; // koniec połaci w x i udział długości połaci od kalenicy (bez schodków 1 = HEAD)
+      for (const sx of [-1, 1]) B.add(roofKey, box(slope * fr, 0.14, topD + 2 * ov - cut, T.roof.mpt, off), L(sx * xEnd / 2, y + rise * (1 - fr / 2), jet / 2 - cut / 2, 0, 0, -sx * aG)); // rot: rz=−sx·a → koniec sx·x (okap) W DÓŁ, koniec x=0 (kalenica) w górze; policzone w 8, pitch 0.85, sx=+1, fr 1: okap (4.55, y, jet/2), kalenica (0, y+4.55, jet/2); środek = środek odcinka (0, y+rise) → (sx·xEnd, y + rise·(1 − fr))
+      roofTopAt = (x, z) => roofTopG(x);
+      ridge = { topY: y + rise + Math.max(0.1, 0.07 * slope / hw0), xHalf: 0, zMid: (jet / 2 - topD / 2 + faceZ - cut) / 2, zHalf: Math.max(0, (topD - cut) / 2 - Ch.endGap) }; // belka kalenicy 0,2 → +0,1 / wierzch płyty +0,07/cos; kalenica od tyłu do lica (−cut)
       B.add(plasterKey, gable(w, rise, topD, T.plaster.mpt), L(0, y, jet / 2));
       B.add('timber', box(0.2, 0.2, topD + 2 * ov - cut, T.timber.mpt), L(0, y + rise, jet / 2 - cut / 2)); // belka kalenicy 0,2 (HEAD), skrócona jak połacie
       if (stepped) stepGable(nSteps);
       else B.add('timber', box(0.14, rise * 0.9, 0.14, T.timber.mpt), L(0, y + rise * 0.45, faceZ + 0.01)); // belka szczytu (HEAD)
       // schodki: stos n boxów 'blocks' malejącej szerokości; schodek i ma spód na linii połaci przy zewnętrznym narożniku (y + i·sh) i wierzch par m nad
       // linią połaci przy wewnętrznym; lico muru St.out przed licem fasady; asercja: wierzch schodka ≥ wierzch płyty (oś + 0,07/cos) + 0,05 przy wewnętrznym narożniku
+      // Poprawka r1 (K9): mur schodków w + 2·side (side 0,04 za ścianą boczną, nie ov 0,55 — narożnik nad ścianą, asercja B5c), schodek i od wierzchu płyty przy zewnętrznym
+      // narożniku hwAt(i) (schodek 0 od stropu y) do parapet nad wierzchem przy wewnętrznym hwAt(i+1); nachodzenie kolejnych schodków = parapet (jak HEAD).
       function stepGable(n) {
-        const sh = rise / n, hw0 = w / 2 + ov, roofTopG = x => y + rise * (1 - Math.abs(x) / hw0) + 0.07 * slope / hw0; // wierzch połaci szczytowej nad x (płyta 0,14: +0,07/cos = ·slope/hw0)
+        const hwS = w / 2 + St.side, hwAt = i => hwS * (1 - i / n); // półszerokość muru; zewnętrzny narożnik schodka i (x)
+        check(hwS <= w / 2 + 0.05, `${id} mur schodków poza ścianą boczną`, { hwS, w }); // B5c: rzut narożnika najniższego stopnia nad ścianą (|x| ≤ w/2 + 0,05)
         for (let i = 0; i < n; i++) {
-          const hw = hw0 * (1 - i / n), bottom = y + i * sh, top = bottom + sh + St.parapet;
+          const hw = hwAt(i), bottom = i === 0 ? y : roofTopG(hw), top = roofTopG(hwAt(i + 1)) + St.parapet;
           B.add('blocks', box(2 * hw, top - bottom, St.t, T.blocks.mpt, off), L(0, (bottom + top) / 2, faceZ + St.out - St.t / 2));
-          check(top >= roofTopG(hw0 * (1 - (i + 1) / n)) + 0.05, `${id} schodek ${i} pod połacią`, { top, roofTop: roofTopG(hw0 * (1 - (i + 1) / n)) }); // 0.05: margines jak B5b
+          check(top >= roofTopG(hwAt(i + 1)) + 0.05 && bottom <= roofTopG(hw) + 1e-6, `${id} schodek ${i} pod połacią / wisi nad połacią`, { top, bottom, roofTop: roofTopG(hwAt(i + 1)) }); // 0.05: margines jak B5b
         }
       }
     } else {
@@ -232,6 +293,9 @@ export function buildHouses(W) {
       const roofY = z => y + (eaveZ - z) * s, roofTopY = z => roofY(z) + roofT / 2 * slope / (topD / 2 + ov); // oś płyty / wierzch płyty: +roofT/2 / cos(a) = ·slope/(topD/2+ov) (nad połacią liczy się wierzch — K9)
       // Motyw #12c „naczółek" (?nohip=1 = pełny szczyt HEAD): decyzja z osobnego strumienia rng(seedLocal + 3); hipIn > 0 = kalenica krótsza o hipIn z każdej strony
       const Hp = CONFIG.houseDetail.hip, hipIn = (!ctx.flags.nohip && rng(h.seedLocal + 3)() < Hp.share) ? Hp.inset : 0;
+      roofTopAt = (x, z) => roofTopY(jet / 2 + Math.abs(z - jet / 2)); // połać tylna = odbicie względem kalenicy z = jet/2 (dla |x| ≤ w/2 − hipIn)
+      ridge = { topY: y + rise + Math.max(0.1, roofT / 2 * slope / (topD / 2 + ov)), xHalf: Math.max(0, w / 2 - hipIn - Ch.endGap), zMid: jet / 2, zHalf: 0 }; // kalenica od naczółka do naczółka (hipIn 0 bez naczółka)
+      for (const sx of openSides) sideWallAttic(sx, y, rise, topD, jet);
       if (!hipIn) {
         for (const sz of [-1, 1]) B.add(roofKey, box(w + 2 * ov, roofT, slope, T.roof.mpt, off), L(0, y + rise / 2, jet / 2 + sz * (topD / 4 + ov / 2), 0, sz * a)); // rot: rx=+a (sz=+1, połać przednia) opuszcza koniec +z: okap (0, y, eaveZ), kalenica (0, y+rise, jet/2) — policzone (0, 9, 5.25) / (0, 13.952, 0.35) dla y 9, jet 0.7, pitch 0.85
         // szczyty boczne (trójkąty) — widoczne między domami różnej wysokości
@@ -295,10 +359,14 @@ export function buildHouses(W) {
         for (const sx of [-1, 1]) B.add(plasterKey, box(D.cheekT, hC, cheekLen, T.plaster.mpt, off), M4(sx * (D.w - D.cheekT) / 2, -(hC / 2 + D.capGap), -(capLen - cheekLen) / 2).premultiply(capM));
       }
     }
-    // komin
-    const chx = (r() - 0.5) * (w - 2);
-    B.add('stone', box(0.9, y + 2.2 - gf, 0.9, T.stone.mpt, off), L(chx, (gf + y + 2.2) / 2, -1.5));
-    chimneys.push(new THREE.Vector3(chx, y + 2.2, -1.5).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry)));
+    // komin NA kalenicy (poprawka r1 K8/K9; ?nochimridge=1 = HEAD: z = −1,5 od okapu, wierzch y + 2,2 — policzone kominy.mjs: 18/28 pod wierzchem płyty o 0,2–5,4 m, 8 w kalenicy
+    // bez płyty nad sobą, 2 wystają; w elewacjach side1..3 zero kominów). To samo (jedyne) wywołanie r() co na HEAD; pozycja wzdłuż kalenicy Ch.endGap od jej końców (naczółek:
+    // kalenica krótsza o hipIn; szczyt: od tyłu do lica), wierzch Ch.above nad wierzchem kalenicy (belka 0,2 → +0,1 / płyta +0,07/cos a); asercja z roofTopAt TEJ SAMEJ połaci.
+    const u = r() - 0.5, legacy = !!ctx.flags.nochimridge; // HEAD: chx = (r() − 0,5)·(w − 2)
+    const chx = legacy ? u * (w - 2) : u * 2 * ridge.xHalf, chz = legacy ? -1.5 : ridge.zMid + u * 2 * ridge.zHalf, chimTop = legacy ? y + 2.2 : ridge.topY + Ch.above; // HEAD (legacy): z −1,5 od środka, wierzch y + 2,2
+    B.add('stone', box(Ch.w, chimTop - gf, Ch.w, T.stone.mpt, off), L(chx, (gf + chimTop) / 2, chz));
+    if (!legacy) check(chimTop - roofTopAt(chx, chz) >= Ch.minAbove, `${id} komin pod połacią`, { chimTop, roofTop: roofTopAt(chx, chz), chx, chz }); // B7: wierzch komina ≥ minAbove nad wierzchem płyty pod nim (oczekiwane 0,9 na kalenicy)
+    chimneys.push({ ...new THREE.Vector3(chx, chimTop, chz).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry)), side: h.side, along: h.along, setback: h.setback || 0 }); // {x, y, z} wierzchu + dom (props.js buildSmoke: dym z kominów w kadrze startu)
   }
   W.chimneys = chimneys; W.portals = portals; W.sills = sills;
 }

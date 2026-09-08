@@ -156,7 +156,17 @@ export const CONFIG = {
     dormer: { w: 1.4, wallT: 0.12, cheekT: 0.12, fromEave: 1.6, sink: 0.15, hFront: 1.5, win: [0.6, 0.7], winUp: 0.1, capRatio: 0.3, depth: [1.6, 2.4], capOver: 0.2, capT: 0.1, capGap: 0.07 }, // metry; policzone dla seed 7: 10 lukarn, depth 1,60–2,40, capPitch 0,16–0,36 rad
     // motyw #12b „szczyt schodkowy" (?nostep=1 = trójkąt HEAD; buildings.js stepGable()): udział domów szczytowych, liczba schodków [min, max],
     // wysokość schodka nad linią połaci (parapet), grubość muru t, lico muru out przed licem fasady, koniec połaci slabIn za licem (schowany w murze)
-    step: { share: 0.6, steps: [4, 6], parapet: 0.35, t: 0.4, out: 0.02, slabIn: 0.1 }, // policzone dla seed 7: 3 z 6 domów szczytowych, +192 tri
+    step: { share: 0.6, steps: [4, 6], parapet: 0.35, t: 0.4, out: 0.02, slabIn: 0.1, side: 0.04 }, // policzone dla seed 7: 3 z 6 domów szczytowych, +192 tri; side (poprawka r1 K9): mur schodków side m za ścianą boczną (HEAD: ov 0,55 → narożnik w powietrzu), płyta kończy się out m w murze
+    // poprawki r1 (buildings.js): timber — zastrzał TYLKO w polu nieparzystym z udziałem braceShare (parzyste = okna; §5.2 „przęsła co 1,6 m: parzyste okno, nieparzyste X"),
+    // okno w każdym polu bez zastrzału (parzyste zawsze, nieparzyste z udziałem windowShare); na HEAD 148/316 okien pięter miało zastrzał przez szkło. Asercja B8 w teście: AABB zastrzału ∩ AABB okna = ∅.
+    timber: { braceShare: 0.5, windowShare: 0.75 },   // policzone: okna ≈ 50 % (parzyste) + 50 %·50 %·75 % = 69 % pól (HEAD 75 %), zastrzały 25 % pól (HEAD 50 %)
+    // komin NA kalenicy (?nochimridge=1 = HEAD: z −1,5 od okapu, wierzch y + 2,2 → 26/28 kominów pod/w połaci): bok w, wierzch above nad wierzchem kalenicy, ≥ endGap od końca kalenicy
+    // (naczółek/szczyt), asercja B7: wierzch − wierzch płyty pod kominem ≥ minAbove (na kalenicy 0,9)
+    chimney: { w: 0.9, above: 0.9, endGap: 1.0, minAbove: 0.6 },   // m; słownik skali §3.7: komin 0,9 × 0,9; above 0,9 nad kalenicą (HEAD: 2,2 nad okapem = pod połacią)
+    // ściany boczne od ulicy (?nosidewall=1; layout.js h.open — 8 ścian: 2 na pierzeję przy ulicy, w tym +x ostatniego domu N-W przy luce wieży): słupki co field m, zastrzały w polach
+    // nieparzystych (braceShare), okna win w parzystych (windowShare, świecące litShare), okno parteru groundWin na z = 0, w szczycie bocznym (dom ∥ x) słup królewski + 2 okna poddasza
+    // atticWin ze środkiem atticZ od kalenicy i atticY nad stropem (asercja: górna krawędź ≥ 0,1 pod krawędzią szczytu). Koszt ≈ 14 box/piętro = 168 tri, 0 draw (klucze timber/glass).
+    sideWall: { field: 1.6, braceShare: 0.5, windowShare: 0.8, litShare: 0.35, win: [0.9, 1.3], groundWin: [0.9, 1.1], atticWin: [0.6, 0.7], atticZ: 1.2, atticY: 1.0 },   // m (okna: szer., wys.; win 0,9 × 1,3 = okno piętra bez okiennic, groundWin = okno parteru, atticWin = okno poddasza §3.7)
     // motyw #12c „naczółek" (?nohip=1 = pełny szczyt HEAD; buildings.js hipRoof()): udział domów ∥ x („co 4. dom"), inset = o ile kalenica krótsza
     // z każdej strony (m; ścięcie w poziomie inset + okap, w pionie (inset + okap)·tan(pitch))
     hip: { share: 0.25, inset: 1.0 }, // policzone dla seed 7: 8 z 22 domów ∥ x, drop 1,34–2,37 m, +320 tri
@@ -319,6 +329,9 @@ export const CONFIG = {
     // 0,227 − asin(1,8/20,0) = 0,137 − bowlClear (§5.3 (1)); środek 2,06 m od linii start→fontanna (koło 1,5 + gracz 0,35 = 1,85 → przejście); ry = 0,9 + π:
     // bok do kamery (lokalne +z · przód kamery 0,76), dyszel (lokalne −x) ku kramowi 1 (8,91, 7,78): koło dyszla L(−2,2, 0, 0) = (6,37, 10,78) r 0,6, czubek
     // (7,05, 9,92) 2,83 m od środka kramu ≥ 1,6 + 0,35; latarnia 0 (5,93, 14,32) 2,04 m ≥ 1,5 + 0,25. KNOWN_B6 dyszel usunięte z testu.
+    // dym (props.js buildSmoke, poprawka r1): kominy, których wierzch rzutuje się w kadr startowy (CONFIG.composition.start, fov/oko jak bunting.clockClear; |NDC| ≤ 1 − margin), najbliższe max;
+    // HEAD: co czwarty komin (i % 4 === 1) → w 12 widokach rundy zero dymu na dachach w kadrze
+    smoke: { max: 6, margin: 0.05 },   // szt. (HEAD: slice(0, 6)), margines NDC od krawędzi kadru
     cart: { x: 5.0, z: 12.5, ry: 0.9 + Math.PI, collideR: 1.5, shaft: { lx: -2.2, r: 0.6 }, legacy: { x: -8, z: 9, ry: 0.7 },   // legacy: HEAD (?nocart2=1)
       bowlClear: 0.02,   // rad: każdy róg skrzyni co najmniej tyle na prawo (mniejszy yaw) od lewego skraju dolnej misy (bowls[0].r) widzianej ze startu
       // drewno na pierwszym planie (kosz/beczka z poprawki r1): beczka przy latarni 0 (5,93, 14,32) — NDC (0,80, −0,62..−0,36) px (742, 1485..1243); kosz obok (NDC x ≈ 0,5); ry modeli dowolne

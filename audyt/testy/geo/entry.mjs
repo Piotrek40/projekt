@@ -7,7 +7,7 @@ export { buildLayout } from '../../../rynek/src/layout.js';
 export { buildHouses } from '../../../rynek/src/buildings.js';
 export { buildStalls } from '../../../rynek/src/stalls.js';
 export { buildTower } from '../../../rynek/src/tower.js';
-export { buildCart, signMatrix, signPlacements } from '../../../rynek/src/props.js';   // wóz: geometria Batch (dyszel w KNOWN_B6); modele przez stub W.put w teście; signMatrix: funkcja czysta szyldu (asercja F)
+export { buildCart, signMatrix, signPlacements, smokerChimneys } from '../../../rynek/src/props.js';   // wóz: geometria Batch (dyszel w KNOWN_B6); modele przez stub W.put w teście; signMatrix: funkcja czysta szyldu (asercja F)
 export { treePlacements, buildTrees } from '../../../rynek/src/trees.js';   // lipy (motyw #7): funkcja czysta + geometria Batch (bez materiałów — W.sets brak offline); asercja H
 export { stallPlacements, yawFrom } from '../../../rynek/src/stalls.js';   // kramy (motyw #7): pozycje (repoussoir + sektor bez kramu); asercja I
 export { stallGoodsPlan, buildStallGoods } from '../../../rynek/src/stalls.js';   // role kramów (motyw #11): plan towaru/bel/szyldów (funkcja czysta) + geometria; asercja J

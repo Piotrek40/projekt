@@ -289,11 +289,24 @@ export function signMatrix(tr, along, { y = 3.05, faceZ = 4, out = 0.8 } = {}) {
   return M4(0, y, faceZ + out, -Math.sign(along) * Math.PI / 2).premultiply(M4(tr.x, 0, tr.z, tr.ry));
 }
 
+// FUNKCJA CZYSTA (poprawka r1 K8): kominy, których wierzch (W.chimneys z buildings.js — na kalenicy) rzutuje się w kadr startowy (CONFIG.composition.start; kamera jak
+// bunting.js clockClearance: fov/oko z CONFIG.bunting.clockClear, aspect 412/915 jak §5.3), |NDC x|, |NDC y| ≤ 1 − margin, przed kamerą; najbliższe `max` w kolejności odległości.
+// HEAD: co czwarty komin (i % 4 === 1) — żaden nie leżał w kadrze startu. Test: asercja M w test_geometria.mjs (≥ 2 smokerów, każdy w kadrze).
+export function smokerChimneys(W) {
+  const { CONFIG, chimneys } = W, st = CONFIG.composition.start, K = CONFIG.bunting.clockClear, Sm = CONFIG.props.smoke;
+  const cam = new THREE.PerspectiveCamera(K.fov, 412 / 915, 0.05, 300);   // portret S24 (§5.3); near/far jak app.js:44
+  cam.position.set(st.x, K.eye, st.z); cam.rotation.set(0, 0, 0, 'YXZ'); cam.rotation.y = st.yaw; cam.rotation.x = st.pitch;   // jak app.js:154
+  cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+  const inFrame = c => { const p = new THREE.Vector3(c.x, c.y, c.z).project(cam); return p.z < 1 && Math.abs(p.x) <= 1 - Sm.margin && Math.abs(p.y) <= 1 - Sm.margin; };
+  return chimneys.filter(inFrame).map(c => ({ c, d: Math.hypot(c.x - st.x, c.z - st.z) })).sort((a, b) => a.d - b.d).slice(0, Sm.max).map(x => x.c);
+}
+
 export function buildSmoke(W) {
   const { ctx, scene, R, chimneys } = W;
-  // dym z kominów (co czwarty komin): cząstki unoszą się i rozwiewają, zapętlone
+  // dym z kominów w kadrze startu (smokerChimneys; HEAD: co czwarty komin): cząstki unoszą się i rozwiewają, zapętlone
   const smokeTex = smokeTexture();
-  const smokers = ctx.flags.nosmoke ? [] : chimneys.filter((c, i) => i % 4 === 1).slice(0, 6);
+  const smokers = ctx.flags.nosmoke ? [] : smokerChimneys(W);
+  check(ctx.flags.nosmoke || smokers.length >= 2, 'za mało kominów z dymem w kadrze startu', { n: smokers.length, kominów: chimneys.length });
   for (const c of smokers) {
     const N = 28, pos = new Float32Array(N * 3), seeds = Array.from({ length: N }, (_, i) => ({ t0: R() * 9, dx: R() - 0.5, dz: R() - 0.5 }));
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
