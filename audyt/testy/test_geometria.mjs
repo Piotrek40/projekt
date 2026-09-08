@@ -172,11 +172,18 @@ for (const h of allHouses) {
   // B5c) mur szczytu schodkowego (poprawka r1 K9; HEAD: mur w + 2·ov, narożnik 0,55 m poza ścianą boczną w powietrzu): schodki = blocks ze spodem ≥ wierzch ostatniej kondygnacji;
   //      najszerszy (najniższy) ma |x| ≤ w/2 + 0,05 (narożnik nad ścianą boczną); każdy schodek: spód ≤ wierzch dachu przy zewnętrznym narożniku + 0,02 (bez szpary), z 0,05 za licem tylnym muru
   { const wallTop = Math.max(...L.filter(r => r.key.startsWith('plaster') && r.type === 'BoxGeometry' && r.bb.max.x > 2.5 && r.bb.max.y - r.bb.min.y > 2).map(r => r.bb.clone().applyMatrix4(r.ml).max.y)); // wierzch ostatniej kondygnacji (box; `floors`/eaveY łapie też trójkąt poddasza gable() → kalenica)
-    const steps = L.filter(r => r.key === 'blocks' && r.bb.clone().applyMatrix4(r.ml).min.y >= wallTop - 0.01).map(r => r.bb.clone().applyMatrix4(r.ml));
+    const St5 = CONFIG.houseDetail.step, above = r => r.bb.clone().applyMatrix4(r.ml).min.y >= wallTop - 0.01;
+    // po poprawce (zrzuty z telefonu): trzon schodka jest w TYNKU domu (płytki w z: ≤ St.t + 0,15), kamienna nakrywa 'blocks' leży na jego wierzchu
+    const steps = L.filter(r => r.type === 'BoxGeometry' && r.key.startsWith('plaster') && above(r)).map(r => r.bb.clone().applyMatrix4(r.ml))
+      .filter(b => b.max.z - b.min.z <= St5.t + 0.15 && b.max.y - b.min.y < 3);
+    const caps = L.filter(r => r.key === 'blocks' && above(r)).map(r => r.bb.clone().applyMatrix4(r.ml));
     if (steps.length) { nStep++;
       const low = [...steps].sort((a, b) => (b.max.x - b.min.x) - (a.max.x - a.min.x))[0];
       if (low.max.x > h.w / 2 + 0.05 || low.min.x < -h.w / 2 - 0.05) fails.push(`B5c ${idH}: mur schodków x ${low.min.x.toFixed(2)}..${low.max.x.toFixed(2)} poza ścianą boczną ±${(h.w / 2).toFixed(2)} + 0,05 (narożnik w powietrzu)`);
-      for (const st of steps) { if (st.min.y <= wallTop + 0.01) continue; const top = roofSurfaceY(L, st.max.x - 0.02, st.min.z + 0.05); if (top === null || st.min.y > top + 0.02) fails.push(`B5c ${idH}: schodek ${f2(st.min)}..${f2(st.max)} wisi nad połacią (wierzch dachu przy narożniku ${top === null ? 'brak' : top.toFixed(2)})`); } } }
+      for (const st of steps) { if (st.min.y <= wallTop + 0.01) continue; const top = roofSurfaceY(L, st.max.x - 0.02, st.min.z + 0.05); if (top === null || st.min.y > top + 0.02) fails.push(`B5c ${idH}: schodek ${f2(st.min)}..${f2(st.max)} wisi nad połacią (wierzch dachu przy narożniku ${top === null ? 'brak' : top.toFixed(2)})`); }
+      // B5d) każda nakrywa leży na wierzchu trzonu schodka (spód nakrywy = wierzch trzonu ± 0,01) i nie wystaje bokiem więcej niż capOut + 0,01
+      for (const cp of caps) { const base = steps.find(st => Math.abs(cp.min.y - st.max.y) <= 0.01 && cp.min.x >= st.min.x - St5.capOut - 0.01 && cp.max.x <= st.max.x + St5.capOut + 0.01);
+        if (!base) fails.push(`B5d ${idH}: nakrywa ${f2(cp.min)}..${f2(cp.max)} nie leży na trzonie schodka`); } } }
   // B1c) okna ścian bocznych (poprawka r1; ry = ±π/2 → B1 je pomija): glass z |e[0]| < 1e-6 (lokalne +z okna wzdłuż ±x domu): lico przednie |c.x| + t/2 ≥ w/2 + 0,005, tył ≤ w/2 + 0,05 (przy ścianie)
   for (const r of L.filter(r => r.key.startsWith('glass') && Math.abs(r.ml.elements[0]) < 1e-6)) {
     const c = V(0, 0, 0).applyMatrix4(r.ml), t = (r.bb.max.z - r.bb.min.z) / 2; nSideWin++;

@@ -25,9 +25,12 @@ export async function buildMaterials(W) {
   for (const t of [fabricNor, fabricArm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = ctx.aniso(); }
   const clothHex = P.cloth.map((c, i) => hexOf('cloth' + i));
   clothHex.forEach((c, i) => { mat['cloth' + i] = new THREE.MeshStandardMaterial({ color: c, roughness: 1, metalness: 0, normalMap: fabricNor, roughnessMap: fabricArm, side: THREE.DoubleSide }); });
-  mat.glass = new THREE.MeshPhysicalMaterial({ color: hexOf('glass'), roughness: 0.08, metalness: 0.0 }); // parametry jak HEAD; bez envMapIntensity: martwy przy scene.environment bez własnego envMap (§4.1.9, §8 #16 — tor B)
+  // szyby: kwatery z ołowianym podziałem (poprawka po zrzutach z telefonu — okna były jednolitymi prostokątami, w zbliżeniu jak papierowe wycinanki).
+  // UV pudełka są w METRACH / mpt (geometry.js box, mpt 2), więc wzór musi być OKRESOWY: repeat dobrane tak, by kwatera miała ok. 0.37 m w świecie.
+  const paneRep = CONFIG.houseDetail.panes.repeat, paneTex = () => { const t = windowPane(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(paneRep, paneRep); return t; };
+  mat.glass = new THREE.MeshPhysicalMaterial({ color: hexOf('glass'), roughness: 0.08, metalness: 0.0, map: paneTex() }); // parametry jak HEAD; bez envMapIntensity: martwy przy scene.environment bez własnego envMap (§4.1.9, §8 #16 — tor B)
   const em = PK ? { color: oklch(...PK.emit.glassLit.color), emissive: oklch(...PK.emit.glassLit.emissive), k: PK.emit.glassLit.intensity } : { color: P.glassLit, emissive: P.glassLitEmissive, k: 1.6 }; // 1.6: HEAD emissiveIntensity
-  mat.glassLit = new THREE.MeshStandardMaterial({ color: em.color, emissive: em.emissive, emissiveIntensity: em.k, roughness: 0.3 }); // roughness jak HEAD
+  mat.glassLit = new THREE.MeshStandardMaterial({ color: em.color, emissive: em.emissive, emissiveIntensity: em.k, roughness: 0.3, emissiveMap: paneTex(), map: paneTex() }); // roughness jak HEAD
   mat.iron = new THREE.MeshStandardMaterial({ color: hexOf('iron'), roughness: 0.55, metalness: 0.9 }); // parametry jak HEAD
   // --- fontanna (fountain.js, motyw #8) ---
   // Woda z WŁASNYM envMap: scene.environment to equirect HDR, renderer robi z niego PMREM (environments.get(material.envMap || environment), WebGLRenderer.js:2177);
@@ -98,6 +101,15 @@ export function splashTexture() {
   const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
   const grd = g.createRadialGradient(16, 16, 1, 16, 16, 15); grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.6, 'rgba(255,255,255,0.5)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); // rdzeń pełny, 60 % promienia półkrycie, brzeg 0
   g.fillStyle = grd; g.fillRect(0, 0, 32, 32);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+// Kwatera szyby: jasne pole z lekkim gradientem i ciemniejszym ołowiem po obwodzie (wzór okresowy — patrz komentarz przy mat.glass).
+export function windowPane() {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const grd = g.createRadialGradient(32, 26, 4, 32, 32, 34); grd.addColorStop(0, '#ffffff'); grd.addColorStop(1, '#b9bec4');   // szkło jaśniejsze w środku kwatery
+  g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+  g.strokeStyle = '#4a4a4e'; g.lineWidth = 5; g.strokeRect(2.5, 2.5, 59, 59);   // ołów po obwodzie kwatery
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 

@@ -54,7 +54,7 @@ export const CONFIG = {
     wet: { r: 5.2, rFull: 4.6, seg: 32, y: 0.005, color: [0.32, 0.018, 245], roughness: 0.55 }, // mokry bruk: cobble tint L 0.55 (suchy 0xb9b3aa = L 0.75), gładszy; y 0.005 + polygonOffset; pełne krycie do r 4.6, zanik alfa do 0 na r 5.2 (cykl 2: ostra krawędź)
     water: { envMapIntensity: 0.32, normalRepeat: 1, normalScale: 0.15, drift: [0.02, 0.013] }, // własny envMap (§4.1.9); cykl 1: 1.2 → lustro basenu L 0.74–0.80 C < 0.01 (białe, tint H 200 znika, kręgi niewidoczne); dryf normal mapy jak dawniej
   },
-  stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6,   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
+  stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6, rafters: [-0.62, 0, 0.62],   // rafters: krokwie pod płótnem baldachimu jako ułamek jego półszerokości (poprawka po zrzutach z telefonu)   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
     // motyw #11 „role kramów" (?nokinds=1 = stary placeGoods bez ról, bez szyldów kramów, nowe modele nieładowane). Kram i dostaje kinds[i % kinds.length]
     // (kolejność = kolejność kramów: kram 0 = repoussoir z §5.3 = sukiennik, POI „Kram sukiennika" w ui.js). cloth = baldachim (te same klucze, które seed 7
     // losował na HEAD → kadr startowy bez zmiany barw); sign = kafelek atlasu szyldów (houseDetail.sign.tiles + extraTiles); goods = [model, skala] w gniazdach
@@ -75,7 +75,7 @@ export const CONFIG = {
     // płótnem zwisu (z 1,12 + 0,04 = 1,16 > lico belki 1,15). Kosz/garnek na ziemi: (∓x, z) przy tylnym słupie po stronie przeciwnej niż zaplecze
     // (|p| 1,24 + r 0,23 = 1,47 ≤ collideR 1,6). overhang: towar może wystawać ≤ 0,15 m poza blat (check z W.bounds).
     goods: { seedOffset: 1100, slotX: [-0.8, 0, 0.8], z: -0.05, jitter: 0.1, overhang: 0.15, models: ['hamburger_buns', 'food_pears_asian_01', 'ceramic_pot', 'brass_pot_01', 'brass_vase_01', 'wicker_basket_02'],   // models: nowe modele (zasoby_etap2.md) ładowane tylko z rolami
-      bale: { w: 0.28, len: 1.1, step: 0.4, rows: [3, 2] }, sign: { w: 0.52, h: 0.32, below: 0.27, out: 0.04 }, ground: { x: 0.95, z: -0.8 } },   // bele §5.2 #11 (0,28 × 0,28 × 1,1); szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158
+      bale: { w: 0.28, len: 1.1, step: 0.4, rows: [3, 2], seg: 12 }, sign: { w: 0.52, h: 0.32, below: 0.27, out: 0.04 }, ground: { x: 0.95, z: -0.8 } },   // bele §5.2 #11 jako ROLKI (seg: segmenty walca; poprawka po zrzutach z telefonu — sześciany czytały się jak klocki); szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158 sign: { w: 0.52, h: 0.32, below: 0.27, out: 0.04 }, ground: { x: 0.95, z: -0.8 } },   // bele §5.2 #11 (0,28 × 0,28 × 1,1); szyld 0,52 × 0,32 = proporcja okna atlasu 256 × 158
   },
   lanterns: { count: 8, ringRadius: 15.5 },
   // sunColor: motyw #9, hipoteza (a) §4.4 zaliczona na lineupie (lineup_v1_sunA, 2026-09-07): przy 0xfff1e0 (C 0,027) plaster4 w słońcu H 219 (≥ 180), roof2 H 231 (≥ 200),
@@ -156,7 +156,8 @@ export const CONFIG = {
     dormer: { w: 1.4, wallT: 0.12, cheekT: 0.12, fromEave: 1.6, sink: 0.15, hFront: 1.5, win: [0.6, 0.7], winUp: 0.1, capRatio: 0.3, depth: [1.6, 2.4], capOver: 0.2, capT: 0.1, capGap: 0.07 }, // metry; policzone dla seed 7: 10 lukarn, depth 1,60–2,40, capPitch 0,16–0,36 rad
     // motyw #12b „szczyt schodkowy" (?nostep=1 = trójkąt HEAD; buildings.js stepGable()): udział domów szczytowych, liczba schodków [min, max],
     // wysokość schodka nad linią połaci (parapet), grubość muru t, lico muru out przed licem fasady, koniec połaci slabIn za licem (schowany w murze)
-    step: { share: 0.6, steps: [4, 6], parapet: 0.35, t: 0.4, out: 0.02, slabIn: 0.1, side: 0.04 }, // policzone dla seed 7: 3 z 6 domów szczytowych, +192 tri; side (poprawka r1 K9): mur schodków side m za ścianą boczną (HEAD: ov 0,55 → narożnik w powietrzu), płyta kończy się out m w murze
+    panes: { repeat: 5.3 },   // kwatery szyb: UV pudełka = metry/2, więc kwatera ma 2/5,3 ≈ 0,38 m w świecie (okno 0,75 m = 2 kwatery)
+    step: { share: 0.6, steps: [4, 6], parapet: 0.35, t: 0.4, out: 0.02, slabIn: 0.1, side: 0.04, cap: 0.12, capOut: 0.04 },   // cap/capOut: kamienna nakrywa stopnia (trzon w tynku domu — poprawka po zrzutach z telefonu) // policzone dla seed 7: 3 z 6 domów szczytowych, +192 tri; side (poprawka r1 K9): mur schodków side m za ścianą boczną (HEAD: ov 0,55 → narożnik w powietrzu), płyta kończy się out m w murze
     // poprawki r1 (buildings.js): timber — zastrzał TYLKO w polu nieparzystym z udziałem braceShare (parzyste = okna; §5.2 „przęsła co 1,6 m: parzyste okno, nieparzyste X"),
     // okno w każdym polu bez zastrzału (parzyste zawsze, nieparzyste z udziałem windowShare); na HEAD 148/316 okien pięter miało zastrzał przez szkło. Asercja B8 w teście: AABB zastrzału ∩ AABB okna = ∅.
     timber: { braceShare: 0.5, windowShare: 0.75 },   // policzone: okna ≈ 50 % (parzyste) + 50 %·50 %·75 % = 69 % pól (HEAD 75 %), zastrzały 25 % pól (HEAD 50 %)

@@ -105,7 +105,7 @@ export function scatterProps(W) {
     const side = R.int(0, 3), along = R.range(-half + 3, half - 3);
     if (Math.abs(along) < sw / 2 + 1.5) continue;
     const t = sideTransform(side, along, -H.depth / 2 - 0.7);
-    const kind = R.pick(['Barrel_01', 'wooden_crate_01', 'wine_barrel_01', 'wooden_bucket_02', 'wicker_basket_01', 'wooden_stool_02', 'potted_plant_02', 'wooden_crate_01']);
+    const kind = R.pick(['wine_barrel_01', 'wooden_crate_01', 'wine_barrel_01', 'wooden_bucket_02', 'wicker_basket_01', 'wooden_stool_02', 'potted_plant_02', 'wooden_crate_01']);   // poprawka po zrzutach z telefonu: Barrel_01 to czerwona beczka STALOWA z piktogramem (Poly Haven: industrial) — nie na rynek fantasy; długość listy bez zmian → strumień R nieprzetasowany
     put(kind, t.x, 0, t.z, R.range(0, 6.28));
     if (kind === 'wooden_crate_01' && R() < 0.5) put('wooden_crate_01', t.x, 0.62, t.z, R.range(0, 6.28), 0.9, { collide: false });
   }
@@ -121,7 +121,8 @@ export function scatterProps(W) {
   }
   if (left) check(Object.values(left).every(v => v === 0), 'scatter: za mało losowań na liczbę kęp z CONFIG.props.scatter', left);
   put('tree_stump_01', -half + 5, 0, half - 6, 0.4);
-  put('rock_moss_set_02', half - 6, 0, -half + 5, 1.2, 0.8);
+  // poprawka po zrzutach z telefonu: omszałe głazy (prop leśny) leżały na BRUKU przed drzwiami kamienicy — usunięte ze sceny
+
   if (!cuts) { put('treasure_chest', 9, 0, -7, 2.4, 0.9); put('Lantern_01', 9.2, 0.62, -7.1, 1.0, 1, { collide: false }); return; }   // stan bazowy: skrzynia i latarenka na jej wieku (0,62 m)
   // cięcia: bez skrzyni skarbów (10 332 tri + cień); latarenka staje na pieńku — wierzch pieńka = jego wysokość (put stawia spód na y),
   // pieniek stoi w skali 1 (obrót ry nie zmienia wysokości; bbox modelu y −0,193..0,378 → 0,571 m; latarenka 0,12 × 0,29 × 0,10 m)

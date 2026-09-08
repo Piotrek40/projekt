@@ -281,7 +281,11 @@ export function buildHouses(W) {
         check(hwS <= w / 2 + 0.05, `${id} mur schodków poza ścianą boczną`, { hwS, w }); // B5c: rzut narożnika najniższego stopnia nad ścianą (|x| ≤ w/2 + 0,05)
         for (let i = 0; i < n; i++) {
           const hw = hwAt(i), bottom = i === 0 ? y : roofTopG(hw), top = roofTopG(hwAt(i + 1)) + St.parapet;
-          B.add('blocks', box(2 * hw, top - bottom, St.t, T.blocks.mpt, off), L(0, (bottom + top) / 2, faceZ + St.out - St.t / 2));
+          // poprawka po zrzutach z telefonu: mur schodków był w 'blocks' (kamień) na tynkowanej fasadzie szachulcowej i czytał się jak obca bryła —
+          // trzon w tynku DOMU, kamienna nakrywa St.cap na wierzchu każdego stopnia (wysunięta St.capOut na boki i przed lico)
+          const bodyTop = top - St.cap;   // trzon kończy się pod nakrywą — nakrywa dopełnia sylwetkę stopnia do `top` (asercja B5d: spód nakrywy = wierzch trzonu)
+          B.add(plasterKey, box(2 * hw, bodyTop - bottom, St.t, T.plaster.mpt, off), L(0, (bottom + bodyTop) / 2, faceZ + St.out - St.t / 2));
+          B.add('blocks', box(2 * hw + 2 * St.capOut, St.cap, St.t + 2 * St.capOut, T.blocks.mpt, off), L(0, top - St.cap / 2, faceZ + St.out - St.t / 2));
           check(top >= roofTopG(hwAt(i + 1)) + 0.05 && bottom <= roofTopG(hw) + 1e-6, `${id} schodek ${i} pod połacią / wisi nad połacią`, { top, bottom, roofTop: roofTopG(hwAt(i + 1)) }); // 0.05: margines jak B5b
         }
       }

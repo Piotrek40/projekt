@@ -5,7 +5,7 @@
 // Motyw #11 (?nokinds=1 = stary placeGoods): role kramów z CONFIG.stalls.kinds — stallGoodsPlan() (funkcja czysta: bele sukiennika, szyld kramu z atlasu,
 // towar w gniazdach lady, kosz na ziemi, zaplecze), buildStallGoods() dodaje z niego geometrię/modele i asercje.
 import * as THREE from 'three';
-import { box, plane, M4, rng } from '../../engine/src/geometry.js';
+import { box, plane, cylinder, M4, rng } from '../../engine/src/geometry.js';
 import { check, checkInFrontOfWall } from '../../engine/src/check.js';
 import { signTileUV, tilePlane } from './props.js';
 
@@ -62,6 +62,9 @@ export function buildStalls(W) {
     const depth = cd + 1.4, rise = 0.4, slope = Math.hypot(depth, rise);
     B.add(cloth, plane(cw + 0.5, slope, 1), L(0, ph + 0.15, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));   // rot: rx=−1.406 → normalna (0,0,1)→(0, 0.986, 0.164) licem w górę, góra płótna (0,1,0)→(0, 0.164, −0.986): tył wyżej, płótno opada ku +z (front) — policzone
     B.add(cloth, plane(cw + 0.5, 0.35, 1), L(0, ph - 0.22, cd / 2 + 0.62));
+    // krokwie pod płótnem (poprawka po zrzutach z telefonu: spód baldachimu z bliska był płaską plamą koloru):
+    // ta sama macierz co połać płótna, 5 cm niżej (normalna połaci (0, 0.986, 0.164) — przesunięcie w y wystarcza)
+    for (const rx of CONFIG.stalls.rafters) B.add('timber', box(0.07, slope, 0.05, T.timber.mpt), L(rx * (cw + 0.5) / 2, ph + 0.15 - 0.05, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));
     stalls.push({ x, z, ry, cw, cd, ch, ph, L, cloth, repoussoir: p.repoussoir, kind: p.kind });   // cd/ph/kind: motyw #11 (towar, szyld kramu, POI sukiennika w ui.js)
     // kolizja: prostokąt przybliżony kołem (kramy są obrócone)
     ctx.addCircle(x, z, CONFIG.stalls.collideR);
@@ -98,7 +101,7 @@ const LEGACY_GOODS = [
 // Losowania W.R kramu i w kolejności HEAD (jitter x i obrót każdego towaru, x zaplecza, wybór modelu zaplecza, obrót zaplecza); zwraca tylko zaplecze.
 function legacyDraws(R, i) {
   const goods = LEGACY_GOODS[i % LEGACY_GOODS.length], jit = goods.map(() => [R.range(-0.15, 0.15), R.range(0, 6.28)]);   // jitter ±0,15 i obrót 0–2π jak HEAD
-  return { goods, jit, backX: R.range(-0.8, 0.8), backName: R.pick(['wine_barrel_01', 'wooden_crate_01', 'Barrel_01']), backRy: R.range(0, 6.28) };   // zaplecze x ±0,8, model, obrót — jak HEAD
+  return { goods, jit, backX: R.range(-0.8, 0.8), backName: R.pick(['wine_barrel_01', 'wooden_crate_01', 'wicker_basket_01']), backRy: R.range(0, 6.28) };   // zaplecze x ±0,8, model, obrót — jak HEAD
 }
 function placeGoodsLegacy(W) {
   const { R, stalls, put } = W;
@@ -151,7 +154,9 @@ export function buildStallGoods(W) {
   for (const p of plan) {
     const { s } = p, id = `kram ${p.kind} (${s.x.toFixed(1)}, ${s.z.toFixed(1)})`, top = s.ch + 0.04, { w } = G.bale;   // blat = ch + pół deski 0,08
     for (const b of p.bales) {
-      B.add(b.key, box(w, w, G.bale.len), b.m);
+      // bela = ROLKA sukna (poprawka po zrzutach z telefonu: sześciany 0,28 m czytały się z bliska jak klocki):
+      // walec r = w/2 wzdłuż lokalnego z; rotateX na GEOMETRII, nie w macierzy — asercje spodu z b.m zostają w mocy
+      B.add(b.key, cylinder(w / 2, w / 2, G.bale.len, G.bale.seg, 1).rotateX(Math.PI / 2), b.m);
       const lo = new THREE.Vector3(0, -w / 2, 0).applyMatrix4(b.m).y;   // spód beli z TEJ SAMEJ macierzy
       check(Math.abs(lo - (top + b.row * w)) < 0.005, `${id}: bela rzędu ${b.row} nie leży na ${b.row ? 'dolnych belach' : 'blacie'}`, { lo, top });   // 0,005: tolerancja float
       if (b.row) check(p.bales.filter(o => o.row === 0 && Math.min(o.x + w / 2, b.x + w / 2) - Math.max(o.x - w / 2, b.x - w / 2) >= 0.05).length >= 2, `${id}: górna bela bez dwóch podpór`, { x: b.x });   // przekrycie ≥ 0,05 m z dwiema dolnymi (jest 0,08)
