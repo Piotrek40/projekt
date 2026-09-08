@@ -32,3 +32,19 @@ ZNANE BRAKI:
 - Parter: okiennice tylko tam, gdzie skrzydło 0,45 mieści się w obrysie (|cx| ≤ w/2 − 0,943) — przy oknach blisko narożnika ich nie ma.
 - Bez cienia własnego wyłączonego (`CONFIG.noShadowKeys` z §8 #17 należy do #5 — po scaleniu dodać `paint` do wyrażenia).
 - Cykle: 1/3.
+
+## Cykl 2/3 — weryfikacja na HEAD `62d2a02` (po #10a portale, #10b szyldy, #7, #6 c2, #12 c2), 2026-09-08
+
+Kod okiennic bez zmian; #10a dopisał w `buildings.js` asercję „okno parteru w oprawie portalu" (skraj okiennicy parteru `shutterReach(0.9, 0.45)` = 1,287 m od osi drzwi ≥ archOut 0,9 + 0,05) — geo_test: 0 CHECK, więc okiennice parteru nie wchodzą w ościeża portali.
+
+CO MIAŁO BYĆ / CO WIDAĆ (PNG obejrzane): sh_c2_on/okiennice_L.png i okiennice_P.png (dom s0 6.1, plaster2; kamera (2, −16) yaw −0,6 / (10, −16) yaw 0,58, pitch 0,41): [x] skrzydła zielone (paint0) 0,25 × 1,3 po obu stronach zwężonych okien 0,75 TYLKO w polach bez zastrzału (pola z zastrzałem: szerokie okna bez skrzydeł); [x] klin uchylenia widoczny z obu stron (wolny koniec dalej od tynku niż zawias); [x] szpara między skrzydłem a słupkiem; [x] parter tego domu: okno przy portalu bez okiennic (warunek obrysu/portalu), portal łukowy blocks z drzwiami 2,2 w otworze; [x] elew0: skrzydła przy ramach po obu stronach okien (obejrzana przed zbliżeniami), elew1: ciemne skrzydła w cieniu; [x] paleta_N/E: zielone i bordo skrzydła (kolor per dom) na pierzejach N i E, także przy oknach parteru domów N.
+
+WIDOKI: sh_c2_on/{okiennice_L,okiennice_P}.png + diff_okiennice_*.png vs sh_c2_off/* (?noshutters=1); p9c2_on/{paleta_N,paleta_E,start_plac}.png; p9c2_top/{elew0,elew1,top}.png; p9c2_noinst/* (etap2_palette.md).
+
+BUDŻET (HUD, tryb instancji; ?noshutters=1 → z okiennicami): okiennice_L 70 / 295 975 → **76 / 301 783**, okiennice_P 66 / 241 629 → **72 / 247 437** (+6 draw, +5 808 tri jak w cyklu 1); start_plac (z paletą) 100 / 375 388, noinst 122 / 249 688; errors [] we wszystkich.
+
+KOLOR: n/d (paint0..2 bez zmian; lineup cyklu 1). ASERCJE: geo_test.sh exit 0 (zawias 0,030 / wolny koniec 0,092 / słupek ≥ 0,206 / obrys / portal — 0 CHECK), rot_token buildings.js exit 0, results.errors [].
+
+DIFF (img_diff, próg 20, on vs ?noshutters=1): okiennice_L **2,64 %**, okiennice_P **3,17 %** (cykl 1: 2,45 / 2,98 — cecha ≥ 0,5 %); start_plac kontrolny: zmiany między on/off palety tylko tam, gdzie paleta (maska obejrzana).
+
+ZNANE BRAKI: jak w cyklu 1 (skrzydła bez listew/zawiasów; parter tylko w obrysie i poza oprawą portalu; cień własny do wyłączenia przez `CONFIG.noShadowKeys` po #5). Cykle: 2/3 (weryfikacja na HEAD, bez zmian kodu).

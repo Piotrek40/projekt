@@ -42,3 +42,21 @@ ZNANE BRAKI:
 - Bez `CONFIG.noShadowKeys` (§8 #17 — #5): klucz `sign` rzuca cień jak na HEAD; po scaleniu dodać `sign` do wyrażenia (już w liście promptu).
 - Szyldy tylko na domach przy placu (domy zamykające ulice: along = 0 → brak „strony ulicy"); udział 0,4 dał 9 szyldów (8 z losowania + karczma).
 - Cykle: 1/3 (poprawka okna plakiety w tym samym cyklu przed renderem off).
+
+## Cykl 2/3 — weryfikacja na HEAD `7dc2274` (po #7 lipy/kompozycja, #6 cykl 2, #12 cykl 2, #9 cykl 2)
+
+Kod cechy bez zmian (bundle przebudowany — identyczny z HEAD). Pozycje szyldów z geo bundla (`$SP/m10/signs_pos.mjs`) bez zmian: 9 szyldów (s1 −25,8 nożyce, s1 −9,0 kielich, s2 −26,6 dzban, s2 −9,0 klucz bez plakiety, s2 6,3 gryf (−4,94, 3,05, 21,2) n (+1,0,0), s2 14,3 młot (−12,38, 3,05, 20,85), s2 24,5 liść, s3 15,2 bochen, s3 24,3 bochen), 8 plakiet; kamery policzone wzorem §3.6 (patrz etap2_portal.md, cykl 2).
+
+CO MIAŁO BYĆ / CO WIDAĆ (odhaczone na PNG cyklu 2):
+1. [x] `m10c2_on/szyld_L.png` (kamera od strony +x = frontu): „Pod Złotym Gryfem" czytelne (nie lustro), gryf złoty na purpurowej tarczy, złota ramka; wspornik iron w ścianie nad szyldem, 2 wieszaki; plakieta z tarczą nad zwornikiem portalu.
+2. [x] `m10c2_on/szyld_P.png` (kamera od strony −x): ta sama treść czytelna z drugiej płaszczyzny — nie lustro; plakieta nad łukiem widoczna z boku.
+3. [x] `m10c2_on2/pierzeja_S_szyldy.png`: szyld „młot" (turkusowa tarcza) prostopadle z fasady domu s2 14,3, front ku kamerze (+x), pod belkami jetty, obok wykusza (bez kolizji); plakieta nad zwornikiem.
+4. [x] `m10c2_on2/karczma_szyld.png` (views_rynek, kamera patrzy +z): szyld widoczny krawędzią pod ostrym kątem (front +x), plakieta na wprost nad łukiem — zgodne z F (na HEAD sprzed cechy w tym widoku był lustrzany napis na wprost).
+5. [x] `m10c2_on/start_plac.png`: kontrolny — maska diff on/off (obejrzana) = tylko 3 łuki pierzei N + HUD, 0,40 %; szyldy pierzei N poza progiem (za małe z 40 m).
+6. [x] `m10c2_on_top/top.png`: 0,02 % vs off — szyldy pod okapem niewidoczne, nic na placu.
+7. [x] `m10c2_on_noinst/szyld_L.png` (`?noinst=1`, obejrzany): identyczny (0,06 %); errors [].
+
+BUDŻET cyklu 2: jak w etap2_portal.md (cykl 2) — start_plac 100 / 375 388 (inst) i 122 / 249 688 (noinst), szyld_L 77 / 322 723 (inst) i 88 / 205 553 (noinst); on/off obu cech razem: start_plac 99 → 100 draw (+1 = klucz `sign` w kadrze), 365 254 → 375 388 tri. errors [] w 7 renderach.
+DIFF: szyld_L 9,15 % (szyld + portal razem, maska obejrzana), pierzeja_S_szyldy 3,66 %, start_plac 0,40 %, top 0,02 %; vs baza repo 31,67 %.
+ASERCJE: geo_test.sh exit 0 na HEAD 7dc2274 (F 8/8, stary łańcuch 4/8; F2 9 szyldów / 8 plakiet; CHECK 0); rot_token props.js exit 0; results.errors [] ×7.
+ZNANE BRAKI: bez zmian z cyklu 1 (godła schematyczne; szyld = 2 płaszczyzny bez grubości; `sign` bez `CONFIG.noShadowKeys` do czasu §8 #17 przez #5; szyldy tylko na domach przy placu). Cykle: 2/3 (weryfikacja na HEAD, bez zmian kodu).

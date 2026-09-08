@@ -164,7 +164,8 @@ export const CONFIG = {
     // (= 16; |along| to środek domu), z kondygnacją nad piętrem floor (daszek chowa wierzchołek w jej bryle; na ostatniej kondygnacji przebijałby połać o 0,15 m — policzone).
     // Sześciobok o promieniu opisanym r (= bok; apotema r·cos 30° = 0,953 = wysięg przed lico piętra), seg ścian, środek na licu piętra (połowa w fasadzie);
     // okno win na 3 ścianach zewnętrznych (udział świecących litShare); stożek capR/capH (apotema podstawy 1,126 → okap 0,17 przed ścianami); pozycja |cx| ≤ min(w/2 − r − edge, cxMax);
-    // kroksztyny: trójkąt prostokątny w × h, grubość t, co step pod wykuszem (2 szt. przy r 1,1), wierzch pod podwaliną piętra, pionowy bok na licu kondygnacji niżej
+    // kroksztyny: trójkąt prostokątny w × h, grubość t, co step pod wykuszem (2 szt. przy r 1,1), wierzch pod podwaliną piętra, pionowy bok na licu kondygnacji niżej;
+    // przy jetty wysięg w + jetty (0,70: ścięcie 45° w × h na końcu, prostokąt pod strefą jetty) — wierzch sięga 0,35 przed oś wykusza, pod spód sześciokąta (cykl 2)
     oriel: { minW: 7, edgeGap: 6, floor: 1, r: 1.1, seg: 6, win: [0.6, 1.3], litShare: 0.35, capR: 1.3, capH: 0.8, edge: 0.3, cxMax: 2.5, corbel: { w: 0.35, h: 0.35, t: 0.14, step: 1.2 } }, // policzone dla seed 7: 11 domów (7 przy placu + 4 zamykające ulice), ≈ +330 tri/dom
     // motyw #10a „portale łukowe" (?noportal=1 = drzwi box 2,3 + nadproże belkowe HEAD; buildings.js portalArch()): na KAŻDYM domu oprawa w kluczu `key`
     // (blocks — jaśniejsza od parteru stone): 2 ościeża (archOut − archIn) × impostY × t, łuk pełny = półpierścień r archIn/archOut (ExtrudeGeometry, seg segmentów

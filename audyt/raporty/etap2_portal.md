@@ -39,3 +39,20 @@ ZNANE BRAKI:
 - Domy zamykające ulice: obszar chodzenia sięga lica, więc oprawa dostała własny prostokąt kolizji (gracz zatrzymuje się 0,36 m przed drzwiami zamiast na licu).
 - Zwornik `keystone.out` 0,05 = 0,31 m przed licem — 1 cm za marginesem 0,3 m placu, ale na y ≥ 2,175 (nad głową gracza 1,65).
 - Cykle: 1/3.
+
+## Cykl 2/3 — weryfikacja na HEAD `7dc2274` (po #7 lipy/kompozycja, #6 cykl 2, #12 cykl 2, #9 cykl 2)
+
+Kod cechy bez zmian (bundle `rynek/app.js` przebudowany komendą §6 p.3 — identyczny z HEAD, `git status` pusty). Lista „co ma być widać" PRZED renderem: `$SP/m10/lista_c2.md` (7 punktów), kamery policzone wzorem §3.6 (`$SP/m10/kamery_c2.txt`): szyld_L (−0,5, 18) → (−4,94, 3,05, 21,2) yaw 2,195 pitch 0,25 (5,5 m); szyld_P (−9,5, 18) yaw −2,183; pierzeja_S_szyldy (−8,5, 14,5) → młot (−12,38, 3,05, 20,85) yaw 2,593 (7,4 m); portal_L (−2,4, 17,5) yaw 2,405 pitch −0,066.
+
+CO MIAŁO BYĆ / CO WIDAĆ (odhaczone na PNG cyklu 2):
+1. [x] `m10c2_on2/portal_L.png`, `m10c2_on/szyld_L.png`: oprawa blocks (2 ościeża, pełny łuk, zwornik wystający, próg) na parterze karczmy, drzwi 2,2 w otworze, bez nadproża belkowego; nad zwornikiem plakieta herbowa, wyżej szyld.
+2. [x] `m10c2_on2/pierzeja_S_szyldy.png`: portal domu s2 along 14,3 obok wykusza; `m10c2_on2/karczma_szyld.png`: portal karczmy na wprost (kamera views_rynek).
+3. [x] `m10c2_on/start_plac.png` vs `m10c2_off/start_plac.png` (`?nosign=1&noportal=1`): maska `m10c2_on/diff_start_plac.png` (obejrzana) = 3 łukowe drzwi pierzei N w tle + cyfry HUD; pctOver 0,40 % (< 0,5 %); lipy, kramy, fontanna, wieża bez zmian. Vs `oriel2b_on/start_plac.png` (HEAD 62d2a02 z cechą): 0,01 % = szum.
+4. [x] `m10c2_on_top/top.png` vs `m10c2_off_top/top.png`: 0,02 % — nic w ulicach ani na placu.
+5. [x] W.portals 28, F2 9 szyldów / 8 plakiet — geo_test.sh na HEAD 7dc2274 exit 0 (B5 3164, B6 135, KNOWN 2, CHECK 0; 7 uwag C kramów); rot_token props.js/buildings.js exit 0.
+6. [x] `m10c2_on_noinst/szyld_L.png` (`?noinst=1`, obejrzany): identyczny z trybem instancji (img_diff 0,06 %); errors [].
+
+BUDŻET cyklu 2 (HUD, instancje; przed = `?nosign=1&noportal=1` — obie cechy #10 razem): start_plac 99 → 100 draw, 365 254 → 375 388 tri (+10 134 = portale 28 × ~166 tri × 2 pass cieni + szyldy; cel ≤ 600 k, zapas 225 k); szyld_L 77 → 77 / 312 591 → 322 723; pierzeja_S_szyldy 75 → 76 / 304 059 → 314 193; szyld_P 72 / 282 503; karczma_szyld 78 / 322 731; portal_L 77 / 309 747; top 124 / 413 543 → 423 675. noinst: start_plac 122 / 249 688, szyld_L 88 / 205 553; errors [] w 7 renderach (on, on2, off, on_top, off_top, on_noinst). top-3 __stats start_plac: timber 1 / 29 240, wooden_lantern_01 3 / 27 232, wicker_basket_01 1 / 17 776; blocks 7 820 (szyld_L). Wszystko ≤ 250 / ≤ 700 000.
+DIFF cyklu 2 (próg 20): szyld_L on/off 9,15 % (maska = szyld + wspornik + plakieta + oprawa portalu + stary lustrzany szyld HEAD, obejrzana), pierzeja_S_szyldy 3,66 %, start_plac 0,40 %, top 0,02 %; vs baza repo `rynek/start_plac.png`: 31,67 % (paleta, lipy, kompozycja — cały branch).
+ASERCJE: geo_test exit 0; §2.4 na liniach moich 3 commitów = 0; grep K3 = tylko dług chorągwi props.js:156-158 (#5); grep §3.1 sin/cos = 0 (dług stalls spłacony przez #7).
+ZNANE BRAKI: bez zmian z cyklu 1 (oprawa bez klińców w geometrii, kolizja oprawy u domów zamykających ulice, zwornik 0,31 m przed licem na y ≥ 2,175). Cykle: 2/3 (cykl 2 = weryfikacja na HEAD, bez zmian kodu).

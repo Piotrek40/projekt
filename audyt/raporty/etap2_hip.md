@@ -46,3 +46,20 @@ ZNANE BRAKI:
 - Udział 0,25 dał 8 z 22 (36 %) — więcej niż „co 4."; zmiana = jedna liczba w CONFIG.
 - Widok hip_E z kamerą w cokole fontanny (górna połowa kadru = kamień) — do poprawy kadru, cecha widoczna w dolnej połowie.
 - Cykle: 1/3.
+
+## Cykl 2/3 (2026-09-08) — weryfikacja na HEAD `d0ca35e` (po #6/#9/#10/#7)
+
+Bez zmian kodu (bundle identyczny, geo_test exit 0: 82 połaci B2 PASS z klasyfikacją z macierzy, 16 × „naczółek" PASS; rot_token exit 0). Dowód flagi z bundla geo: `?nohip=1` → roof0-2 1 180 → 924 tri (−256 = 8 domów × (2 naczółki × 8 + 2 sześciokąty × 8 − 2 box × 12 … netto 32)), plaster 1 844 → 1 780 (trapezy → trójkąty).
+
+CO WIDAĆ (PNG z tego cyklu):
+1. [x] `m12_on2/hip_E3.png` (−3, −13, yaw −2.22, pitch 0.37; kamera poza lipami (±6, 0) i kramami): dom s1 7.7 (26, 7.7), kalenica 18,57 — OBA końce dachu ścięte trójkątami dachówki od kalenicy do 16,40 m (drop = (1 + 0,55)·tan 0,95 = 2,17; policzone), kalenica kończy się przed narożnikami (belka 7,4 m zamiast 10,5), pod naczółkami trapezowe ściany szczytowe; sąsiedzi (kalenice 15,62 / 14,35) niżej, więc oba naczółki wolne. `m12_off/hip_E3.png` (3 flagi): pełny szczyt do narożników, belka kalenicy z okapami. Maska `diff_hip_E3.png` obejrzana: cały dach (nowe UV sześciokąta + narożniki + lukarna) i 2 plamy cienia; pctOver 1,67 %. Poprzedni kadr `hip_E2` (−2, −7, yaw −2.09, pitch 0.42) zasłania prawy koniec koroną lipy (6, 0) — odrzucony.
+2. [x] `m12_on_top/elew1.png` (side 1, 1024², size 30): dom along 7.7 (px x ≈ 600–950) z uciętymi górnymi narożnikami po obu stronach (linia kalenicy krótsza niż dach); `m12_on_elew/elew2w.png` (side 2): naczółki domów (9, 26) — brązowy dach px ≈ 480–920, oba narożniki ścięte — oraz (−6.3, 26) i domu zamykającego ulicę S (niebieskie dachy px ≈ 1100–1300 i 1300–1650, ukosy na końcach).
+3. [x] `m12_on_top/top.png`: ukośne szwy naczółków w narożnikach 8 dachów (np. dom N-E i dachy pierzei S), obrysy bez zmian.
+4. [x] `m12_on2/start_plac.png` kontrolny: maska = lukarna s0 6.1 + 2 cienkie plamy cienia naczółków pierzei S na bruku (y ≈ 1000–1130 px) — jak w cyklu 1; plac/kramy/fontanna/wieża/lipy czarne; 0,58 %.
+5. [ ] `m12_on2/ulica_S.png` (0, 14, yaw 3.14, pitch 0.30): dom zamykający ulicę S — w kadrze TYLKO przednia połać między domami flankującymi; naczółki (x ±10 … ±11,55) poza kadrem 412×915 (pół-kąt poziomy ≈ 15°, przy 28 m to ±7,5 m). Wpis cyklu 1 („kalenica skrócona, oba końce ścięte") był ZAWYŻONY — pctOver 2,83 % pochodził z UV połaci. Kadr `ulica_S2` (0, 32, yaw −2.36, pitch 0.68; `m12_on3` vs `m12_off2`, 2,07 %) też nieudany: ściana domu flankującego (9, 26) z ukosa zasłania koniec dachu. Naczółek tego domu potwierdzony liczbami (apex (±10, 14.17, 0.35), Δ 0) i na `elew2w.png`.
+
+BUDŻET: hip_E3 102 / 351 628 (OFF) → 102 / 353 540 (ON, cały motyw #12); ulica_S 79 / 322 595; ulica_S2 65 / 214 361 → 65 / 216 273; noinst hip_E3 126 / 243 138, start_plac 122 / 249 544, errors []. Łącznie motyw #12 na HEAD w start_plac: 100 / 373 332 → 100 / 375 244 (+1 912 HUD, 0 draw).
+
+DIFF: hip_E3 1,67 % / start_plac 0,58 % / vs baza repo 31,66 % (#7).
+
+ZNANE BRAKI (cykle 2/3): jak w cyklu 1 (naczółki przy wyższym sąsiedzie schowane; UV sześciokąta; szew ± 0,07 bez gąsiora; udział 8/22) + brak kadru perspektywicznego na naczółki domu zamykającego ulicę S (2 nieudane kadry; pokazany na elewacji).
