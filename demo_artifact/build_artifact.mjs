@@ -3,7 +3,7 @@
 // geometria skwantyzowana (bez meshopt — dekoder WASM). Limit strony: 16 MB.
 // Użycie: node demo_artifact/build_artifact.mjs <scena: demo|rynek>  → demo_artifact/<scena>.html
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,7 +33,8 @@ const SCENES = {
       shrub_04_c: [256, 0.4], planter_box_01: [256, 0.3], periwinkle_plant_03: [256, 0.35], celandine_01_c: [256, 0.4], flower_gazania_h: [256, 0.4],
       hamburger_buns: [256, 0.25], food_pears_asian_01: [256, 0.25], ceramic_pot: [256, 0.6], brass_pot_01: [256, 0.6], wicker_basket_02: [256, 0.2],
       wooden_crate_02: [256, 0.5], painted_wooden_bench: [256], wooden_bowl_02: [128, 0.4], carved_wooden_plate: [128], brass_vase_01: [256, 0.2],
-      gothic_statue: [256, 0.2], marble_bust_01: [256, 0.2],
+      // gothic_statue i marble_bust_01 usunięte (krytyka r1, config): rynek ich nie ładuje (brak w liście names props.js, CONFIG.stalls.goods.models
+      // i CONFIG.greenery.models — w config.js tylko rola palety) — 540 228 B base64 balastu; strażnik niżej (modelUnused) wykrywa takie wpisy.
     },
     textures: {
       cobblestone_floor_04: [1024, 1024, 512], plastered_wall: [1024, 512, 512], old_planks_02: [512, 512, 256], weathered_planks: [512, 512, 256],
@@ -45,6 +46,16 @@ const SCENES = {
 };
 const cfg = SCENES[scene];
 if (!cfg) throw new Error('nieznana scena ' + scene);
+// Progi rozmiaru strony (bajty): LIMIT = limit Artifactu (16 MB, twardy → exit 1); WARN = próg ostrzegawczy 15,0 MB (margines < 1 MB na wzrost
+// bundla ≈ 10 KB/commit i nowe zasoby). Pomiar 2026-09-08 (krytyka r1): 15 947 807 B PRZED usunięciem posągów, 15 407 518 B PO (bajty UTF-8 pliku, nie html.length).
+const LIMIT = 16e6, WARN = 15e6;
+// Strażnik balastu: model z SCENES, którego nazwa nie występuje jako łańcuch 'nazwa' w <scena>/src/*.js, nie może być załadowany przez
+// loaders.loadModel (props.js names / CONFIG.*.models) — same klucze ról palety (config.js) nie ładują modelu. Ostrzeżenie, nie błąd:
+// nazwa może być składana dynamicznie.
+const srcDir = join(ROOT, scene, 'src');
+const srcText = readdirSync(srcDir).filter(f => f.endsWith('.js')).map(f => readFileSync(join(srcDir, f), 'utf8')).join('\n');
+const modelUnused = name => !new RegExp(`['"]${name}['"]`).test(srcText);
+for (const name of Object.keys(cfg.models)) if (modelUnused(name)) console.warn(`UWAGA: model ${name} jest w SCENES.${scene}, ale ${scene}/src nie ładuje go po nazwie — balast`);
 const assets = {};
 const b64 = (buf, mime) => `data:${mime};base64,${Buffer.from(buf).toString('base64')}`;
 let total = 0;
@@ -83,5 +94,7 @@ const html = readFileSync(join(ROOT, `${scene}/index.html`), 'utf8')
 const outPath = join(ROOT, `demo_artifact/${scene}.html`);
 writeFileSync(outPath, html);
 rmSync(tmp, { recursive: true, force: true });
-console.log(`zasoby surowe: ${(total / 1e6).toFixed(2)} MB, strona: ${(html.length / 1e6).toFixed(2)} MB → ${outPath}`);
-if (html.length > 16e6) console.error('UWAGA: strona przekracza 16 MB');
+const size = Buffer.byteLength(html, 'utf8');   // bajty pliku (limit Artifactu liczy bajty; String.length = jednostki UTF-16, o ~20 B mniej przez polskie znaki)
+console.log(`zasoby surowe: ${(total / 1e6).toFixed(2)} MB, strona: ${size} B = ${(size / 1e6).toFixed(2)} MB (limit ${LIMIT / 1e6} MB, margines ${((LIMIT - size) / 1e6).toFixed(2)} MB) → ${outPath}`);
+if (size > LIMIT) { console.error(`BŁĄD: strona ${size} B przekracza limit ${LIMIT} B — Artifact nie opublikuje się`); process.exitCode = 1; }
+else if (size > WARN) console.warn(`UWAGA: strona ${size} B powyżej progu ostrzegawczego ${WARN} B — margines do limitu ${LIMIT - size} B (< 1 MB); tnij tekstury/modele w SCENES.${scene}`);
