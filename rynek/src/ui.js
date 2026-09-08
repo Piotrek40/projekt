@@ -1,5 +1,5 @@
 // Warstwa UI sceny (motyw #15): ekran startowy z nazwą miejsca, pergaminowy HUD (joystick, przycisk jakości), podpisy miejsc (POI) i winieta.
-// Flaga: ?noui=1 (engine/app.js chowa #vignette/#caption/#start, tu wczesny return — rendery pomiarowe bez UI). ?hud=1 pokazuje licznik fps/draw.
+// Flaga: ?noui=1 (engine/app.js chowa #vignette/#caption/#start; tu chowa #hud/#gpu/#q i wczesny return — rendery pomiarowe bez żadnej nakładki). ?hud=1 pokazuje licznik fps/draw i GPU.
 // Układ: współrzędne świata (x, z) jak layout.js, metry; odległość gracza liczona w płaszczyźnie xz. Teksty, kolory (ekranowe CSS) i rozmiary
 // tylko z CONFIG.ui; POI z CONFIG.pois — pozycje NIE są wpisane, liczy je poiPlan(W) (funkcja czysta, test U w audyt/testy/test_geometria.mjs).
 // Elementy DOM: rynek/index.html (#start, #caption, #vignette, #hud, #gpu, #q, #joy). Bez interakcji poza „Wejdź", bez wejść.
@@ -80,11 +80,17 @@ function initCaption(W, U, pois) {
   });
 }
 
+// Ukrywa elementy DOM po id (atrybut hidden → display:none z arkusza UA; #hud/#gpu/#q nie mają własnego display)
+const hide = ids => { for (const id of ids) { const e = el(id); if (e) e.hidden = true; } };
+
 export function initUI(W) {
-  if (W.ctx.flags.noui) return;
+  const f = W.ctx.flags;
+  // licznik fps/draw (#hud) i nazwa GPU (#gpu) ukryte domyślnie (§5.4), ?hud=1 pokazuje — PRZED wczesnym return na ?noui=1 (poprawka r1, krytyk geometrii):
+  // rendery pomiarowe idą z noui=1 i miały pasek u góry (zasłaniał iglicę wieży w start_plac, fałszował sondy nieba) oraz tekst ANGLE i przycisk „high" na dole
+  if (!f.hud) hide(['hud', 'gpu']);
+  if (f.noui) { hide(['q']); return; }   // bez UI = bez żadnej nakładki: także przycisk jakości #q (winietę/podpis/ekran startowy chowa engine/app.js)
   const U = W.CONFIG.ui;
   applyTheme(U);
-  if (!W.ctx.flags.hud) for (const id of ['hud', 'gpu']) { const e = el(id); if (e) e.hidden = true; }
   const pois = poiPlan(W);
   W.pois = pois; window.__pois = pois; // hook testowy (ui_shot.js → results.json)
   initCaption(W, U, pois);

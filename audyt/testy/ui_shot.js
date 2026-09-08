@@ -1,7 +1,8 @@
 // Zrzuty warstwy UI rynku (motyw #15, rynek/src/ui.js): ekran startowy PRZED „Wejdź", HUD po tapnięciu (winieta, pergaminowy przycisk jakości),
 // podpisy miejsc (POI) z 3 pozycji, joystick (syntetyczny touchstart). render_scene.js czeka na __ready i od razu renderuje scenę kamerą z widoku,
 // więc ekran startowy trzeba złapać osobno (prompt §5.4). Użycie: PORT=8275 node ui_shot.js [nazwa_wyjscia=ui]; env: REPO, QUALITY (high), DPR (2), URLQUERY.
-// Wyjście: out/render/<nazwa>/{start_screen,hud,hud_novig,hud_joy,caption,caption_far,caption_tower}.png + results.json (errors, pozycje POI z W.pois).
+// Wyjście: out/render/<nazwa>/{start_screen,hud,hud_novig,hud_joy,caption,caption_far,caption_tower,noui}.png + results.json (errors, pozycje POI z W.pois,
+// hudHiddenNoui/overlayHiddenNoui z drugiej strony ?noui=1 — SKIP_NOUI=1 pomija ją).
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -78,6 +79,22 @@ const CAPTION_VIEWS = [
     results.pois = await page.evaluate(() => window.__pois ?? null);
     results.flags = await page.evaluate(() => window.__dbg?.ctx?.flags ?? null);
     await ctx.close();
+    // druga strona z ?noui=1 (poprawka r1): render pomiarowy ma być BEZ nakładek — #hud/#gpu/#q (ui.js) i #vignette/#caption/#start (app.js) hidden; zrzut noui.png = kadr startu bez paska
+    if (!process.env.SKIP_NOUI) {
+      const ctx2 = await browser.newContext({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.dpr, hasTouch: true, isMobile: true });
+      const p2 = await ctx2.newPage();
+      p2.on('pageerror', e => results.errors.push('noui: ' + String(e).slice(0, 300)));
+      p2.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') results.errors.push('noui: ' + m.text().slice(0, 300)); });
+      await p2.addInitScript(q => { try { localStorage.setItem('quality', q); } catch {} }, vp.quality);
+      const q0 = process.env.URLQUERY || '';
+      await p2.goto(`http://127.0.0.1:${PORT}/index.html` + (q0 ? q0 + '&noui=1' : '?noui=1'));
+      await p2.waitForFunction(() => window.__ready, null, { timeout: 240000 });
+      await p2.evaluate(() => { window.__pause(); window.__renderOnce(); });
+      await p2.screenshot({ path: `${OUT}/noui.png`, timeout: 240000 });
+      results.hudHiddenNoui = await p2.evaluate(() => ['hud', 'gpu', 'q'].every(id => document.getElementById(id)?.hidden === true));
+      results.overlayHiddenNoui = await p2.evaluate(() => ['vignette', 'caption', 'start'].every(id => document.getElementById(id)?.hidden === true));
+      await ctx2.close();
+    }
   } finally { await browser.close(); server.kill(); }
   fs.writeFileSync(`${OUT}/results.json`, JSON.stringify(results, null, 2));
   console.log(JSON.stringify(results));
