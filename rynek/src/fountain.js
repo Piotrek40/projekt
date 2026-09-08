@@ -1,6 +1,6 @@
 // Fontanna 3-poziomowa (motyw #8): basen i dwie misy z LatheGeometry, kolumny, 3 lustra wody z własnym envMap, strumienie (klucz jet),
 // rozbryzg (Points), kręgi na wodzie (ripple), mokry bruk (wet), schodek i kolizja. Flagi: ?nofountain=1 (stara cembrowina ośmiokątna),
-// ?nojets=1 (bez strumieni, rozbryzgu i kręgów), ?nowet=1 (bez mokrego bruku), ?nowater=1 (woda, strumienie i kręgi STATYCZNE — do img_diff).
+// ?nojets=1 (bez strumieni, rozbryzgu i kręgów), ?splash=1 (rozbryzg Points — domyślnie wyłączony, §6.1), ?nowet=1 (bez mokrego bruku), ?nowater=1 (woda, strumienie i kręgi STATYCZNE — do img_diff).
 // Układ lokalny = świat: początek na środku basenu na bruku (0,0,0), +y w górę; bryły obrotowe wokół osi y, więc bez L(). Metry.
 // Dyski (lustra, kręgi, wet) leżą w XY i idą na XZ przez M4(x,y,z,0,-π/2) — rot: rx=−π/2 → normalna (0,0,1)→(0,1,0), lokalne +y→−z (policzone §3.1).
 // Liczby: CONFIG.fountain. Profile, wysokości i krzywe strumieni liczy FUNKCJA CZYSTA fountainPlan — test geometrii (asercje F) czyta te same dane.
@@ -106,7 +106,7 @@ export function buildFountain(W) {
 // Strumienie (TubeGeometry po krzywej planu, klucz jet), kręgi na lustrze (RingGeometry z atrybutami aCenter/aPhase dla shadera mat.ripple)
 // i rozbryzg (Points z atrybutami aVel/aSeed dla shadera mat.splash; nie jest Meshem → poza W.B, jak dym w props.js).
 function buildJets(W, plan) {
-  const { scene, CONFIG, B, mat } = W, F = CONFIG.fountain, J = F.jets, Rp = F.ripple, Sp = F.splash;
+  const { ctx, scene, CONFIG, B, mat } = W, F = CONFIG.fountain, J = F.jets, Rp = F.ripple, Sp = F.splash;
   for (const j of plan.jets) B.add('jet', new THREE.TubeGeometry(j.curve, J.seg, J.r, J.radial, false));
   plan.jets.forEach((j, k) => { for (let q = 0; q < Rp.perJet; q++) {
     const g = new THREE.RingGeometry(Rp.rIn, Rp.rOut, Rp.seg), n = g.attributes.position.count, y = j.below.y + Rp.above;
@@ -124,7 +124,8 @@ function buildJets(W, plan) {
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('aVel', new THREE.Float32BufferAttribute(vel, 3));
   geo.setAttribute('aSeed', new THREE.Float32BufferAttribute(seed, 1));
-  if (mat.splash) { const pts = new THREE.Points(geo, mat.splash); pts.name = 'splash'; pts.frustumCulled = false; pts.renderOrder = Sp.renderOrder; scene.add(pts); } // po wodzie i kręgach (CONFIG.renderOrderKeys)
+  // §6.1: rozbryzg domyślnie WYŁĄCZONY (?splash=1 włącza) — 8 cykli bez czytelnych kropel na PNG (raport etap2_fountain.md, ZNANE BRAKI 2)
+  if (mat.splash && ctx.flags.splash) { const pts = new THREE.Points(geo, mat.splash); pts.name = 'splash'; pts.frustumCulled = false; pts.renderOrder = Sp.renderOrder; scene.add(pts); } // po wodzie i kręgach (CONFIG.renderOrderKeys)
   W.splashCount = pos.length / 3;
 }
 
