@@ -74,7 +74,10 @@ export class Batch {
       const mat = materials[key]; if (!mat) { console.warn('brak materiału', key); continue; }
       const merged = mergeGeometries(geos, false);
       const mesh = new THREE.Mesh(merged, mat);
-      mesh.castShadow = opts.castShadow ?? true; mesh.receiveShadow = opts.receiveShadow ?? true;
+      // opts.noShadow (RegExp na klucz): małe/cienkie elementy (girlandy, lampiony, strumienie, szyldy) nie rzucają cienia — oszczędza pass cieni
+      mesh.castShadow = !(opts.noShadow?.test(key)) && (opts.castShadow ?? true); mesh.receiveShadow = opts.receiveShadow ?? true;
+      // opts.renderOrder ({klucz: n}): kolejność rysowania obiektów przezroczystych (three sortuje je po odległości środka — lustro wody przykrywało kręgi)
+      if (opts.renderOrder?.[key] !== undefined) mesh.renderOrder = opts.renderOrder[key];
       mesh.name = key;
       scene.add(mesh); meshes.push(mesh);
     }

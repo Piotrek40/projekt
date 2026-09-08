@@ -12,6 +12,7 @@ import { buildTower } from './tower.js';
 import { buildFountain } from './fountain.js';
 import { buildStalls, placeGoods } from './stalls.js';
 import { initProps, placeStatue, buildLanterns, scatterProps, buildCart, buildBanners, buildSmoke } from './props.js';
+import { buildBunting } from './bunting.js';
 import { buildTrees } from './trees.js';
 import { buildGreenery } from './greenery.js';
 import { buildSkyline } from './skyline.js';
@@ -52,6 +53,7 @@ export async function buildWorld(ctx) {
   scatterProps(W);
   buildCart(W);
   buildBanners(W);
+  buildBunting(W);    // girlandy chorągiewek + lampiony (W.B; po buildBanners — kotwice omijają chorągwie z W.banners)
   buildTrees(W);      // lipy (W.B)
   buildGreenery(W);   // zieleń z modeli (W.put) — po initProps, przed flushInstances
   buildSkyline(W);    // panorama za pierzejami (W.B)
@@ -59,8 +61,10 @@ export async function buildWorld(ctx) {
   W.flushInstances();
   // PRZED B.build (po scaleniu nie ma osobnych brył): koplanarne płaszczyzny tego samego materiału = z-fighting. Tylko klucze z cienkimi
   // płaszczyznami (kilkadziesiąt sztuk, O(n²)); dla timber/stone nie ma sensu — bryły grubsze niż 6 cm, a 2000 belek to 2 mln par.
-  for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign|clock|wet|bunting|jet)/.test(key)) checkNoCoplanar(key, geos);
-  W.B.build(W.mat, W.scene);
+  // bez `wet` (scalenie torów A/B): mokry bruk (fountain.js) to dysk r 4,6 + pierścień 4,6–5,2 na tym samym y — powierzchnie się NIE nakładają,
+  // ale checkNoCoplanar porównuje AABB (pierścień ma AABB pokrywające dysk) → fałszywy FAIL; nachodzenie pilnuje check „rFull poza (schodek, r)" w fountain.js
+  for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign|clock|bunting|jet)/.test(key)) checkNoCoplanar(key, geos);
+  W.B.build(W.mat, W.scene, { noShadow: new RegExp(CONFIG.noShadowKeys), renderOrder: CONFIG.renderOrderKeys }); // klucze bez cienia (§8 #17): CONFIG.noShadowKeys; kolejność przezroczystych (motyw #8): CONFIG.renderOrderKeys
   buildSmoke(W);
   initUI(W);          // UI po zbudowaniu świata (podpisy miejsc czytają W)
   if (ctx.flags.roles) applyRoles(W);   // ?roles=1(&noaa=1): maska ról do hist_roles.mjs (§4.3.5) — zamiast obrazu

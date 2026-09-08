@@ -148,8 +148,10 @@ export function buildCart(W) {
 
 export function buildBanners(W) {
   const { R, H, half, B, mat, bannerMats, houses, sideTransform } = W;
+  W.banners = []; // {side, along} — girlandy (bunting.js) omijają chorągwie kotwicami
   for (let i = 0; i < 8; i++) {
     const side = i % 4, along = (i < 4 ? -1 : 1) * R.range(half * 0.3, half * 0.85);
+    W.banners.push({ side, along });
     const t = sideTransform(side, along, -H.depth / 2 - 0.4);
     // drzewiec wychylony od ściany ku placowi (lokalne +z), płótno zwisa pionowo z jego końca
     const base = M4(t.x, 5.0, t.z, t.ry);

@@ -1,0 +1,70 @@
+# Etap 2 — motyw #5 „girlandy chorągiewek + lampiony" (`?nobunting=1`)
+
+Worktree `/home/user/wt-b`, branch `feat/tor-b`, PORT 8275. Cykle: **2/3** (1 = pełna weryfikacja geometrii/diffów; 2 = cieplejsza emisja lampionów + zbliżenie kotwicy; oba zamknięte renderem i oglądaniem). Rendery z `noui=1&nosmoke=1&nosway=1&nowater=1`, QUALITY=high, DPR 2 (perspektywa 824×1830) / DPR 1 (ortho 1024×1024). Pozycje §8 #17 i #8 = osobny, pierwszy commit `8892abd`.
+
+## Lista „co ma być widać" (spisana PRZED kodem, odhaczona na PNG)
+1. 6 lin między fasadami: E–W na z = −12, −6, +6, +12 (pierzeja W side 3 → E side 1) i N–S na x = −12, +12 (N side 0 → S side 2); żadna przez środek (posąg 5,3 m). Kotwice na licu piętra: y 6,5 m (dom 3-piętrowy; lico piętra 2 z jetty = depth/2 + 2·0,35 = 4,70 → 21,30 m od środka) albo 5,8 m (dom 2-piętrowy: wierzch ściany 6,1 − 0,3; między górną ramą okna p1 5,49 a oczepem 5,94). Oba końce liny na tej samej wysokości. Policzone z bundla: liny y 6,5/5,8/5,8/5,8/5,8/6,5, kotwice 21,15 m (3 piętra z jetty: 26 − 4,70 − 0,15) / 21,85 m (2 piętra bez jetty: 26 − 4,00 − 0,15) od środka. **Widać**: `top.png` — 6 linii siatki na x/z = ±12 (px 307/717 z 512 ± 12·17,07) i z = ±6 (px 410/614), lampiony jako białe punkty, nic na bruku; `elew_N`/`elew_E` — liny ∪ z końcami przy krawędziach kadru; `kotwica_W` — lina wychodzi ze ściany piętra 2 pod parapetem okna (y 6,5). ✔
+2. Zwis 1,5–2,5 m, ograniczony do y_liny − 4,0 (liny na 5,8 → ≤ 1,8): zwisy 2,37/1,66/1,60/1,64/1,80/2,00; środek liny = A.y − zwis (asercja G, |Δ| < 0,01) i ≥ 4,0 (4,13/4,14/4,20/4,16/4,00/4,50). Bezier: punkt kontrolny 2·zwis niżej (policzone w Node: zwis 2,5 → mid 4,000 = min; niesymetryczne końce 6,5/5,8 dawałyby min 3,638 < 4,0 → dlatego oba końce na tej samej wysokości). **Widać**: `elew_N.png` (34,1 px/m, y_px = (28 − y)·34,1): lina z = −6 wchodzi na py ≈ 757 (5,8 m → 757 policzone) i opada do ≈ 812 w środku (4,14 m → 812) — ∪, nie Λ; `elew_E.png`: lina x = +12 na krawędzi kadru (±15 m, t = 0,148 → y 5,49 → py 767) i dół ≈ 801 (4,5 m). ✔
+3. Chorągiewki: trójkąt 0,22 × 0,32 m co 0,45 m łuku, wierzchołkiem w dół, 5 barw heraldycznych z §4.4 (karmazyn [0.50,0.17,25], szafran [0.72,0.15,78], turkus [0.58,0.10,190], purpura [0.45,0.13,320], krem [0.90,0.03,85]) w cyklu; `vertexColors`, jedna geometria na linę; `W.sway(mat.bunting, 0.05, true)` (uv.y 1 na linie, 0 na wierzchołku → rusza tylko dół; wyłączone przy `nosway`). **Widać**: `girlanda_L.png` — rząd chorągiewek turkus/purpura/krem/karmazyn/szafran pod liną z = +6 na tle nieba, w głębi dwie liny nad pierzeją N; `start_plac.png` — trzy sznury (z = +6 górą kadru, z = −6 i −12 nad fontanną i fasadą N). Sondy (`girlanda_L`, 16×20 px): karmazyn `#ce6a5e` L 0,639 C 0,129 H 28 (pred. cloth3 fasada L 0,61 C 0,14 H 29 ✔), szafran `#dbaf74` L 0,780 C 0,092 H 74 (pred. 0,76 / 0,10 / 75 ✔), turkus `#68a89b` L 0,684 C 0,069 H 180 (pred. 0,65–0,69 / 0,08 / 179; próg względny 0,6·0,081 = 0,049 ✔), purpura `#a36f97` L 0,609 C 0,085 H 335 (pred. 0,56–0,60 / 0,10 / 337 ✔), krem `#d6cbbe` L 0,847 C 0,022 H 71. ✔
+4. Lampiony: 3 na linę (t = 0,25/0,5/0,75) = 18 kul r 0,18 m, 0,32 m pod liną na sznurku 0,16 m (iron), klucz `paperLit` emisyjny; spód ≥ 3,3 m (najniższy element girlandy z testu: **3,50 m** = 4,00 − 0,32 − 0,18). **Widać**: `girlanda_L` — kula z lewej pod liną; `start_plac` — 3 kule (lewa nad dachami, środkowa i prawa pod liną z = −12/−6); `elew_N` — 3 białe punkty pod każdą liną. Kolor (cykl 2, emisja [0.72,0.16,60] ×1,4): słońce `#ebd4bd` L 0,883 C 0,041 H 68, cień `#e7cbb0` L 0,858 C 0,048 H 66 (cykl 1 [0.80,0.12,72] ×1,0: L 0,884 C 0,034 — blada kula). ✔ (słabo — patrz ZNANE BRAKI 1)
+5. Budżet: +2 klucze bez cienia (`bunting`, `paperLit` w `CONFIG.noShadowKeys`), liny/haki/sznurki w `iron` (rzuca cień — cienka linia na bruku). Plan ≤ +4 draw, ≤ +10 k tri HUD. **Zmierzone** `start_plac`: +4 draw, +7 612 tri HUD (inst); noinst +3 990. ✔
+6. Kolizje: nic poniżej 3,5 m → bez `addRect/addCircle` (B6 nie dotyczy); kotwice ≥ 1,0 m od chorągwi (`W.banners`, przesunięcie o 1,2 m) — na tym ziarnie żadna kotwica nie wymagała przesunięcia (along dokładnie ±6/±12). ✔
+7. `?nobunting=1` = stan po commicie infra: `start_plac` on/off pctOver 2,32 % wyłącznie w miejscach lin (maska `diff_start_plac.png`: 3 sznury, 3 kule, cienie lin na bruku, ruch ptaków). ✔
+
+## ZMIANY
+- `rynek/src/bunting.js` (NOWY, właściciel #5): `buntingCurves(W)` — funkcja czysta (bez DOM/W.B): kotwice (`anchorAt`: dom pod `along`, lico piętra z jetty jak `front = jet/2 + fd/2` w buildings.js, `checkInFrontOfWall` ≥ hook.out − 0,01, omijanie chorągwi), własny `rng(seed + 500)`, `QuadraticBezierCurve3(A, mid − (0, 2·zwis, 0), B)`, `check` zwisu (< 0,01) i minY (≥ 4,0), lampiony (`check` spód ≥ 3,3); `buildBunting(W)` — `TubeGeometry(curve, 16, 0.015, 4)` iron, chorągiewki jedną geometrią na linę (`bunting`, vertexColors, uv dla sway), haki `box(0.05, 0.05, 0.36)` (0,18 w ścianie), kule `SphereGeometry(0.18, 8, 6)` `paperLit` + sznurki; `W.sway(mat.bunting, 0.05, true)`; `?nobunting=1`.
+- `rynek/src/config.js`: sekcja `bunting` (y 6,5; sagMin/Max 1,5/2,5; minY 4,0; lines 6; belowEave 0,3; `ew [-12,-6,6,12]`, `ns [-12,12]`; bannerClear 1,0 / bannerShift 1,2; hook; rope; pennant {spacing 0,45, w 0,22, h 0,32, swayAmp 0,05, colors OKLCH ×5}; lantern {count 3, r 0,18, drop 0,32, string 0,16, minY 3,3, color/emissive OKLCH, intensity 1,4}). Commit infra: `noShadowKeys`, `props.noShadow`.
+- `rynek/src/materials.js`: klucze `mat.bunting` (MeshStandard, vertexColors, DoubleSide) i `mat.paperLit` (emissive z `oklch()`); import `oklch`; `W.sway = sway` (infra).
+- `rynek/src/world.js`: `buildBunting(W)` po `buildBanners` (kotwice czytają `W.banners`); `W.B.build(…, {noShadow})` (infra).
+- `rynek/src/props.js`: `W.banners = [{side, along}]` w `buildBanners`; `NO_SHADOW` z `CONFIG.props.noShadow` (infra).
+- `engine/src/geometry.js`: `Batch.build(materials, scene, {noShadow: RegExp})` (infra, §8 #17).
+- `audyt/testy/geo/entry.mjs` + `test_geometria.mjs`: eksport `buntingCurves`/`buildBunting`, asercja **G** (liczba lin = CONFIG; środek = A.y − zwis ± 0,01; środek ≥ minY; oba końce równe; zwis ≤ sagMax; próbkowany min liny ≥ minY; kotwica hook.out ± 0,01 przed licem i 21–30 m od środka; strony przeciwległe; lampion spód ≥ 3,3; lina ≥ 2,5 m od osi posągu; liczba geometrii `bunting` = lin, `paperLit` = 3·lin; najniższy element ≥ 3,29).
+- `rynek/app.js`: bundle rynku (komenda §6 p.3).
+- Flagi: `?nobunting=1` (`grep -n "flags\.nobunting" rynek/src/*.js` → bunting.js:79).
+
+## WIDOKI (obejrzane; `audyt/testy/out/render/`, poza repo)
+- `bunting_top/elew_N.png` (ortho side 0, size 30, near 2) — OGLĄDANA PIERWSZA: dwie liny E–W (z = −6, −12) jako ∪ przed pierzeją N, chorągiewki w dół, 3 lampiony na linie; rzędy px zgodne z policzonymi (757→812).
+- `bunting_top/elew_E.png` (side 1): lina N–S x = +12 jako ∪, końce na krawędziach kadru (py ≈ 767), liny E–W widoczne z boku jako krótkie odcinki.
+- `bunting_top/top.png` (60 m): siatka 6 lin na ±12/±6, lampiony jako punkty, nic na placu/ulicach.
+- `bunting2_on/girlanda_L.png` (2, 10, yaw 0,25, pitch 0,50): lina z = +6 z 7 chorągiewkami i lampionem (peach), w głębi liny z = −6/−12 nad pierzeją N i wieżą.
+- `bunting2_on/kotwica_W.png` (−15, −7, yaw 0,888, pitch 0,549): lina z = −12 wychodzi z fasady zachodniej pod oknem piętra 2 (y 6,5), 6 chorągiewek, chorągiew heraldyczna niżej (5,0 m) nie koliduje.
+- `bunting_on/girlanda_P.png` (15, 8, yaw −2,12): kotwica na fasadzie E przy oknie p2, lina odchodzi w lewo; słabszy kadr (pctOver 0,5 %).
+- `bunting2_on/start_plac.png` (kontrolny): 3 sznury chorągiewek (górny z = +6, dwa nad fontanną/fasadą N), 3 lampiony; reszta kadru = `bunting_off/start_plac.png`.
+- maski: `bunting2_on/diff_{girlanda_L,kotwica_W,start_plac}.png`, `diff_start_plac_vs_baza.png`; `bunting_on/diff_*.png` (cykl 1).
+- `bunting2_noinst/start_plac.png`: tryb telefonu, errors [].
+
+## BUDŻET (HUD = pass cieni + główny; `__stats` z klatki zrzutu)
+| widok | off (`?nobunting=1`) calls/tri | on calls/tri | Δ |
+|---|---|---|---|
+| start_plac (inst) | 150 / 837 327 | **154 / 844 939** | +4 / +7 612 |
+| start_plac (**noinst**) | 123 / 284 426 (raport skyline, przed infra) | **119 / 288 416** | −4 (cień banner/sign/far) / +3 990; errors [] |
+| girlanda_L | 146 / 837 159 | 150 / 844 771 | +4 / +7 612 |
+| girlanda_P | 68 / 513 371 | 70 / 517 777 | +2 / +4 406 |
+| kotwica_W | 69 / 505 033 | 71 / 509 439 | +2 / +4 406 |
+| elew_N / elew_E / top (ortho) | — | 162 / 868 173; 156 / 868 125; 182 / 929 323 | (baza top_60: 186 / 903 323) |
+Przed infra (raport skyline): start_plac 156 / 837 743 → po infra bez girland 150 / 837 327 (−6 draw: banner0–3, sign, far bez passu cieni). Top-3 `__stats` start_plac: grass_medium_02 156 840, wooden_lantern_01 53 696, wine_barrel_01 51 936 (skany). `calls ≤ 250` ✔ wszędzie. `triangles ≤ 700 000`: **NIE w trybie instancji** dla start_plac/girlanda_L/ortho — przekroczenie odziedziczone z bazy (818 939; cięcia skanów = motyw #1), udział girland +7,6 k HUD; w `noinst` (telefon) 288 416 ✔.
+
+## KOLOR
+lineup / hist_roles: n/d (dwa nowe klucze `W.mat`: `bunting`, `paperLit` — lineup przelicza właściciel #9 po scaleniu; `rows = ceil(keys/7)` rośnie z 31 kluczy). Sondy w scenie (`girlanda_L`, słońce dotNL ≈ 0,7 na chorągiewkach bez tekstury): karmazyn L 0,639 C 0,129 H 28; szafran 0,780 / 0,092 / 74; turkus 0,684 / 0,069 / 180; purpura 0,609 / 0,085 / 335; krem 0,847 / 0,022 / 71 — 4 koszyki odcieni (25–30, 70–80, 180, 335), 2 chłodne (turkus, purpura) nad progiem względnym. Lampion: słońce L 0,883 C 0,041 H 68, cień L 0,858 C 0,048 H 66.
+
+## ASERCJE
+- `bash audyt/testy/geo_test.sh` (z korzenia worktree): **OK, exit 0**; 7 znanych „uwaga: C kram"; `girlandy: lin 6, zwisy 2.37/1.66/1.60/1.64/1.80/2.00, y lin 6.5/5.8/5.8/5.8/5.8/6.5, lampionów 18, elementów iron 36, najniższy element 3.50 m`; `asercji CHECK nieudanych 0`. KNOWN_B6: brak (B6 z §8 #11 jeszcze nie ma na branchu; girlandy nic nie stawiają poniżej 3,5 m).
+- `rot_token.mjs` (`$SP/krytyk2/`; w `tools/` jeszcze nie ma — §8 #11 należy do #12): `bunting.js`, `materials.js`, `world.js` exit 0 (moduł nie używa rx/rz).
+- grep `Math.sin/cos` w bunting.js → 0; grep K3 → 0; literały z ułamkiem bez komentarza (vs `claude/repo-cleanup-q1fkk3`, rynek/src + engine/src) → 0; hex poza config w bunting.js → 0 (kolory przez `oklch()`).
+- `results.errors: []` w 8 renderach (on ×2, off ×2, ortho, noinst ×2, on cykl 2).
+- Nowe `check()` w bunting.js: `lines = ew + ns`; `brak domu pod kotwicą`; `checkInFrontOfWall(kotwica, P, face, nrm, 0.14)`; `zwis girlandy` (|mid.y − (A.y − zwis)| < 0,01); `girlanda za nisko` (mid.y ≥ 4,0); `lampion za nisko` (spód ≥ 3,3); `girlanda bez chorągiewek`. Test G w `test_geometria.mjs` (lista wyżej).
+- Jednolinijkowce (K13): Bezier zwis 1,5/2,0/2,5 → mid 5,000/4,500/4,000 = A.y − zwis; lokalne x = along − h.along dla 4 stron (along 5 + 1,5 → 6,5 na każdej stronie); lico piętra 2 z jetty 4,70 → 21,30 m od środka; szczyt posągu 5,30 m.
+
+## DIFF (próg 20)
+- z cechą: `girlanda_L` on/off **2,88 %** (cykl 1: 2,90 %), `start_plac` on/off **2,32 %**, `girlanda_P` 0,50 %, `kotwica_W` 0,47 % (cienka lina + 6 chorągiewek — poniżej progu, widok pomocniczy; cecha zaliczona na `girlanda_L` i `start_plac`).
+- kontrolny: `start_plac` off vs baza repo 4,09 % = panorama (raport skyline: 4,06 %) + brak cieni chorągwi/szyldu po §8 #17 (≈ 0,03 pkt); on vs baza 5,94 %. Cykl 1 vs cykl 2 (`start_plac`, tylko emisja lampionów) 0,02 %.
+
+## ZNANE BRAKI
+1. **Lampiony świecą słabo w dzień**: emisja [0.72,0.16,60] ×1,4 daje na ekranie C 0,041 (słońce) / 0,048 (cień) — AgX kompresuje, a kremowe albedo w słońcu dominuje; ×3 zbieliłoby (§4.1.6). Nie strojone dalej (2/3 cykli); do rozważenia przy zmierzchu/nocy (osobny motyw) albo `MeshBasicMaterial` jak `flame`.
+2. **Liny w `iron` rzucają cień** (klucz wspólny z latarniami/wozem, nie w `noShadowKeys`) — cienka linia cienia na bruku (widoczna w masce diff); §5.3 chce „cienia girlandy na bruku", więc zostawione świadomie; osobny klucz `rope` (+2 draw) gdyby cień przeszkadzał.
+3. **Budżet 700 k tri w trybie instancji** przekroczony już na bazie (818 939 → tu 844 939 HUD z panoramą +18,8 k i girlandami +7,6 k). `noinst` 288 416 ✔. Cięcia skanów = motyw #1.
+4. 4 z 6 lin na 5,8 m (na tym ziarnie co najmniej jeden koniec trafia w dom 2-piętrowy); po motywie #3 (`floorsMin 2, floorsMax 4`, `floorHeight` per dom) `anchorY` czyta `h.floors` i `H.floorHeight` — jeśli #3 wprowadzi `h.floorHeight`, trzeba podmienić w `anchorY`/`anchorAt` (2 linie).
+5. `checkNoCoplanar` dla klucza `bunting` (regex w world.js, §8 #3 właściciel #12) nieuruchamiany; chorągiewki co 0,45 m nie nachodzą na siebie (szerokość 0,22).
+6. `kotwica_W`/`girlanda_P`: hak 0,05 m żelazny nie odróżnia się od słupka szachulcowego na PNG — lina „wychodzi ze ściany"; poprawnie geometrycznie (test G: 0,15 m przed licem), wizualnie niewidoczny.
+7. HUD nadal widoczny mimo `noui=1` (§8 #2, motyw #15); sondy omijają pasek HUD.
+Cykle zużyte: 2/3.

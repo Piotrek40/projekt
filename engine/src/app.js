@@ -23,6 +23,8 @@ export async function createApp(opts) {
 
   const canvas = document.getElementById('c');
   const flags = Object.fromEntries(new URLSearchParams(location.search)); // przełączniki diagnostyczne (?nosway=1 itd.)
+  // ?noui=1: rendery pomiarowe bez warstwy UI sceny — winieta (#vignette), podpisy miejsc (#caption), ekran startowy (#start); scena sama pomija initUI po tej fladze
+  if (flags.noui) for (const id of ['vignette', 'caption', 'start']) { const el = document.getElementById(id); if (el) el.hidden = true; }
   const diag = { contextLost: 0, restored: 0 };
   canvas.addEventListener('webglcontextlost', e => { diag.contextLost++; e.preventDefault(); });
   canvas.addEventListener('webglcontextrestored', () => { diag.restored++; });

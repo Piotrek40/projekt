@@ -87,6 +87,7 @@ export function buildTower(W) {
   // trzon + kolizja
   B.place('slates', cylinder(rTop, rBot, t.trunkH, t.seg, T.slates.mpt), tx, t.trunkH / 2, tz);
   ctx.addCircle(tx, tz, rBot); W.dbgCircle?.(tx, tz, rBot);
+  W.tower = { x: tx, z: tz, r: rBot };   // kontrakt dla ui.js (motyw #15, podpis POI wieży): środek i promień kolizji trzonu (scalenie torów A/B)
   checkCollisionCovers('wieża trzon', new THREE.Box3(new THREE.Vector3(tx - rBot, 0, tz - rBot), new THREE.Vector3(tx + rBot, t.trunkH, tz + rBot)), { x: tx, z: tz, r: rBot });
   check(tz + rBot + half >= 1.5 && tz + rBot + half <= 2.5, 'wieża wchodzi w plac poza 1,5–2,5 m', { plazaIn: tz + rBot + half });   // 2,3 m (policzone)
   check(tx + rBot <= -sw / 2, 'podstawa wieży w ulicy N', { edge: tx + rBot, street: -sw / 2 });                                     // −3,2 ≤ −3

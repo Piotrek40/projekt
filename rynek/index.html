@@ -17,11 +17,35 @@
   #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #111; z-index: 5; font-size: 16px; text-align: center; padding: 20px; }
   #loading[hidden] { display: none; }
   #loading small { display: block; opacity: .6; margin-top: 8px; }
+  /* ---- warstwa UI sceny (rynek/src/ui.js; ?noui=1 w engine/app.js ukrywa #vignette/#caption/#start). Kolory i rozmiary: CONFIG.ui → zmienne --ui-* (fallbacki = te same wartości z §5.4 promptu) ---- */
+  #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 2; box-shadow: inset 0 0 var(--ui-vig-blur, 120px) var(--ui-vig, rgba(20,12,6,.45)); }
+  #vignette[hidden], #caption[hidden], #start[hidden] { display: none; }
+  #caption { position: fixed; left: 50%; bottom: 14vh; transform: translateX(-50%); z-index: 2; pointer-events: none; white-space: nowrap;
+             font: var(--ui-size-caption, 16px) var(--ui-font, "Noto Serif", Georgia, serif); color: var(--ui-ink, #e8d9b5); background: rgba(20,12,6,.55); padding: 6px 16px; border-radius: 3px; border: 1px solid var(--ui-gold, #b8892e); text-shadow: 0 1px 2px #000; }
+  #caption.far { font-size: calc(var(--ui-size-caption, 16px) - 3px); font-style: italic; color: var(--ui-mood, #cdbb95); }
+  #start { position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; text-align: center; padding: 24px; box-sizing: border-box;
+           background: radial-gradient(ellipse at 50% 45%, var(--ui-bg1, #3a2a1a) 0%, var(--ui-bg0, #1a1410) 75%); font-family: var(--ui-font, "Noto Serif", Georgia, serif);
+           opacity: 1; transition: opacity var(--ui-fade, 600ms) ease-out; }
+  #start.out { opacity: 0; }
+  #start .frame { position: absolute; inset: var(--ui-frame, 8px); border: 1px solid var(--ui-gold, #b8892e); pointer-events: none; }
+  #start h1 { margin: 0 0 6px; font: 400 var(--ui-size-title, 34px)/1.2 var(--ui-font, "Noto Serif", Georgia, serif); color: var(--ui-ink, #e8d9b5); letter-spacing: .04em; }
+  #start .sub { font-size: var(--ui-size-subtitle, 13px); letter-spacing: .18em; color: var(--ui-gold, #b8892e); margin-bottom: 26px; }
+  #start .mood { font-size: var(--ui-size-mood, 14px); font-style: italic; color: var(--ui-mood, #cdbb95); max-width: 78%; margin: 0 auto 40px; line-height: 1.5; }
+  #enter { display: block; width: var(--ui-btn-w, 60%); height: var(--ui-size-button, 48px); margin: 0 auto 28px; font: 400 18px var(--ui-font, "Noto Serif", Georgia, serif); letter-spacing: .12em;
+           color: var(--ui-ink, #e8d9b5); background: var(--ui-btn, #2a1e12); border: 1px solid var(--ui-gold, #b8892e); border-radius: 3px; }
+  #start .hint { font-size: var(--ui-size-hint, 11px); color: var(--ui-hint, #8a7a5a); letter-spacing: .04em; }
+  /* z UI (body.ui): joystick i przycisk jakości w barwach pergaminu; bez klasy (?noui=1) wygląd jak dawniej */
+  body.ui #joy { border-color: var(--ui-gold-a, rgba(184,137,46,.8)); background: rgba(20,12,6,.15); }
+  body.ui #knob { background: var(--ui-gold, #b8892e); }
+  body.ui #q { font: 12px var(--ui-font, "Noto Serif", Georgia, serif); letter-spacing: .06em; color: var(--ui-btn, #2a1e12); background: var(--ui-ink, #e8d9b5); border: 1px solid var(--ui-gold, #b8892e); border-radius: 3px 3px 0 0; bottom: 0; right: 14px; padding: 5px 12px 3px; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="touch"><div id="joy" hidden><div id="knob"></div></div></div>
+<div id="vignette"></div>
+<div id="caption" hidden></div>
+<div id="start" hidden><div class="frame"></div><div><h1 id="title"></h1><div class="sub" id="subtitle"></div><p class="mood" id="mood"></p><button id="enter"></button><div class="hint" id="hint"></div></div></div>
 <div id="hud">…</div>
 <div id="gpu"></div>
 <button id="q">medium</button>
