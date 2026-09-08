@@ -1,6 +1,6 @@
 [
-  { "name": "start_v2",      "x": 4.5, "z": 19.5, "yaw": 0.20, "pitch": 0.06 },
-  { "name": "start_v2_lewo", "x": 4.5, "z": 19.5, "yaw": 0.45, "pitch": 0.06 },
+  { "name": "start_v2",      "x": 4.5, "z": 19.5, "yaw": 0.20, "pitch": 0.09 },
+  { "name": "start_v2_lewo", "x": 4.5, "z": 19.5, "yaw": 0.45, "pitch": 0.09 },
   { "name": "os_wieza",      "x": 0,   "z": 8,    "yaw": 0.15, "pitch": 0.25 },
   { "name": "ulica_brama",   "x": 0,   "z": 14,   "yaw": 3.14, "pitch": 0.08 }
 ]
