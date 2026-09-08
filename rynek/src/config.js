@@ -2,7 +2,7 @@
 export const CONFIG = {
   seed: 7,
   // klucze W.B (regex), które NIE rzucają cienia (Batch.build w geometry.js): nowe małe/cienkie obiekty — girlandy, lampiony, strumienie, mokry bruk, wieże w oddali, tarcza zegara, szyld, chorągwie
-  noShadowKeys: '^(bunting|paperLit|jet|wet|water|ripple|far|clock|sign|banner)', // + lustra wody i kręgi (motyw #8): płaskie dyski, cień bez sensu
+  noShadowKeys: '^(bunting|paperLit|jet|wet|water|ripple|far|clock|sign|banner|soil)',   // + soil: ziemia w skrzynkach (motyw #greenery) — płaska płyta w skrzyni // + lustra wody i kręgi (motyw #8): płaskie dyski, cień bez sensu
   // kolejność rysowania kluczy W.B przezroczystych (Batch.build opts.renderOrder; domyślnie 0): three sortuje przezroczyste po odległości ŚRODKA obiektu,
   // więc lustro wody (opacity 0.85, środek wyżej) rysowało się PO kręgach i strumieniach i przykrywało je (motyw #8, cykl 4) — kręgi i strumienie po wodzie
   renderOrderKeys: { water: 0, jet: 1, ripple: 2 },
@@ -241,7 +241,29 @@ export const CONFIG = {
     texRepeat: 3,   // powtórzenie tekstury liści na bryle korony
   },
 
-  greenery: {},       // tor „plac": krzewy w donicach, rabatki, skrzynki kwiatowe (na parapetach z W.sills)
+  // tor „plac" — motyw #greenery (greenery.js; ?nogreenery=1): donice z krzewami przy portalach (W.portals), skrzynki kwiatowe na parapetach (W.sills z buildings.js),
+  // rabatki w skrzyniach wokół lip (W.trees), ławki wokół fontanny. Modele (zasoby_etap2.md, bounds z gltf-transform inspect 2026-09-08): planter_box_01 0,91×0,42×0,41,
+  // shrub_04_c 0,12×0,22×0,13 (×3 → 0,37×0,66×0,40), periwinkle_plant_03 0,17×0,30×0,15, celandine_01_c 0,26×0,18×0,19, flower_gazania_h 0,34×0,17×0,33,
+  // painted_wooden_bench 1,16×0,89×0,50 (siedzisko +z). Wszystko przez W.put; kwiaty, krzewy i donice bez cienia (noShadow → props.js NO_SHADOW; ławka 630 tri z cieniem).
+  // Własny strumień rng(seed + seedOffset) → reszta sceny bez przetasowania. Szacunek HUD (inst): 6×4 046 + 12×3 084 + ~28×2 000 + 6×2 000 + 4×630×2 ≈ 135 k tri, +8 draw.
+  greenery: {
+    seedOffset: 900,
+    models: ["planter_box_01", "shrub_04_c", "periwinkle_plant_03", "celandine_01_c", "flower_gazania_h", "painted_wooden_bench"],   // ładowane w initProps (props.js) bez ?nogreenery=1
+    noShadow: ["planter_box_01", "shrub_04_c", "periwinkle_plant_03", "celandine_01_c", "flower_gazania_h"],   // małe/alpha MASK: cień = drugi raz ta sama geometria (§5.2)
+    soil: { set: "cobble", color: [0.32, 0.025, 65] },   // ziemia w skrzynkach: klucz W.mat.soil = tint ciemny brąz (OKLCH, rodzina {55}) na teksturze bruku (+2 draw HUD)
+    // donice: count domów przy placu (losowo), po stronie drzwi przeciwnej do ulicy: środek x = doorX ± (archOut 0,9 + gap + 0,456) = ±1,386 od drzwi, tył gap przed licem parteru;
+    // shrubs krzewów ×shrubScale co 2·shrubX (3 → −0,28/0/+0,28), spód soilDepth pod krawędzią donicy (0,425 − 0,15 = 0,275 → czubek 0,93, 0,5 m nad krawędzią); edge: zapas od krawędzi domu
+    planters: { count: 6, box: "planter_box_01", shrub: "shrub_04_c", shrubs: 3, shrubScale: 3, shrubX: 0.28, soilDepth: 0.15, soilInset: 0.08, soilT: 0.02, gap: 0.03, edge: 0.3 },   // m; count/shrubs: sztuki; shrubScale: mnożnik; soilInset: płyta ziemi (soil) mniejsza o inset od obrysu donicy (zasłania czarną folię; cykl 1: 2 krzewy nie zasłaniały)
+    // skrzynki na parapetach okien BEZ okiennic i BEZ zastrzału w polu (parter i piętro 1): planks w(okna) × h × d, deska t; onSill na parapecie (parapet sillLip = 0,07 przed licem ściany, szkło glassOut = 0,03 —
+    // buildings.js: tył skrzynki 0,01 przed szkłem), reszta na 2 wspornikach iron (t², len, back w głąb od lica parapetu → 5 cm w ścianie, inset od skraju skrzynki);
+    // ziemia (soilT) soil pod krawędzią; plants roślin species ×scale co w/n
+    sillBoxes: { count: 12, h: 0.18, d: 0.18, t: 0.025, onSill: 0.03, sillLip: 0.07, glassOut: 0.03, soil: 0.04, soilT: 0.02, plants: [2, 3], scale: [1.4, 1.8],   // m; plants: zakres sztuk; scale: zakres mnożnika (cykl 1: 1,2–1,6 = cienkie łodyżki na parapecie 0,9 m)
+                 species: ["periwinkle_plant_03", "celandine_01_c", "flower_gazania_h"], bracket: { t: 0.03, len: 0.26, back: 0.12, inset: 0.08 } },   // m
+    // rabatki: kwadrat size × h z desek t wokół pnia lipy (odziomek r 0,42 wystaje z ziemi na soilY), plants roślin ×scale na pierścieniu r ring co 360°/plants (policzone (6,0), faza 0: (6, 0,45), (6,39, −0,225), (5,61, −0,225))
+    beds: { size: 1.4, h: 0.3, t: 0.05, soilY: 0.25, soilT: 0.02, plants: 3, ring: 0.45, scale: 2.0 },   // m; plants: sztuki; scale: mnożnik (cykl 1: 1,5 = rośliny 0,45 m niewidoczne obok pnia 0,64 m)
+    // ławki: count na okręgu r dist wokół fontanny od kąta phase (π/4 → (±3,96, ±3,96)), siedziskiem na zewnątrz; wnętrze 5,35 ≥ koło fontanny 4,2 + 0,5 i ≥ mokry bruk 5,2; 4,47 m od lip
+    benches: { model: "painted_wooden_bench", count: 4, dist: 5.6, phase: Math.PI / 4 },   // m / rad
+  },
 
   // tor „kramy i rekwizyty": girlandy chorągiewek i lampiony (bunting.js; ?nobunting=1). Liny między fasadami: E–W na z = ew[i] (side 3 → 1),
   // N–S na x = ns[i] (side 0 → 2); nie przez środek (posąg sięga 5.3 m, lina min 4.0). Kotwice na licu piętra na y (dom 3-piętrowy) albo
@@ -281,7 +303,7 @@ export const CONFIG = {
   // (przypisanie §4.3.5), modele z W.put() w `props` po nazwie (bez wpisu → `default`); heksy kolorów ról = umowa z hist_roles.mjs, nie kolory sceny.
   roles: {
     color: { n: 0xff0000, w: 0x00ff00, a: 0x0000ff, x: 0xffffff, bg: 0x000000 },   // n neutralne, w wtórne, a akcent, x inne (bez wpisu), bg tło
-    mat: { cobble: 'n', stone: 'n', blocks: 'n', slates: 'n', plaster0: 'n', plaster1: 'n', plaster2: 'n', plaster3: 'n', plaster4: 'n', roof2: 'n', far: 'n', wet: 'n', iron: 'n', glass: 'n', jet: 'n',
+    mat: { cobble: 'n', stone: 'n', blocks: 'n', slates: 'n', plaster0: 'n', plaster1: 'n', plaster2: 'n', plaster3: 'n', plaster4: 'n', roof2: 'n', far: 'n', wet: 'n', iron: 'n', glass: 'n', jet: 'n', soil: 'n',   // soil: ziemia (motyw #greenery)
            roof0: 'w', roof1: 'w', roofTower: 'w', timber: 'w', planks: 'w', door: 'w', paint0: 'w', paint1: 'w', paint2: 'w', water: 'w', leaf0: 'w', leaf1: 'w', leafCard: 'w',   // leaf*: lipy (motyw #7) = zieleń bez kwiatów
            cloth0: 'a', cloth1: 'a', cloth2: 'a', cloth3: 'a', banner0: 'a', banner1: 'a', banner2: 'a', banner3: 'a', sign: 'a', clock: 'a', bunting: 'a', paperLit: 'a', flame: 'a', glassLit: 'a' },
     props: { default: 'n', horse_statue_01: 'n', gothic_statue: 'n', marble_bust_01: 'n', rock_moss_set_02: 'n',   // kamień

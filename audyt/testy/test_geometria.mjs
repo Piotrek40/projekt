@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, fountainPlan, buildFountain, poiPlan, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, fountainPlan, buildFountain, poiPlan, greeneryPlan, buildGreenery, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = [
   { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
@@ -19,6 +19,12 @@ const GOODS_BOUNDS = {
   wooden_bowl_01: [[-0.157, 0.001, -0.154], [0.156, 0.094, 0.155]], ceramic_vase_01: [[-0.102, 0.001, -0.101], [0.102, 0.401, 0.102]], ceramic_vase_02: [[-0.109, 0.001, -0.109], [0.109, 0.31, 0.109]],
   wine_bottles_01: [[-0.036, 0, -0.04], [0.64, 0.331, 0.04]], wine_barrel_01: [[-0.371, 0.002, -0.371], [0.371, 0.871, 0.381]], wooden_crate_01: [[-0.413, -0.008, -0.196], [0.413, 0.342, 0.213]], Barrel_01: [[-0.282, -0.007, -0.282], [0.282, 0.873, 0.282]],
 };
+// Bryły modeli zieleni (motyw #greenery, asercja K2): gltf-transform inspect rynek/assets/models_jpg/<n>.glb (2026-09-08) — stub 1×1×1 dawałby fałszywe FAIL
+// (krzew ×3 = 3 m, ławka 1 m głęboka w kole fontanny).
+const GREENERY_BOUNDS = {
+  planter_box_01: [[-0.457, 0, -0.207], [0.456, 0.425, 0.207]], shrub_04_c: [[-0.061, -0.006, -0.066], [0.061, 0.213, 0.066]], periwinkle_plant_03: [[-0.084, 0, -0.073], [0.084, 0.300, 0.073]],
+  celandine_01_c: [[-0.129, -0.004, -0.093], [0.129, 0.172, 0.093]], flower_gazania_h: [[-0.169, -0.006, -0.163], [0.169, 0.159, 0.163]], painted_wooden_bench: [[-0.576, -0.001, -0.254], [0.589, 0.889, 0.243]],
+};
 const f2 = v => v.toArray().map(x => +x.toFixed(2));
 function makeW() {
   const rec = [];
@@ -29,7 +35,7 @@ function makeW() {
   // stub modeli (PROMPT §3.4): W.bounds = Map z Box3 (0,0,0)→(1,1,1) dla KAŻDEJ nazwy (modele z Poly Haven nie są ładowane offline), W.put rejestruje
   // {name, x, y, z, ry, scale} w `puts` (buildCart stawia nim skrzynię i kosz na wozie; motywy #5/#7/#10 mogą sprawdzać pozycje modeli z funkcji czystych)
   const bounds = new (class extends Map { get(n) { return super.get(n) ?? new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(1, 1, 1)); } })();
-  for (const [n, [lo, hi]] of Object.entries(GOODS_BOUNDS)) bounds.set(n, new THREE.Box3(V(...lo), V(...hi)));   // towar kramów: prawdziwe bryły (J)
+  for (const [n, [lo, hi]] of Object.entries({ ...GOODS_BOUNDS, ...GREENERY_BOUNDS })) bounds.set(n, new THREE.Box3(V(...lo), V(...hi)));   // towar kramów (J) i zieleń (K2): prawdziwe bryły
   const puts = [];
   const put = (name, x, y, z, ry = 0, scale = 1) => { puts.push({ name, x, y, z, ry, scale }); return true; };
   return { W: { ctx, R: rng(CONFIG.seed), CONFIG, P: CONFIG.palette, T: CONFIG.textures, H: CONFIG.house, S: CONFIG.plaza.size, half: CONFIG.plaza.size / 2, B, put, bounds, mat: {}, scene: { add() {} } }, rec, col, puts };
@@ -302,6 +308,60 @@ let nGoods = 0, nBales = 0;
 // G) wóz (props.js buildCart) — geometria Batch; modele przez stub put (rejestrowane w puts)
 buildCart(W);
 if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 'wicker_basket_01')) fails.push('G stub W.put: buildCart nie zarejestrował skrzyni i kosza na wozie');
+// K2) zieleń (greenery.js: greeneryPlan = funkcja czysta, buildGreenery = geometria W.B + modele przez stub W.put + asercje CHECK → E): liczby z CONFIG.greenery.
+//     Donice: count, model przy domu bez setback, środek gap + d/2 przed licem parteru (wzdłuż normalnej (sin ry, 0, cos ry) od punktu tr domu: faceZ + 0,237), skraj ≥ archOut + gap
+//     od drzwi, w obrysie domu; 2 krzewy w obrysie donicy (układ donicy przez odwrotność M4), spód 0,05..h−0,05. Skrzynki: count na parapetach bez okiennic: planks ze spodem na s.y,
+//     2 iron z wierzchem na s.y, ziemia soil pod krawędzią, 2–3 rośliny put na ziemi skrzynki. Rabatki: po jednej na lipę, addRect w osi lipy hw = size/2, 4 deski planks
+//     z wierzchem na h, plants roślin w odległości ring od pnia. Ławki: count na r dist, front (0,0,1)·M4(ry) · radialny ≥ 0,98. Kalibracja 2026-09-08: 0 FAIL przy seed 7.
+let nGreen = { planters: 0, sillBoxes: 0, beds: 0, benches: 0 };
+{
+  const G = CONFIG.greenery, n0 = rec.length, p0 = puts.length, c0 = col.rects.length;
+  buildGreenery(W); const items = rec.slice(n0), putsG = puts.slice(p0), plan = W.greenery;
+  const near = (x, z, name, tol = 0.01) => putsG.filter(q => q.name === name && Math.hypot(q.x - x, q.z - z) < tol);
+  nGreen.planters = plan.planters.length;
+  if (plan.planters.length !== G.planters.count) fails.push(`K2 donic ${plan.planters.length} ≠ ${G.planters.count}`);
+  for (const d of plan.planters) {
+    const p = d.p, nrm = V(Math.sin(p.tr.ry), 0, Math.cos(p.tr.ry)), off = V(d.x, 0, d.z).sub(V(p.tr.x, 0, p.tr.z)).dot(nrm), want = p.faceZ + G.planters.gap + d.d / 2;
+    if (p.setback) fails.push(`K2 donica przy domu zamykającym ulicę s${p.side}`);
+    if (!near(d.x, d.z, G.planters.box).length) fails.push(`K2 donica s${p.side} along ${p.along.toFixed(1)}: brak put ${G.planters.box}`);
+    if (Math.abs(off - want) > 0.005) fails.push(`K2 donica s${p.side}: ${off.toFixed(3)} przed osią domu (oczekiwane ${want.toFixed(3)})`);
+    if (Math.abs(d.lx - p.doorX) - d.w / 2 < CONFIG.houseDetail.portal.archOut + G.planters.gap - 1e-6 || Math.abs(d.lx) + d.w / 2 > p.w / 2) fails.push(`K2 donica s${p.side}: w oprawie portalu albo poza domem (lx ${d.lx.toFixed(2)}, doorX ${p.doorX.toFixed(2)}, w ${p.w.toFixed(2)})`);
+    const inv = M4(d.x, 0, d.z, d.ry).invert(), shrubs = putsG.filter(q => q.name === G.planters.shrub && V(q.x, 0, q.z).applyMatrix4(inv).length() < 0.5);
+    if (shrubs.length !== G.planters.shrubs) fails.push(`K2 donica s${p.side}: ${shrubs.length} krzewów w donicy (oczekiwane ${G.planters.shrubs})`);
+    for (const q of shrubs) { const l = V(q.x, q.y, q.z).applyMatrix4(inv); if (Math.abs(l.x) > d.w / 2 - 0.1 || Math.abs(l.z) > d.d / 2 || l.y < 0.05 || l.y > d.h - 0.05) fails.push(`K2 krzew poza donicą s${p.side}: lokalnie (${f2(l)})`); }
+  }
+  const S = G.sillBoxes; nGreen.sillBoxes = plan.sillBoxes.length;
+  if (plan.sillBoxes.length !== S.count) fails.push(`K2 skrzynek ${plan.sillBoxes.length} ≠ ${S.count}`);
+  for (const b of plan.sillBoxes) {
+    const s = b.s, id = `K2 skrzynka s${s.side} p${s.floor} along ${s.along.toFixed(1)}`, nrm = V(Math.sin(s.ry), 0, Math.cos(s.ry));
+    if (s.shut || s.setback) fails.push(`${id}: parapet z okiennicami albo dom zamykający ulicę`);
+    const at = items.map(r => ({ key: r.key, b: r.bb.clone().applyMatrix4(r.m) })).filter(e => Math.hypot((e.b.min.x + e.b.max.x) / 2 - s.x, (e.b.min.z + e.b.max.z) / 2 - s.z) < 0.6 && Math.abs((e.b.min.y + e.b.max.y) / 2 - s.y) < 0.3);
+    const planks = at.filter(e => e.key === "planks"), iron = at.filter(e => e.key === "iron"), soil = at.filter(e => e.key === "soil");
+    if (planks.length !== 1 || Math.abs(planks[0].b.min.y - s.y) > 0.005) fails.push(`${id}: ${planks.length} skrzynek planks / spód nie na parapecie`);
+    if (planks.length === 1) { const fr = Math.max(...[planks[0].b.min, planks[0].b.max].map(v => V(v.x, 0, v.z).dot(nrm))) - V(s.x, 0, s.z).dot(nrm), bk = Math.min(...[planks[0].b.min, planks[0].b.max].map(v => V(v.x, 0, v.z).dot(nrm))) - V(s.x, 0, s.z).dot(nrm); if (Math.abs(bk + S.onSill) > 0.005 || Math.abs(fr - (S.d - S.onSill)) > 0.005) fails.push(`${id}: tył ${bk.toFixed(3)} / przód ${fr.toFixed(3)} wzdłuż normalnej (oczekiwane ${-S.onSill} / ${(S.d - S.onSill).toFixed(2)})`); }
+    if (iron.length !== 2 || iron.some(e => Math.abs(e.b.max.y - s.y) > 0.005)) fails.push(`${id}: ${iron.length} wsporników / wierzch nie na parapecie`);
+    if (soil.length !== 1 || Math.abs(soil[0].b.max.y - (s.y + S.h - S.soil)) > 0.005) fails.push(`${id}: ziemia ${soil.length} / wierzch nie ${S.soil} pod krawędzią`);
+    const pl = putsG.filter(q => S.species.includes(q.name) && Math.hypot(q.x - s.x, q.z - s.z) < 0.6 && Math.abs(q.y - (s.y + S.h - S.soil)) < 0.005);
+    if (pl.length < S.plants[0] || pl.length > S.plants[1]) fails.push(`${id}: ${pl.length} roślin na ziemi skrzynki (oczekiwane ${S.plants[0]}–${S.plants[1]})`);
+  }
+  const Bd = G.beds; nGreen.beds = plan.beds.length;
+  if (plan.beds.length !== W.trees.length) fails.push(`K2 rabatek ${plan.beds.length} ≠ lip ${W.trees.length}`);
+  for (const bd of plan.beds) {
+    const t = bd.t, id = `K2 rabatka (${t.x.toFixed(1)}, ${t.z.toFixed(1)})`;
+    if (!col.rects.slice(c0).some(r => Math.abs(r.x - t.x) < 0.01 && Math.abs(r.z - t.z) < 0.01 && Math.abs(r.hw - Bd.size / 2) < 1e-6)) fails.push(`${id}: brak addRect hw ${Bd.size / 2} w osi lipy`);
+    const boards = items.filter(r => r.key === "planks").map(r => r.bb.clone().applyMatrix4(r.m)).filter(b => Math.hypot((b.min.x + b.max.x) / 2 - t.x, (b.min.z + b.max.z) / 2 - t.z) < Bd.size && b.min.y < 0.01);
+    if (boards.length !== 4 || boards.some(b => Math.abs(b.max.y - Bd.h) > 0.005)) fails.push(`${id}: ${boards.length} desek na ziemi / wierzch nie ${Bd.h}`);
+    const pl = putsG.filter(q => S.species.includes(q.name) && Math.abs(Math.hypot(q.x - t.x, q.z - t.z) - Bd.ring) < 0.01 && Math.abs(q.y - Bd.soilY) < 0.005);
+    if (pl.length !== Bd.plants) fails.push(`${id}: ${pl.length} roślin na pierścieniu r ${Bd.ring} (oczekiwane ${Bd.plants})`);
+  }
+  if (process.env.DUMP_GREENERY) console.log("DUMP_GREENERY " + JSON.stringify({ planters: plan.planters.map(d => ({ side: d.p.side, along: +d.p.along.toFixed(2), x: +d.x.toFixed(2), z: +d.z.toFixed(2), ry: +d.ry.toFixed(3) })), sills: plan.sillBoxes.map(b => ({ side: b.s.side, floor: b.s.floor, along: +b.s.along.toFixed(2), x: +b.s.x.toFixed(2), y: +b.s.y.toFixed(2), z: +b.s.z.toFixed(2), w: b.s.w, n: b.plants.length, sp: b.plants[0].name })), benches: plan.benches.map(b => [+b.x.toFixed(2), +b.z.toFixed(2)]) }));   // DUMP_GREENERY=1: pozycje zieleni do kadrowania widoków (raport)
+  const Bn = G.benches; nGreen.benches = plan.benches.length;
+  if (plan.benches.length !== Bn.count) fails.push(`K2 ławek ${plan.benches.length} ≠ ${Bn.count}`);
+  for (const b of plan.benches) {
+    const front = V(0, 0, 1).transformDirection(M4(0, 0, 0, b.ry)), dot = front.dot(V(b.x, 0, b.z).normalize());
+    if (Math.abs(Math.hypot(b.x, b.z) - Bn.dist) > 0.01 || dot < 0.98 || !near(b.x, b.z, Bn.model).length) fails.push(`K2 ławka (${b.x.toFixed(2)}, ${b.z.toFixed(2)}): r ${Math.hypot(b.x, b.z).toFixed(2)}, front·radial ${dot.toFixed(3)}, put ${near(b.x, b.z, Bn.model).length}`);
+  }
+}
 // B6) obszar chodzenia: żaden element Batch (poza cobble|wet) z dolną krawędzią < 2 m nie ma AABB przecinającego prostokąta chodzenia (plac ± (half−0,3);
 //     ulice (sw/2 − 0,3) × sl/2, jak addWalkable w layout.js) bez pokrycia kolizją: środek AABB w prostokącie/kole kolizji rozszerzonym o promień gracza 0,35
 //     (ta sama tolerancja co C: słup kramu 1,70 m od środka przy kole 1,6 — gracz wchodzi ≤ 0,35 m w bryłę). Prawdziwe wady HEAD → KNOWN_B6 (lista ma się kurczyć).
@@ -462,7 +522,7 @@ if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, parapetów K1 ${nSill}, kramów J towar ${nGoods} bel ${nBales}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, parapetów K1 ${nSill}, zieleń K2 donic ${nGreen.planters}/skrzynek ${nGreen.sillBoxes}/rabatek ${nGreen.beds}/ławek ${nGreen.benches}, kramów J towar ${nGoods} bel ${nBales}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);
