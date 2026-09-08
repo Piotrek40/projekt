@@ -5,6 +5,6 @@
   { "name": "pierzeja_wschodnia", "x": 6, "z": 0, "yaw": -1.35, "pitch": 0.12 },
   { "name": "wieza", "x": -6, "z": 6, "yaw": 3.05, "pitch": 0.35 },
   { "name": "ulica_poludnie", "x": 0, "z": 14, "yaw": 3.14, "pitch": 0.08 },
-  { "name": "woz", "x": -5, "z": 12.5, "yaw": 0.9, "pitch": -0.15 },
+  { "name": "woz", "x": 1.5, "z": 13.5, "yaw": -1.0, "pitch": -0.15 },
   { "name": "karczma_szyld", "x": -4.5, "z": 16.5, "yaw": 3.14, "pitch": 0.28 }
 ]

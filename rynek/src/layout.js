@@ -1,6 +1,7 @@
 // Układ placu: obszar chodzenia, ulice, podział pierzei na kamienice (z ziarna) i transformacja pierzeja→świat.
-import { plane, rng } from '../../engine/src/geometry.js';
-import { check } from '../../engine/src/check.js';
+import * as THREE from 'three';
+import { plane, rng, M4 } from '../../engine/src/geometry.js';
+import { check, bboxOf } from '../../engine/src/check.js';
 import { towerPlacement } from './tower.js';
 
 export function buildLayout(W) {
@@ -101,4 +102,52 @@ export function buildLayout(W) {
     }
   }
   W.sw = sw; W.sl = sl; W.houses = houses; W.sideTransform = sideTransform;
+  if (!ctx.flags.noground) buildGround(W);   // motyw #13: medalion wokół fontanny + kałuże pierwszego planu (CONFIG.ground)
+}
+
+// Motyw #13 „bruk" (?noground=1; poprawka r1 reżyserii): medalion wokół fontanny (pierścień rIn–rOut + rays promieni, klucz roof2 = łupek na stone_tiles_02,
+// inny wzór i chłodniejszy od bruku) i kałuże pierwszego planu startu (klucz wet jak mokry bruk fontanny: ciemniejszy, gładszy; brzeg nieregularny). Nakładki leżą w XY i idą na XZ
+// przez M4(0, y, 0, 0, −π/2) — rot: rx=−π/2 → normalna (0,0,1)→(0,1,0), lokalne +y → −z (policzone §3.1, jak fountain.js buildWet); UV jak podłoga:
+// (x + extent0)/mpt (layout: plane 2·extent z uvOffset → UV bruku = (x + extent0)/mpt). Liczby: CONFIG.ground; pozycje kałuż policzone dla kamery startu (config.js).
+function buildGround(W) {
+  const { CONFIG, B, T, H, half } = W, G = CONFIG.ground, F = CONFIG.fountain, S = CONFIG.stalls, Cp = CONFIG.composition;
+  const extent0 = half + CONFIG.plaza.streetLength + H.depth + 6; // = extent0 wyżej (zasięg bruku bez panoramy, 52 m) — kotwica wzoru
+  const ground = (g, mpt, y) => { // UV w metrach świata + macierz nakładki na bruku
+    const uv = g.attributes.uv, p = g.attributes.position;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (p.getX(i) + extent0) / mpt, (p.getY(i) + extent0) / mpt);
+    return M4(0, y, 0, 0, -Math.PI / 2); // rot: rx=−π/2 → nakładka w XZ, normalna w górę, lokalne +y → −z (policzone §3.1)
+  };
+  // --- medalion: pierścień + promienie (sektory RingGeometry) ---
+  const M = G.medallion, mpt = T.tiles.mpt, rayR0 = M.rOut + M.rayGap, rayR1 = rayR0 + M.rayLen;
+  check(M.rIn >= F.wet.r + M.gapWet, 'medalion na mokrym bruku fontanny', { rIn: M.rIn, wet: F.wet.r });   // 6,0 ≥ 5,2 + 0,5
+  check(M.rIn >= CONFIG.greenery.benches.dist + M.gapBench, 'medalion pod ławkami', { rIn: M.rIn, benches: CONFIG.greenery.benches.dist });   // 6,0 ≥ 5,6 + 0,3
+  check(rayR1 <= S.ringRadius - S.ringJitter - S.collideR, 'promienie medalionu pod kramami', { rayR1, ringIn: S.ringRadius - S.ringJitter - S.collideR });   // 8,2 ≤ 8,4
+  { const ring = new THREE.RingGeometry(M.rIn, M.rOut, M.seg, 1); B.add('roof2', ring, ground(ring, mpt, M.y)); }
+  for (let k = 0; k < M.rays; k++) {
+    const a = k * Math.PI * 2 / M.rays, dth = M.rayW / M.rOut;   // kąt świata promienia (od +z ku +x, jak ring:), szerokość kątowa = rayW przy rOut
+    // theta RingGeometry biegnie od lokalnego +x ku +y; po rx=−π/2 lokalne +y → −z, więc kąt świata a (od +z ku +x) = theta a − π/2 (policzone pos2.mjs: a 0,5 → środek (3,73, 0, 6,83))
+    const g = new THREE.RingGeometry(rayR0, rayR1, 2, 1, a - Math.PI / 2 - dth / 2, dth), m = ground(g, mpt, M.y);
+    const c = bboxOf(g, m).getCenter(new THREE.Vector3()), da = Math.abs(((Math.atan2(c.x, c.z) - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI);
+    check(da < 0.01 && Math.abs(Math.hypot(c.x, c.z) - (rayR0 + rayR1) / 2) < 0.05, 'promień medalionu nie na swoim kącie/promieniu', { k, a, c: c.toArray(), da });   // środek AABB sektora na kącie a i promieniu środkowym ± 5 cm
+    B.add('roof2', g, m);
+  }
+  // --- kałuże: dyski wet (nieregularny brzeg) na pierwszym planie startu ---
+  const Pd = G.puddles, ringOuter = S.ringRadius + Math.max(S.ringJitter, Cp.repoussoir.ringOut) + S.collideR;   // 11,5 + 1,5 + 1,6 = 14,6: zewnętrzny skraj kół kolizji kramów
+  const Ln = CONFIG.lanterns, lanterns = Array.from({ length: Ln.count }, (_, i) => { const a = (i + 0.5) / Ln.count * Math.PI * 2; return new THREE.Vector3(0, 0, Ln.ringRadius).applyMatrix4(M4(0, 0, 0, a)); });   // jak props.js buildLanterns: (sin a·R, cos a·R)
+  Pd.list.forEach((p, i) => {
+    const id = `kałuża ${i} (${p.x}, ${p.z})`;
+    check(Math.hypot(p.x, p.z) - p.r >= ringOuter, id + ' w pierścieniu kramów', { d: Math.hypot(p.x, p.z) - p.r, ringOuter });
+    check(Math.abs(p.x) + p.r <= half - 0.3 && Math.abs(p.z) + p.r <= half - 0.3, id + ' poza placem');   // 0,3: margines obszaru chodzenia (addWalkable wyżej)
+    check(lanterns.every(l => Math.hypot(l.x - p.x, l.z - p.z) >= p.r + Pd.lanternGap), id + ' pod latarnią');
+    check(Pd.list.every((q, j) => j === i || Math.hypot(q.x - p.x, q.z - p.z) >= p.r + q.r), id + ' nachodzi na inną kałużę');
+    const g = new THREE.CircleGeometry(p.r, Pd.seg), pos = g.attributes.position, Rj = rng(Pd.seed + i);   // wierzchołek 0 = środek, 1..seg+1 = obwód (ostatni = pierwszy)
+    for (let k = 1; k <= Pd.seg; k++) { const f = 1 + Pd.jitter * (Rj() * 2 - 1); pos.setXY(k, pos.getX(k) * f, pos.getY(k) * f); }   // brzeg r·(1 ± jitter)
+    pos.setXY(Pd.seg + 1, pos.getX(1), pos.getY(1));   // domknięcie obwodu (CircleGeometry powtarza pierwszy wierzchołek obwodu)
+    g.translate(p.x, -p.z, 0);   // lokalne +y → −z, więc z świata = −y lokalne (ta sama macierz co medalion)
+    g.setAttribute('color', new THREE.Float32BufferAttribute(Array.from({ length: pos.count }, () => [1, 1, 1, 1]).flat(), 4));   // mat.wet: vertexColors RGBA — kałuża pełnym kryciem (ostry brzeg)
+    const m = ground(g, T.cobble.mpt, Pd.y), c = bboxOf(g, m).getCenter(new THREE.Vector3());
+    check(Math.abs(c.x - p.x) <= p.r * Pd.jitter + 0.01 && Math.abs(c.z - p.z) <= p.r * Pd.jitter + 0.01 && Math.abs(c.y - Pd.y) < 1e-6, id + ' nie tam, gdzie CONFIG', { c: c.toArray() });   // środek AABB w r·jitter + 1 cm od (x, z)
+    B.add('wet', g, m);
+  });
+  W.puddles = Pd.list;
 }

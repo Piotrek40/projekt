@@ -224,7 +224,18 @@ export const CONFIG = {
     birds: { count: 14, yMin: 14, yMax: 24, rMin: 10, rMax: 20, speedMin: 0.08, speedMax: 0.16, size: 1.1, color: [0.30, 0.01, 250] }, // y 14–24: przy pitch 0.02 kadr sięga 36° nad horyzont = 14 m w 20 m, 30 m w 40 m (cykl 1: 22–34 m poza kadrem) // prędkość kątowa rad/s; rozmiar sprite'a 1.1 m; kolor OKLCH ciemny granat
   },
 
-  ground: {},         // tor „wieża i panorama": medalion, krawężniki, gradient wilgoci bruku, kałuże
+  // motyw #13 „bruk" (layout.js buildGround, ?noground=1): medalion wokół fontanny i kałuże na pierwszym planie startu (poprawka r1 reżyserii:
+  // dolna ⅓ kadru start_v2 = sam bruk w cieniu pierzei S, hist_roles n 76 % / w 19 %). Klucze istniejące (bez nowego W.mat): medalion = roof2 (łupek
+  // [0.70, 0.050, 250] na stone_tiles_02 — inny wzór (płyty) i chłodniejszy od bruku, rola 'n'), kałuże = wet (mokry bruk fontanny: ciemniejszy tint, gładszy,
+  // rola 'n'; cykl 1 z kluczem water: dyski r 1,0 czytały się jako turkusowe plandeki — lustro opacity 0,85 tintu H 200 bez odbicia nieba pod kątem 25°).
+  // Płaskie nakładki y ≤ 1 cm (B6 w teście pomija nakładki o grubości ≤ 2 cm — nie są przeszkodą).
+  ground: {
+    medallion: { rIn: 6.0, rOut: 7.2, seg: 32, rays: 8, rayW: 0.5, rayGap: 0.15, rayLen: 0.85, y: 0.004, gapWet: 0.5, gapBench: 0.3 },   // §5.2 #13: RingGeometry(6.0, 7.2, 32) + 8 promieni; rIn ≥ wet.r 5,2 + 0,5; promienie do 8,2 ≤ 11,5 − 1,5 − 1,6 = 8,4 (pierścień kramów); ławki 5,6 + 0,3 ≤ 6,0
+    // kałuże (x, z, r): policzone dla kamery startu (4,5, 1,65, 19,5) yaw 0,20 pitch 0,09 (geom: pos2.mjs) — (3,0, 15,4) NDC (−0,48, −0,69), (4,6, 16,0) NDC (0,74, −0,84):
+    // obie w dolnej ⅓ kadru; |p| − r ≥ 14,6 (poza zewnętrznym skrajem pierścienia kramów 11,5 + 1,5 + 1,6); ≥ 0,25 od latarni (5,93, 14,32); nie nachodzą na siebie.
+    // r 0,6 / 0,4 (cykl 1: r 1,0 = dysk 600 px = 73 % szerokości kadru); brzeg nieregularny: promień obwodu × (1 ± jitter) ze strumienia rng(seed) (koło idealne = plandeka)
+    puddles: { y: 0.006, list: [{ x: 3.0, z: 15.4, r: 0.6 }, { x: 4.6, z: 16.0, r: 0.4 }], seg: 24, jitter: 0.25, seed: 1300, lanternGap: 0.25 },   // y 6 mm (nad wet fontanny 5 mm: inne y → brak koplanarności); seg 24; seed: własny strumień (W.R bez zmian)
+  },
 
   // tor „plac" — motyw #7 „kompozycja startu" (?nocompose=1 = start HEAD (4, 19, yaw 0,15) i pierścień kramów bez fazy/repoussoira). Policzone (geom.mjs,
   // PerspectiveCamera(70, 412/915), oko (4,5, 1,65, 19,5), YXZ): yaw fontanny 0,227, wieży 0,257; fontanna NDC x −0,086 (cembrowina −0,57..0,43 = środkowa ⅓);
@@ -301,6 +312,17 @@ export const CONFIG = {
   },
 
   props: {            // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
+    // wóz (props.js buildCart; ?nocart2=1 = pozycja HEAD legacy): poprawka r1 reżyserii — wóz z (−8, 9) (w żadnym z 12 widoków, 2,17 m od kramu 6) na pierwszy plan
+    // startu (kadr ±0,305 rad: przy 8 m pas na prawo od cembrowiny ma 1,4 m — wóz 2,4 m zawsze jest ucięty krawędzią ALBO nachodzi na skraj basenu; wybrane:
+    // trzy czwarte od tyłu, nachodzi tylko na prawy skraj cembrowiny, misy i posąg wolne). Policzone (cart2.mjs, kamera §5.3): podłoże NDC (0,91, −0,49) px (785, 1362),
+    // wierzch skrzyni NDC y −0,17 px 1074, skrzynia NDC x 0,29..0,96, koło NDC (0,54, −0,47); rogi skrzyni ze startu yaw ≤ 0,111 < lewy skraj dolnej misy
+    // 0,227 − asin(1,8/20,0) = 0,137 − bowlClear (§5.3 (1)); środek 2,06 m od linii start→fontanna (koło 1,5 + gracz 0,35 = 1,85 → przejście); ry = 0,9 + π:
+    // bok do kamery (lokalne +z · przód kamery 0,76), dyszel (lokalne −x) ku kramowi 1 (8,91, 7,78): koło dyszla L(−2,2, 0, 0) = (6,37, 10,78) r 0,6, czubek
+    // (7,05, 9,92) 2,83 m od środka kramu ≥ 1,6 + 0,35; latarnia 0 (5,93, 14,32) 2,04 m ≥ 1,5 + 0,25. KNOWN_B6 dyszel usunięte z testu.
+    cart: { x: 5.0, z: 12.5, ry: 0.9 + Math.PI, collideR: 1.5, shaft: { lx: -2.2, r: 0.6 }, legacy: { x: -8, z: 9, ry: 0.7 },   // legacy: HEAD (?nocart2=1)
+      bowlClear: 0.02,   // rad: każdy róg skrzyni co najmniej tyle na prawo (mniejszy yaw) od lewego skraju dolnej misy (bowls[0].r) widzianej ze startu
+      // drewno na pierwszym planie (kosz/beczka z poprawki r1): beczka przy latarni 0 (5,93, 14,32) — NDC (0,80, −0,62..−0,36) px (742, 1485..1243); kosz obok (NDC x ≈ 0,5); ry modeli dowolne
+      foreground: [{ name: 'wine_barrel_01', x: 4.7, z: 14.4, ry: 0.3 }, { name: 'wicker_basket_01', x: 4.15, z: 14.15, ry: 1.1 }] },   // beczka DREWNIANA (cykl 1: Barrel_01 = czerwona beczka stalowa z piktogramem); put z force (poza limitem cuts.maxCount 4 dla rozsypki); kosz 0,60 m od beczki ≥ 0,37 + 0,19, 1,86 m od wozu ≥ 1,5 + 0,19   // ry: obrót modelu (dowolny, bez znaczenia geometrycznego)
     // modele bez cienia (rzucanie cienia = drugi raz ta sama geometria w przebiegu cieni); props.js: NO_SHADOW = new Set(CONFIG.props.noShadow)
     noShadow: ['grass_medium_02', 'fern_02', 'food_apple_01', 'wooden_bowl_01', 'ceramic_vase_01', 'ceramic_vase_02', 'wine_bottles_01', 'potted_plant_02'],
     // motyw #1 „cięcia skanów" (?nocuts=1 przywraca stan bazowy: 158 draw / 818 939 tri HUD w start_plac; liczby per model z __stats bazy)

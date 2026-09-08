@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { box, plane, cylinder, M4, rng } from '../../engine/src/geometry.js';
 import { signTexture, signTextTexture, smokeTexture } from './materials.js';
-import { check, checkHeight, checkAboveGround, checkCollisionCovers, checkInFrontOfWall, facadeNormal } from '../../engine/src/check.js';
+import { check, checkHeight, checkAboveGround, checkCollisionCovers, checkInFrontOfWall, facadeNormal, bboxOf } from '../../engine/src/check.js';
 
 // Ładuje modele i przygotowuje put()/flushInstances() dla reszty modułów.
 export async function initProps(W) {
@@ -25,7 +25,7 @@ export async function initProps(W) {
   const counts = new Map();   // ile razy proszono o model — limit CONFIG.props.cuts.maxCount pomija nadmiar (bez kolizji, bez bryły)
   function put(name, x, y, z, ry = 0, scale = 1, opts = {}) {
     const nth = counts.get(name) ?? 0; counts.set(name, nth + 1);
-    if (cuts && nth >= (cuts.maxCount[name] ?? Infinity)) return false;
+    if (cuts && !opts.force && nth >= (cuts.maxCount[name] ?? Infinity)) return false;   // force: celowe ustawienie (beczka pierwszego planu, buildCart) poza limitem rozsypki
     const b = bounds.get(name);
     const m = M4(x, y - b.min.y * scale, z, ry, 0, 0, scale);
     if (!placements.has(name)) placements.set(name, []);
@@ -124,10 +124,12 @@ export function scatterProps(W) {
   put('Lantern_01', -half + 5, stumpTop, half - 6, 1.0, 1, { collide: false });   // (x,z) pieńka = środek pnia (początek modelu), ry 1.0 jak w bazie
 }
 
+// Wóz: układ lokalny — początek na środku podstawy, +x wzdłuż skrzyni (dyszel na −x), +y w górę, +z bok. Metry. Do świata tylko przez L().
+// Pozycja z CONFIG.props.cart (poprawka r1 reżyserii: pierwszy plan startu; ?nocart2=1 = pozycja HEAD cart.legacy); dyszel ma własne koło kolizji.
 export function buildCart(W) {
-  const { ctx, T, B, put } = W;
+  const { ctx, T, B, put, CONFIG } = W, Ct = CONFIG.props.cart;
   {
-    const x = -8, z = 9, ry = 0.7;
+    const { x, z, ry } = ctx.flags.nocart2 ? Ct.legacy : Ct;
     const L = (lx, ly, lz, lry = 0, lrx = 0, lrz = 0) => M4(lx, ly, lz, lry, lrx, lrz).premultiply(M4(x, 0, z, ry));
     B.add('planks', box(2.4, 0.08, 1.2, T.planks.mpt), L(0, 0.9, 0));
     for (const sx of [-1, 1]) B.add('planks', box(0.06, 0.5, 1.2, T.planks.mpt), L(sx * 1.17, 1.19, 0));
@@ -140,10 +142,45 @@ export function buildCart(W) {
       B.add('timber', box(0.14, 0.14, 1.6, T.timber.mpt), L(0.3, 0.62, 0));
     }
     for (const sz of [-1, 1]) B.add('timber', box(2.2, 0.1, 0.1, T.timber.mpt), L(-2.2, 0.75, sz * 0.4, 0, 0, 0.08)); // rot: rz=+0.08 → koniec +x (przy wozie) w GÓRĘ: (1,0,0)→(0.997,0.08,0); końce w świecie y 0.662 (czubek) / 0.838 (przy wozie)
-    ctx.addCircle(x, z, 1.5);
+    ctx.addCircle(x, z, Ct.collideR);
+    const shaft = new THREE.Vector3().setFromMatrixPosition(L(Ct.shaft.lx, 0, 0));   // koło pod dyszlem (§3.4 B6: czubek 2,24 m od koła wozu r 1,5 — gracz wchodził w dyszel)
+    ctx.addCircle(shaft.x, shaft.z, Ct.shaft.r); W.dbgCircle?.(shaft.x, shaft.z, Ct.shaft.r);
+    for (const sz of [-1, 1]) checkCollisionCovers('dyszel wozu', bboxOf(box(2.2, 0.1, 0.1), L(-2.2, 0.75, sz * 0.4, 0, 0, 0.08)), { x: shaft.x, z: shaft.z, r: Ct.shaft.r }); // rot: rz=+0.08 jak belka wyżej (ta sama macierz)
     put('wooden_crate_01', x + 0.2, 0.94, z, ry, 0.8, { collide: false });
     put('wicker_basket_01', x - 0.7, 0.94, z + 0.2, ry + 1, 0.9, { collide: false });
+    if (!ctx.flags.nocart2) checkCartPlacement(W, { x, z, ry }, L);
   }
+  // drewno na pierwszym planie startu (beczka przy latarni, kosz obok) — put() sam dodaje koła kolizji (r > 0,3 → 0,9·r; kosz mniejszy bez koła)
+  if (!ctx.flags.nocart2) for (const p of Ct.foreground) { put(p.name, p.x, 0, p.z, p.ry, 1, { force: true }); checkForegroundProp(W, p); }
+}
+// Asercje wozu na pierwszym planie (liczby seed-niezależne, policzone w config.js): (1) koło wozu poza kołami kramów, lip, latarni i kałuż; (2) wóz w placu;
+// (3) każdy róg skrzyni widziany ze startu ma yaw ≤ lewy skraj dolnej misy (yaw fontanny − asin(bowls[0].r/d)) − bowlClear: wóz nachodzi co najwyżej na
+//     prawy skraj cembrowiny, misy i posąg zostają wolne (§5.3 (1); policzone: 0,111 ≤ 0,137 − 0,02);
+// (4) czubek dyszla poza kołami kramów. yaw jak app.js (yaw 0 = −z): atan2(−dx, −dz).
+function checkCartPlacement(W, { x, z, ry }, L) {
+  const { CONFIG, half, stalls } = W, Ct = CONFIG.props.cart, F = CONFIG.fountain, st = CONFIG.composition.start, Ln = CONFIG.lanterns, Tr = CONFIG.trees;
+  const yawTo = (px, pz) => Math.atan2(-(px - st.x), -(pz - st.z));
+  const clear = (px, pz, r, what) => check(Math.hypot(px - x, pz - z) >= Ct.collideR + r, `wóz nachodzi na ${what}`, { x, z, px, pz });
+  for (const s of stalls) clear(s.x, s.z, CONFIG.stalls.collideR, 'kram');
+  for (let i = 0; i < Ln.count; i++) { const a = (i + 0.5) / Ln.count * Math.PI * 2, l = new THREE.Vector3(0, 0, Ln.ringRadius).applyMatrix4(M4(0, 0, 0, a)); clear(l.x, l.z, 0.25, 'latarnię'); }   // jak buildLanterns
+  check(Math.hypot(x, z) - Ct.collideR >= Tr.dist + Tr.collideR, 'wóz przy lipach', { d: Math.hypot(x, z) });   // lipy na okręgu dist wokół fontanny
+  for (const p of W.puddles ?? []) clear(p.x, p.z, p.r, 'kałużę');
+  check(Math.abs(x) + Ct.collideR <= half - 0.3 && Math.abs(z) + Ct.collideR <= half - 0.3, 'wóz poza placem');   // 0,3: margines obszaru chodzenia (layout.js addWalkable)
+  const corners = [[1.2, 0.6], [1.2, -0.6], [-1.2, 0.6], [-1.2, -0.6]].map(([lx, lz]) => new THREE.Vector3().setFromMatrixPosition(L(lx, 0.9, lz)));   // rogi skrzyni (box 2,4 × 1,2; yaw nie zależy od y)
+  const yawCart = Math.max(...corners.map(c => yawTo(c.x, c.z))), yawBowlL = yawTo(0, 0) - Math.asin(F.bowls[0].r / Math.hypot(st.x, st.z));   // policzone: 0,111 vs 0,227 − asin(1,8/20,0) = 0,137
+  check(yawCart <= yawBowlL - Ct.bowlClear, 'wóz zasłania misy fontanny ze startu', { yawCart, yawBowlL });
+  const tip = new THREE.Vector3().setFromMatrixPosition(L(Ct.shaft.lx - 1.1, 0, 0));   // czubek dyszla (belka 2,2 od −2,2 → koniec −3,3)
+  for (const s of stalls) check(Math.hypot(s.x - tip.x, s.z - tip.z) >= CONFIG.stalls.collideR + 0.35, 'dyszel wozu w kramie', { tip: tip.toArray() });   // 0,35: promień gracza (przejście)
+}
+// Beczka/kosz pierwszego planu: w placu, poza kałużami (skraj modelu z W.bounds), ≥ 0,25 od latarni (słup 0,16), poza kołem wozu; para nie nachodzi na siebie.
+function checkForegroundProp(W, p) {
+  const { CONFIG, half, bounds } = W, Ct = CONFIG.props.cart, Ln = CONFIG.lanterns, b = bounds.get(p.name), r = Math.max(b.max.x - b.min.x, b.max.z - b.min.z) / 2;
+  const id = `${p.name} (${p.x}, ${p.z})`;
+  check(Math.abs(p.x) + r <= half - 0.3 && Math.abs(p.z) + r <= half - 0.3, id + ' poza placem');   // 0,3: margines obszaru chodzenia
+  for (const q of W.puddles ?? []) check(Math.hypot(q.x - p.x, q.z - p.z) >= q.r + r, id + ' w kałuży', { d: Math.hypot(q.x - p.x, q.z - p.z), q });
+  for (let i = 0; i < Ln.count; i++) { const a = (i + 0.5) / Ln.count * Math.PI * 2, l = new THREE.Vector3(0, 0, Ln.ringRadius).applyMatrix4(M4(0, 0, 0, a)); check(Math.hypot(l.x - p.x, l.z - p.z) >= r + 0.25, id + ' w latarni'); }   // 0,25: koło kolizji latarni (buildLanterns); (i + 0,5): kąty jak tam
+  check(Math.hypot(Ct.x - p.x, Ct.z - p.z) >= Ct.collideR + r, id + ' w kole wozu');
+  for (const q of Ct.foreground) if (q !== p) { const rq = Math.max(bounds.get(q.name).max.x - bounds.get(q.name).min.x, bounds.get(q.name).max.z - bounds.get(q.name).min.z) / 2; check(Math.hypot(q.x - p.x, q.z - p.z) >= r + rq, id + ' nachodzi na ' + q.name); }
 }
 
 export function buildBanners(W) {

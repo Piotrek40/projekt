@@ -4,20 +4,19 @@
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
 import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, stallGoodsPlan, buildStallGoods, buildSkyline, skylinePlan, buntingCurves, buildBunting, clockClearance, fountainPlan, buildFountain, poiPlan, greeneryPlan, buildGreenery, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
-const KNOWN_B6 = [
-  { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
-  { key: 'timber', x: -9.43, z: 10.72, why: 'dyszel wozu, druga belka (jw.)', date: '2026-09-07' },
-];
+const KNOWN_B6 = []; // dyszel wozu (2 wpisy z 2026-09-07) usunięty 2026-09-08: buildCart dodaje koło L(−2,2, 0, 0) r 0,6 pod dyszlem (poprawka r1 reżyserii, wóz na (4,9, 11,3))
 // Znane wady HEAD (B5b ii): okna lukarn zakopane w połaci (buildings.js blok „lukarna" na HEAD: spód okna 0,44 m POD wierzchem płyty) — usuwa motyw #12 (lukarny NA połaci).
 const KNOWN_B5B = []; // 10 lukarn HEAD usunięte 2026-09-07 przez motyw #12a (lukarny NA połaci: spód okna +0,10 nad wierzchem płyty)
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 // Bryły modeli towaru kramów (motyw #11, asercja J): bboxMin/bboxMax z `gltf-transform inspect rynek/assets/models_jpg/<n>.glb` (2026-09-08) — stub 1×1×1 m dawałby
 // fałszywe FAIL asercji „wystaje poza blat" / „poza kołem kolizji" (kosz 1,3 m na ladzie 1,0 m); pozostałe modele nadal ze stubem.
+const WICKER1 = [[-0.192, -0.001, -0.147], [0.191, 0.116, 0.147]];   // wicker_basket_01: gltf-transform inspect rynek/assets/models_jpg (2026-09-08), płaski kosz 0,38 × 0,29 × 0,12 m
 const GOODS_BOUNDS = {
   hamburger_buns: [[-0.199, 0, -0.049], [0.198, 0.063, 0.065]], food_pears_asian_01: [[-0.08, 0, -0.101], [0.046, 0.071, 0.066]], ceramic_pot: [[-0.328, -0.001, -0.251], [0.328, 0.371, 0.251]],
   brass_pot_01: [[-0.151, -0.001, -0.151], [0.151, 0.29, 0.151]], brass_vase_01: [[-0.114, 0.001, -0.114], [0.114, 0.694, 0.114]], wicker_basket_02: [[-0.108, 0, -0.145], [0.239, 0.2, 0.109]],
   wooden_bowl_01: [[-0.157, 0.001, -0.154], [0.156, 0.094, 0.155]], ceramic_vase_01: [[-0.102, 0.001, -0.101], [0.102, 0.401, 0.102]], ceramic_vase_02: [[-0.109, 0.001, -0.109], [0.109, 0.31, 0.109]],
   wine_bottles_01: [[-0.036, 0, -0.04], [0.64, 0.331, 0.04]], wine_barrel_01: [[-0.371, 0.002, -0.371], [0.371, 0.871, 0.381]], wooden_crate_01: [[-0.413, -0.008, -0.196], [0.413, 0.342, 0.213]], Barrel_01: [[-0.282, -0.007, -0.282], [0.282, 0.873, 0.282]],
+  wicker_basket_01: WICKER1,   // kosz pierwszego planu (poprawka r1: CONFIG.props.cart.foreground) — bryła z gltf-transform inspect 2026-09-08
 };
 // Bryły modeli zieleni (motyw #greenery, asercja K2): gltf-transform inspect rynek/assets/models_jpg/<n>.glb (2026-09-08) — stub 1×1×1 dawałby fałszywe FAIL
 // (krzew ×3 = 3 m, ławka 1 m głęboka w kole fontanny).
@@ -308,6 +307,10 @@ let nGoods = 0, nBales = 0;
 // G) wóz (props.js buildCart) — geometria Batch; modele przez stub put (rejestrowane w puts)
 buildCart(W);
 if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 'wicker_basket_01')) fails.push('G stub W.put: buildCart nie zarejestrował skrzyni i kosza na wozie');
+{ const Ct = CONFIG.props.cart, shaft = V(Ct.shaft.lx, 0, 0).applyMatrix4(M4(Ct.x, 0, Ct.z, Ct.ry));   // koło pod dyszlem (B6): policzone dla (4,9, 11,3, ry 0,45+π) → (6,88, 0, 10,34)
+  if (!col.circles.some(c => Math.hypot(c.x - Ct.x, c.z - Ct.z) < 1e-6 && c.r >= Ct.collideR)) fails.push('G wóz bez koła kolizji w CONFIG.props.cart');
+  if (!col.circles.some(c => Math.hypot(c.x - shaft.x, c.z - shaft.z) < 1e-3 && c.r >= Ct.shaft.r)) fails.push(`G brak koła pod dyszlem w (${shaft.x.toFixed(2)}, ${shaft.z.toFixed(2)})`);
+  for (const p of Ct.foreground) if (!puts.some(q => q.name === p.name && Math.abs(q.x - p.x) < 1e-6 && Math.abs(q.z - p.z) < 1e-6)) fails.push(`G ${p.name} pierwszego planu nie postawiony przez put`); }
 // K2) zieleń (greenery.js: greeneryPlan = funkcja czysta, buildGreenery = geometria W.B + modele przez stub W.put + asercje CHECK → E): liczby z CONFIG.greenery.
 //     Donice: count, model przy domu bez setback, środek gap + d/2 przed licem parteru (wzdłuż normalnej (sin ry, 0, cos ry) od punktu tr domu: faceZ + 0,237), skraj ≥ archOut + gap
 //     od drzwi, w obrysie domu; 2 krzewy w obrysie donicy (układ donicy przez odwrotność M4), spód 0,05..h−0,05. Skrzynki: count na parapetach bez okiennic: planks ze spodem na s.y,
@@ -373,6 +376,7 @@ let nGreen = { planters: 0, sillBoxes: 0, beds: 0, benches: 0 };
   for (const r of rec) {
     if (/^(cobble|wet)/.test(r.key)) continue;
     const wb = r.bb.clone().applyMatrix4(r.m); if (wb.min.y >= 2) continue;
+    if (wb.max.y <= 0.02 && wb.max.y - wb.min.y <= 0.02) continue;   // płaskie nakładki na bruku (medalion roof2, kałuże water — motyw #13, y ≤ 1 cm, grubość 0): nie są przeszkodą, tak jak wet
     if (!walk.some(w => wb.max.x > w.x - w.hw && wb.min.x < w.x + w.hw && wb.max.z > w.z - w.hd && wb.min.z < w.z + w.hd)) continue;
     nWalk++;
     const cx = (wb.min.x + wb.max.x) / 2, cz = (wb.min.z + wb.max.z) / 2;
