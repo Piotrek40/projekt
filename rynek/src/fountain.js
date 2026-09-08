@@ -67,12 +67,27 @@ export function fountainPlan(CONFIG) {
   return { statueY, basinProfile, waters, bowls, columns, cap, jets, step, collideR, wet };
 }
 
-// UV LatheGeometry w metrach: u = obwód na promieniu wierzchołka / mpt, v = długość profilu do wierzchołka / mpt (kolejność wierzchołków
-// LatheGeometry.js: i po segmentach, j po punktach profilu → indeks i·N + j).
+// UV LatheGeometry: v = długość profilu do wierzchołka / mpt (metry); u = i·du, du = reps/seg, reps = round(2π·rRef/mpt) — JEDNA liczba kafli na bryłę
+// (rRef = max r profilu). Kolejność wierzchołków LatheGeometry.js: i po segmentach, j po punktach profilu → indeks i·N + j.
+// r1 (krytyk geometrii): u = (i/seg)·2π·r_j/mpt zależało od promienia wierzchołka, więc na odcinkach profilu o zmiennym r tekstura była ścinana
+// proporcjonalnie do i — przy φ→2π (szew na +z, od kamery startowej) o 2π·|Δr|/mpt = 2,97 kafla na półce obrzeża basenu (Δr 0,52) i 7,9 kafla
+// na spodzie misy 1 (policzone); lewa połowa rozmazana, prawa ostra. Teraz Δu między sąsiednimi segmentami jest stałe dla każdego j (0 ścinania);
+// koszt: kafle gęstsze przy mniejszym r (misa 1: ×4,3 przy dziurze 0,42 m — jak klińce sklepienia). Zaokrąglenie do całkowitej liczby kafli
+// (basen 18,96 → 19, misa 1 10,28 → 10, misa 2 5,14 → 5; odchyłka skali ≤ 2,7 %) usuwa też szew tekstury na φ = 0.
 function latheUv(g, pts, seg, mpt) {
   const N = pts.length, s = [0]; for (let j = 1; j < N; j++) s.push(s[j - 1] + pts[j].distanceTo(pts[j - 1]));
+  const rRef = Math.max(...pts.map(p => p.x)), reps = Math.max(1, Math.round(2 * Math.PI * rRef / mpt)), du = reps / seg;
   const uv = g.attributes.uv;
-  for (let i = 0; i <= seg; i++) for (let j = 0; j < N; j++) uv.setXY(i * N + j, (i / seg) * 2 * Math.PI * pts[j].x / mpt, s[j] / mpt);
+  for (let i = 0; i <= seg; i++) for (let j = 0; j < N; j++) uv.setXY(i * N + j, i * du, s[j] / mpt);
+  // asercje z TEJ SAMEJ tablicy uv (float32: ulp przy u ≈ 19 to 1,9e-6 → próg 1e-5): Δu(i, i+1) = du dla każdego j (brak ścinania);
+  // u(seg) − u(0) całkowite (brak szwu tekstury na φ = 0)
+  let maxDev = 0, seam = 0;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < seg; i++) maxDev = Math.max(maxDev, Math.abs(uv.getX((i + 1) * N + j) - uv.getX(i * N + j) - du));
+    const wrap = uv.getX(seg * N + j) - uv.getX(j); seam = Math.max(seam, Math.abs(wrap - Math.round(wrap)));
+  }
+  check(maxDev < 1e-5, 'fontanna: UV Lathe ścinane (Δu między segmentami ≠ du)', { maxDev, du, rRef, mpt }); // próg: float32 (komentarz wyżej)
+  check(seam < 1e-5, 'fontanna: liczba kafli na obwodzie nie całkowita (szew tekstury na φ = 0)', { seam, reps, rRef, mpt }); // próg: float32 (komentarz wyżej)
   return g;
 }
 
