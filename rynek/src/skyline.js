@@ -296,7 +296,7 @@ function buildBirds(W, birds) {
   const { H } = W, ridgeTop = H.groundFloor + (H.floorsMax - 1) * H.floorHeight + ((H.depth + (H.floorsMax - 1) * H.jetty) / 2) * Math.tan(H.roofPitch);
   for (const b of birds) check(b.y >= ridgeTop && b.y <= 40 && b.y >= Bd.yMin && b.y <= Bd.yMax, 'ptak pod kalenicami albo poza kadrem', { y: b.y, ridgeTop }); // cykl 1: próg 20 m z ręki — ptaki 22–34 m poza kadrem
   const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const pm = new THREE.PointsMaterial({ map: birdTexture(), size: Bd.size, transparent: true, alphaTest: 0.3, depthWrite: false, color: oklch(...Bd.color), sizeAttenuation: true }); // alphaTest 0.3 = twarda krawędź V
+  const pm = new THREE.PointsMaterial({ map: birdTexture(), size: Bd.size, transparent: true, alphaTest: Bd.alphaTest ?? 0.3, depthWrite: false, color: oklch(...Bd.color), sizeAttenuation: true }); // alphaTest 0.3 = twarda krawędź V
   const pts = new THREE.Points(geo, pm); pts.frustumCulled = false; pts.name = 'birds'; scene.add(pts);
   const tick = t => {
     for (let i = 0; i < N; i++) {

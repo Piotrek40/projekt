@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { box, plane, cylinder, M4, rng } from '../../engine/src/geometry.js';
 import { signTexture, signTextTexture, smokeTexture } from './materials.js';
 import { check, checkHeight, checkAboveGround, checkCollisionCovers, checkInFrontOfWall, facadeNormal, bboxOf } from '../../engine/src/check.js';
+import { oklch } from './color.js';
 
 // Ładuje modele i przygotowuje put()/flushInstances() dla reszty modułów.
 export async function initProps(W) {
@@ -19,6 +20,12 @@ export async function initProps(W) {
   const materialsOf = () => { const out = []; for (const [, g] of models) g.scene.traverse(o => { if (o.isMesh) out.push(...[].concat(o.material)); }); return out; };
   if (cuts) for (const m of materialsOf()) if (m.transmission > 0) { m.transmission = 0; m.transparent = true; m.opacity = cuts.glassOpacity; m.needsUpdate = true; }
   check(!cuts || materialsOf().every(m => !(m.transmission > 0)), 'materiał z transmisją (drugi przebieg renderera)');
+  // Tint modeli z CONFIG.props.tint (poprawka r2, krytyk reżyserii): biały posąg konia był najjaśniejszym obiektem kadru (sonda L 0,703 C 0,019)
+  // i nie należał do żadnej rodziny palety — patyna wiąże go z miedzianym hełmem wieży (rodzina H 170–200). ?notint=1 przywraca kolory modeli.
+  if (!ctx.flags.notint) for (const [n, c] of Object.entries(CONFIG.props.tint || {})) {
+    const g = models.get(n); if (!g) continue;
+    g.scene.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) { m.color.setHex(oklch(...c)); m.needsUpdate = true; } });
+  }
   // Rekwizyty są instancjonowane: jeden draw call na (model × materiał) zamiast jednego na kopię.
   const placements = new Map();
   const NO_SHADOW = new Set([...CONFIG.props.noShadow, ...(cuts ? cuts.noShadow : []), ...CONFIG.greenery.noShadow]);   // + kwiaty/krzewy/donice (motyw #greenery)

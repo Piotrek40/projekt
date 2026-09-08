@@ -33,9 +33,9 @@ export async function buildMaterials(W) {
   // Woda z WŁASNYM envMap: scene.environment to equirect HDR, renderer robi z niego PMREM (environments.get(material.envMap || environment), WebGLRenderer.js:2177);
   // bez własnego envMap envMapIntensity jest nadpisywany przez scene.environmentIntensity 0.6 (:2694, §4.1.9). Obrót: przy własnym envMap liczy się material.envMapRotation (:2178).
   const Fo = W.CONFIG.fountain, env = ctx.scene.environment || null;
-  mat.water = new THREE.MeshPhysicalMaterial({ color: hexOf('water'), roughness: 0.04, metalness: 0.0, transparent: true, opacity: 0.85, envMap: env, envMapIntensity: Fo.water.envMapIntensity, normalMap: sets.cobble.normalMap.clone(), normalScale: new THREE.Vector2(0.25, 0.25) }); // roughness/opacity/normalScale jak w HEAD
+  mat.water = new THREE.MeshPhysicalMaterial({ color: hexOf('water'), roughness: 0.04, metalness: 0.0, transparent: true, opacity: 0.85, envMap: env, envMapIntensity: Fo.water.envMapIntensity, normalMap: sets.cobble.normalMap.clone(), normalScale: new THREE.Vector2(Fo.water.normalScale, Fo.water.normalScale) }); // normalScale z CONFIG (poprawka r2: 0,25 przy repeat 3 = mozaika kafelkowa)
   if (env) mat.water.envMapRotation.copy(ctx.scene.environmentRotation);
-  mat.water.normalMap.repeat.set(3, 3); mat.water.normalMap.needsUpdate = true;
+  mat.water.normalMap.repeat.set(Fo.water.normalRepeat, Fo.water.normalRepeat); mat.water.normalMap.needsUpdate = true;   // poprawka r2: repeat 3 dawal regularna mozaike ~10 cm
   W.waterTime = { value: 0 }; // uniform czasu dla kręgów i rozbryzgu (fountain.js aktualizuje, gdy nie ma ?nowater)
   { const J = Fo.jets, tex = jetTexture(); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(J.texRepeat, 1);
     mat.jet = new THREE.MeshStandardMaterial({ color: oklch(...J.color), map: tex, transparent: true, opacity: J.opacity, depthWrite: false, roughness: J.roughness, metalness: 0, envMap: env, envMapIntensity: J.envMapIntensity, side: THREE.DoubleSide });

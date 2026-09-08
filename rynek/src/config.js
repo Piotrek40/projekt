@@ -51,8 +51,8 @@ export const CONFIG = {
             speed: 1.8, texRepeat: 3, opacity: 0.6, roughness: 0.2, envMapIntensity: 1.0, color: [0.93, 0.03, 215] }, // map.offset.x −= dt·speed (uv.x wzdłuż rury); tint jasny błękit OKLCH
     splash: { perJet: 24, size: 0.10, up: 2.4, out: 0.8, rate: 1.4, life: 0.6, opacity: 0.8, color: [0.58, 0.05, 235], renderOrder: 3 }, // Points: kropla 0.10 m, w górę ≤ 2.4 m/s (h = v²/2g = 29 cm — ponad lustro, na tle ściany/kolumny), w bok ≤ 0.8; cykl 0.6 s; cykle 1–2: 0.07–0.09 białe, 7 cm → niewidoczne; cykl 6: 0.12 m L 0.70 na lustrze L 0.76 → ΔL 0.06 niewidoczne; cykl 7: 40 × 0.16 m L 0.45 → widoczne, ale zlewają się w granatowe plamy; cykl 8: 24 × 0.10 m L 0.58 (ΔL ≈ 0.18), szerzej w bok → mglisty ślad, pctOver 0.22 % < 0.5; §6.1: domyślnie WYŁĄCZONY, ?splash=1 włącza
     ripple: { rIn: 0.33, rOut: 0.45, seg: 16, perJet: 2, above: 0.01, speed: 0.6, minScale: 0.25, opacity: 0.85, color: [0.35, 0.04, 240] }, // pierścień 0.33–0.45, 2 na lądowanie (faza co ½), 0.01 nad lustrem (K5), skala 0.25→1 w 1/0.6 s, alfa 1→0; cykl 1: 0.05–0.45 biały = dysk niewidoczny; cykl 2: L 0.70/0.5 → ΔL 0.03 na lustrze L 0.76; cykl 4: lustro rysowane po kręgach przykrywało je (→ renderOrderKeys); cykl 5: L 0.50/0.6 ledwo widoczne → ciemniej i mocniej
-    wet: { r: 5.2, rFull: 4.6, seg: 32, y: 0.005, color: [0.55, 0.012, 80], roughness: 0.4 }, // mokry bruk: cobble tint L 0.55 (suchy 0xb9b3aa = L 0.75), gładszy; y 0.005 + polygonOffset; pełne krycie do r 4.6, zanik alfa do 0 na r 5.2 (cykl 2: ostra krawędź)
-    water: { envMapIntensity: 0.8, drift: [0.02, 0.013] }, // własny envMap (§4.1.9); cykl 1: 1.2 → lustro basenu L 0.74–0.80 C < 0.01 (białe, tint H 200 znika, kręgi niewidoczne); dryf normal mapy jak dawniej
+    wet: { r: 5.2, rFull: 4.6, seg: 32, y: 0.005, color: [0.32, 0.018, 245], roughness: 0.55 }, // mokry bruk: cobble tint L 0.55 (suchy 0xb9b3aa = L 0.75), gładszy; y 0.005 + polygonOffset; pełne krycie do r 4.6, zanik alfa do 0 na r 5.2 (cykl 2: ostra krawędź)
+    water: { envMapIntensity: 0.32, normalRepeat: 1, normalScale: 0.15, drift: [0.02, 0.013] }, // własny envMap (§4.1.9); cykl 1: 1.2 → lustro basenu L 0.74–0.80 C < 0.01 (białe, tint H 200 znika, kręgi niewidoczne); dryf normal mapy jak dawniej
   },
   stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6,   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
     // motyw #11 „role kramów" (?nokinds=1 = stary placeGoods bez ról, bez szyldów kramów, nowe modele nieładowane). Kram i dostaje kinds[i % kinds.length]
@@ -127,7 +127,7 @@ export const CONFIG = {
       cloth1:    [0.58, 0.100, 190, 'none'],     // morski turkus (max gamutu C 0,101)
       cloth2:    [0.72, 0.150, 78,  'none'],     // szafran
       cloth3:    [0.50, 0.170, 25,  'none'],     // karmazyn
-      water:     [0.50, 0.070, 200, 'none'],     // woda fontanny (odbicie nieba przez environmentIntensity — §4.1.9)
+      water:     [0.42, 0.090, 205, 'none'],     // woda fontanny (odbicie nieba przez environmentIntensity — §4.1.9)
       glass:     [0.25, 0.020, 250, 'none'],     // szkło ciemne (= #1a222b, jak HEAD 0x1a222c)
       iron:      [0.30, 0.005, 250, 'none'],     // żelazo (= #2c2e30 ≈ HEAD 0x2b2b2e)
     },
@@ -204,7 +204,7 @@ export const CONFIG = {
     // start_plac.png, pas nieba nad okapami 40,600,480,20 → #c9d5df (L 0.867 C 0.018 H 242.6); pas sąsiedni 40,620,200,20 → #cbd6df (L 0.870):
     // ΔL 0.003 ≤ 0.01, C < 0.03. Przeliczyć po każdej zmianie ?sun=/exposure/rotation nieba.
     // far 220 → 140 (poprawka r1): tło w 60–75 m dostaje 0–19 % (dom tła 65 m: 6 %), wieże w oddali 80–100 m: 25–50 %, kraniec bruku 120 m: 75 % (chowa krawędź)
-    fog: { color: 0xc9d5df, near: 60, far: 140 },
+    fog: { color: 0xc9d5df, near: 35, far: 110 },
     // druga linia dachów: domy tła za każdą pierzeją — środek 9–16 m za osią pierzei (26 m → 35–42 m od środka placu), kalenice 18–22 m;
     // wzdłuż pierzei od krawędzi domu zamykającego ulicę (sw/2 + depth = 11 m) + streetClear do half + depth + alongMax.
     // Poprawka r1 (§5.3 (3)): z oka startu (4.5, 1.65, 19.5, pitch 0.09) kalenica pierzei N w 45 m daje NDC y 0.20 (2 piętra) … 0.34 (4 piętra); dom tła w 57 m
@@ -226,12 +226,12 @@ export const CONFIG = {
     // wieże w oddali (klucz far, jaśniejszy = perspektywa powietrzna): pierścień (sin a·R, cos a·R), 60–110 m od środka; policzone:
     // A (−6.5, −89.8) yaw 0.100 ze startu (4.5, 19.5): w luce nad domem zamykającym ulicę N (yaw 0.037–0.178; wieża główna 0.178–0.332 zasłaniała stare
     // a = π + 0.3 → (−26.6, −86), yaw 0.284), szczyt hełmu 53.2 m → NDC y 0.58 (dom zamykający 0.205); B (47.9, −87.8) yaw −0.38 (poza kadrem), C (−15.9, 78.4) za plecami
-    farTowers: [{ a: Math.PI + 0.072, dist: 90, h: 40, r: 3.5 }, { a: Math.PI - 0.5, dist: 100, h: 44, r: 4 }, { a: -0.2, dist: 80, h: 32, r: 3 }], // a = kąt pierścienia (rad), dist/h/r w metrach
+    farTowers: [{ a: Math.PI - 0.02, dist: 90, h: 32, r: 3.5 }, { a: Math.PI - 0.5, dist: 100, h: 44, r: 4 }, { a: -0.2, dist: 80, h: 32, r: 3 }], // a = kąt pierścienia (rad), dist/h/r w metrach
     farColor: [0.62, 0.060, 245],   // OKLCH albedo bez tekstury (#688aa8, inGamut); cykl 1: L 0.80 → ekran L 0.82 = niebo (0.86) − 0.03; cykl 2: [0.62, 0.03] → ekran L 0.744 C 0.004 (szara); cel ekran L 0.70–0.78, C ≥ 0.01, H 230–250
     farDetail: { seg: 12, baseFlare: 1.1, ledgeH: 1.2, ledgeR: 1.25, capShare: 0.3, capR: 1.3 }, // 12 segmentów (8 dawało widoczne fasety), podstawa 10 % szersza, gzyms 1.2 m × 1.25 r pod hełmem, hełm 30 % trzonu o podstawie 1.3 r
     farBlock: { w: 12, h: 9, d: 10 },   // przybudówka przy każdej wieży (masa miasta)
     // ptaki: Points nad placem, krążą po okręgach
-    birds: { count: 14, yMin: 14, yMax: 24, rMin: 10, rMax: 20, speedMin: 0.08, speedMax: 0.16, size: 1.1, color: [0.30, 0.01, 250] }, // y 14–24: przy pitch 0.02 kadr sięga 36° nad horyzont = 14 m w 20 m, 30 m w 40 m (cykl 1: 22–34 m poza kadrem) // prędkość kątowa rad/s; rozmiar sprite'a 1.1 m; kolor OKLCH ciemny granat
+    birds: { count: 14, yMin: 14, yMax: 24, rMin: 10, rMax: 20, speedMin: 0.08, speedMax: 0.16, size: 0.6, alphaTest: 0.1, color: [0.45, 0.02, 245] }, // y 14–24: przy pitch 0.02 kadr sięga 36° nad horyzont = 14 m w 20 m, 30 m w 40 m (cykl 1: 22–34 m poza kadrem) // prędkość kątowa rad/s; rozmiar sprite'a 1.1 m; kolor OKLCH ciemny granat
   },
 
   // motyw #13 „bruk" (layout.js buildGround, ?noground=1): medalion wokół fontanny i kałuże na pierwszym planie startu (poprawka r1 reżyserii:
@@ -312,8 +312,8 @@ export const CONFIG = {
     rope: { r: 0.015, seg: 16, radial: 4 },        // TubeGeometry: 16 × 4 × 2 = 128 tri na linę
     pennant: { spacing: 0.45, w: 0.22, h: 0.32, swayAmp: 0.05, // trójkąt 0.22 × 0.32 co 0.45 m łuku; amplituda kołysania dolnego wierzchołka 5 cm
                colors: [[0.50, 0.170, 25], [0.72, 0.150, 78], [0.58, 0.100, 190], [0.45, 0.130, 320], [0.90, 0.030, 85]] }, // karmazyn, szafran, turkus, purpura, krem
-    lantern: { count: 3, r: 0.18, drop: 0.32, string: 0.16, stringR: 0.006, minY: 3.3,   // 3 na linę, kula 0.32 m pod liną; spód ≥ 3.3 (min 4.0 − 0.32 − 0.18 = 3.5)
-               color: [0.88, 0.050, 80], emissive: [0.72, 0.160, 60], intensity: 1.4 },  // papier kremowy; emisja pomarańczowa ×1.4 (cykl 1: [0.80,0.12,72]×1.0 → ekran L 0.88 C 0.034 = blada kula; AgX zjada chromę, §4.1.6)
+    lantern: { count: 3, r: 0.14, drop: 0.32, string: 0.16, stringR: 0.006, minY: 3.3,   // 3 na linę, kula 0.32 m pod liną; spód ≥ 3.3 (min 4.0 − 0.32 − 0.18 = 3.5)
+               color: [0.82, 0.075, 78], emissive: [0.72, 0.160, 60], intensity: 1.4 },  // papier kremowy; emisja pomarańczowa ×1.4 (cykl 1: [0.80,0.12,72]×1.0 → ekran L 0.88 C 0.034 = blada kula; AgX zjada chromę, §4.1.6)
     // poprawka r1 (reżyseria): lina z = 12 (7,5 m przed startem) przecinała tarczę zegara w kadrze startowym (zwis 1,64 → pasmo NDC y 0,393–0,451 na tarczy 0,401–0,493).
     // Reguła (?noclockclear=1 wyłącza): zwis liny powiększany co sagStep (do granicy minY) aż pasmo lina → spód lampionu zejdzie w NDC pod tarczę (W.clock z tower.js) o margin;
     // rzut kamerą startową CONFIG.composition.start, fov/oko jak engine/src/app.js:44/18, aspect 1 (test tylko w pionie tarczy). Policzone: zwis 2,35 → pasmo 0,27–0,34 przy tarczy 0,401
@@ -322,6 +322,9 @@ export const CONFIG = {
   },
 
   props: {            // tor „kramy i rekwizyty": cięcia skanów, role kramów, ławki, studnia, popiersie, latarnie kute
+    // tint modeli (props.js initProps; ?notint=1 wyłącza): posąg konia był czystą bielą — najjaśniejszy obiekt kadru poza niebem (sonda r2 L 0,703 C 0,019),
+    // czytał się jak gips i konkurował z wieżą; patyna wiąże go z miedzianym hełmem (rodzina H 170–200). Cel sondy: L 0,50–0,62, C ≥ 0,04.
+    tint: { horse_statue_01: [0.58, 0.055, 180] },   // OKLCH albedo (tekstura modelu jest niemal biała, więc tint ≈ albedo)
     // wóz (props.js buildCart; ?nocart2=1 = pozycja HEAD legacy): poprawka r1 reżyserii — wóz z (−8, 9) (w żadnym z 12 widoków, 2,17 m od kramu 6) na pierwszy plan
     // startu (kadr ±0,305 rad: przy 8 m pas na prawo od cembrowiny ma 1,4 m — wóz 2,4 m zawsze jest ucięty krawędzią ALBO nachodzi na skraj basenu; wybrane:
     // trzy czwarte od tyłu, nachodzi tylko na prawy skraj cembrowiny, misy i posąg wolne). Policzone (cart2.mjs, kamera §5.3): podłoże NDC (0,91, −0,49) px (785, 1362),
