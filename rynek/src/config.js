@@ -2,7 +2,7 @@
 export const CONFIG = {
   seed: 7,
   // klucze W.B (regex), które NIE rzucają cienia (Batch.build w geometry.js): nowe małe/cienkie obiekty — girlandy, lampiony, strumienie, mokry bruk, wieże w oddali, tarcza zegara, szyld, chorągwie
-  noShadowKeys: '^(bunting|paperLit|jet|wet|water|ripple|far|clock|sign|banner|soil)',   // + soil: ziemia w skrzynkach (motyw #greenery) — płaska płyta w skrzyni // + lustra wody i kręgi (motyw #8): płaskie dyski, cień bez sensu
+  noShadowKeys: '^(bunting|paperLit|jet|wet|water|ripple|far|clock|sign|banner|soil|contact)',   // + contact: cień kontaktowy pod kramem-modelem (decal na bruku — sam cienia nie rzuca)   // + soil: ziemia w skrzynkach (motyw #greenery) — płaska płyta w skrzyni // + lustra wody i kręgi (motyw #8): płaskie dyski, cień bez sensu
   // kolejność rysowania kluczy W.B przezroczystych (Batch.build opts.renderOrder; domyślnie 0): three sortuje przezroczyste po odległości ŚRODKA obiektu,
   // więc lustro wody (opacity 0.85, środek wyżej) rysowało się PO kręgach i strumieniach i przykrywało je (motyw #8, cykl 4) — kręgi i strumienie po wodzie
   renderOrderKeys: { water: 0, jet: 1, ripple: 2 },
@@ -54,7 +54,21 @@ export const CONFIG = {
     wet: { r: 5.2, rFull: 4.6, seg: 32, y: 0.005, color: [0.32, 0.018, 245], roughness: 0.55 }, // mokry bruk: cobble tint L 0.55 (suchy 0xb9b3aa = L 0.75), gładszy; y 0.005 + polygonOffset; pełne krycie do r 4.6, zanik alfa do 0 na r 5.2 (cykl 2: ostra krawędź)
     water: { envMapIntensity: 0.32, normalRepeat: 1, normalScale: 0.15, drift: [0.02, 0.013] }, // własny envMap (§4.1.9); cykl 1: 1.2 → lustro basenu L 0.74–0.80 C < 0.01 (białe, tint H 200 znika, kręgi niewidoczne); dryf normal mapy jak dawniej
   },
-  stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6, rafters: [-0.62, 0, 0.62],   // rafters: krokwie pod płótnem baldachimu jako ułamek jego półszerokości (poprawka po zrzutach z telefonu)   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
+  stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6, rafters: [-0.62, 0, 0.62],
+    // Etap 3: rodzaj kramu, który zamiast geometrii proceduralnej dostaje MODEL z Blendera (assets_blender/kram_sukiennik.py).
+    // Model ma fazowane krawędzie, ladę z osobnych desek, baldachim i sukno z symulacji tkaniny oraz wypalone w Cyclesie AO.
+    // wood/cloth: klucze W.mat, którymi podmieniamy materiały z Blendera — dzięki temu model ma tę SAMĄ teksturę i skalę co
+    // geometria proceduralna obok (UV0 modelu jest w metrach, a zestawy PBR mają repeat = 1/mpt). ao: tekstura AO na uv1.
+    // ?nomodel=1 wraca do wersji proceduralnej (porównanie przed/po tą samą kamerą).
+    // materials: nazwa materiału w GLB -> klucz W.mat. Podział na konstrukcję i ladę jest istotny: geometria proceduralna
+    // używa dla belek `timber` (ciemny dąb), a dla blatu `planks` (jasne deski) — pierwszy render „po" miał wszystko na
+    // `timber` i kram był czarny. Rolki dostają cztery barwy sukna, tak jak w wersji proceduralnej.
+    model: { kind: 'sukiennik', name: 'kram_sukiennik', ao: 'kram_sukiennik', aoIntensity: 1.0,
+             materials: { drewno_konstr: 'timber', drewno_lada: 'planks', plotno: 'cloth2', sukno0: 'cloth0', sukno1: 'cloth1', sukno2: 'cloth2', sukno3: 'cloth3' },
+             // Cień kontaktowy pod kramem. AO wypalone W MODELU przyciemnia sam model, ale nie ma jak przyciemnić BRUKU obok —
+             // porównanie przed/po styku drewna z brukiem nie pokazało żadnej różnicy, bo jej tam nie było. Decal na ziemi
+             // (mnożenie, jeden klucz `contact` = 1 draw call) domyka ten brak. w/d: obrys kramu + rozmycie; ?nocontact=1 wyłącza.
+             contact: { w: 3.5, d: 3.1, y: 0.014, strength: 0.5, blur: 0.30, tex: 256 } },   // rafters: krokwie pod płótnem baldachimu jako ułamek jego półszerokości (poprawka po zrzutach z telefonu)   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
     // motyw #11 „role kramów" (?nokinds=1 = stary placeGoods bez ról, bez szyldów kramów, nowe modele nieładowane). Kram i dostaje kinds[i % kinds.length]
     // (kolejność = kolejność kramów: kram 0 = repoussoir z §5.3 = sukiennik, POI „Kram sukiennika" w ui.js). cloth = baldachim (te same klucze, które seed 7
     // losował na HEAD → kadr startowy bez zmiany barw); sign = kafelek atlasu szyldów (houseDetail.sign.tiles + extraTiles); goods = [model, skala] w gniazdach

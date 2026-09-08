@@ -34,6 +34,11 @@ export async function buildMaterials(W) {
   mat.iron = new THREE.MeshStandardMaterial({ color: hexOf('iron'), roughness: 0.55, metalness: 0.9 }); // parametry jak HEAD
   // lina konopna girland i sznurki lampionów: matowa, NIEmetaliczna — na materiale iron (metalness 0,9, tint L 0,30) rysowały się na niebie jak czarne kable (zrzut start_plac)
   mat.rope = new THREE.MeshStandardMaterial({ color: hexOf('rope'), roughness: 0.95, metalness: 0.0 });
+  // Cień kontaktowy pod kramem-modelem (CONFIG.stalls.model.contact): decal mnożący na bruku. MultiplyBlending —
+  // biel tekstury nie zmienia nic, szarość przyciemnia. depthWrite false + polygonOffset przeciw z-fightingowi z posadzką.
+  { const C = CONFIG.stalls.model?.contact;
+    if (C) mat.contact = new THREE.MeshBasicMaterial({ map: contactTexture(C), transparent: true, blending: THREE.MultiplyBlending, premultipliedAlpha: true,   // three.js wymaga premultipliedAlpha przy mnożeniu (ostrzeżenie WebGLState)
+                                                       depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); }
   // --- fontanna (fountain.js, motyw #8) ---
   // Woda z WŁASNYM envMap: scene.environment to equirect HDR, renderer robi z niego PMREM (environments.get(material.envMap || environment), WebGLRenderer.js:2177);
   // bez własnego envMap envMapIntensity jest nadpisywany przez scene.environmentIntensity 0.6 (:2694, §4.1.9). Obrót: przy własnym envMap liczy się material.envMapRotation (:2178).
@@ -194,4 +199,23 @@ export function signTextTexture(text, col) {
   const words = text.split(' ');
   g.fillText(words.slice(0, 2).join(' '), 256, 120); g.fillText(words.slice(2).join(' '), 256, 200);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+
+// Tekstura cienia kontaktowego: biel (bez zmiany) z rozmytym ciemnym obrysem kramu w środku. `strength` = ile światła zabiera
+// w najciemniejszym punkcie (0,5 = połowa), `blur` = ułamek boku na zanik. Rysowana na canvasie, bez pliku.
+export function contactTexture(C) {
+  const N = C.tex, cv = document.createElement('canvas'); cv.width = cv.height = N;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, N, N);
+  const im = g.getImageData(0, 0, N, N), px = im.data;
+  const bl = Math.max(1e-3, C.blur);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const u = Math.abs(x / (N - 1) * 2 - 1), v = Math.abs(y / (N - 1) * 2 - 1);   // 0 w środku, 1 na krawędzi
+    const d = Math.max(u, v);                                                      // odległość Czebyszewa: prostokątny obrys
+    const t = Math.min(1, Math.max(0, (1 - d) / bl));                              // 1 pod kramem, 0 poza rozmyciem
+    const k = 1 - C.strength * t * t * (3 - 2 * t);                                // wygładzenie (smoothstep), żeby brzeg nie był kreską
+    const i = (y * N + x) * 4; px[i] = px[i + 1] = px[i + 2] = Math.round(255 * k); px[i + 3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; return t;
 }

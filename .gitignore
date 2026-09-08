@@ -19,3 +19,4 @@ audyt/testy/geo/scene.bundle.mjs
 audyt/testy/out/render/*/
 !audyt/testy/out/render/rynek/
 !audyt/testy/out/render/rynek_top/
+assets_src/blender/*.blend1

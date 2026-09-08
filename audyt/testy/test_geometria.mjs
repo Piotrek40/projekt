@@ -341,7 +341,10 @@ let nGoods = 0, nBales = 0;
       if (Math.abs(lo - (top + b.row * G.bale.w)) > 0.005) fails.push(`${id}: bela rzędu ${b.row} spód ${lo.toFixed(3)} ≠ ${(top + b.row * G.bale.w).toFixed(3)}`);
       if (Math.hypot(c.x - s.x, c.z - s.z) > S.collideR) fails.push(`${id}: bela poza kołem kolizji kramu`);
     }
-    if (p.kind === 'sukiennik' && p.bales.length !== G.bale.rows[0] + G.bale.rows[1]) fails.push(`${id}: ${p.bales.length} bel zamiast ${G.bale.rows[0] + G.bale.rows[1]}`);
+    // Etap 3: kram rodzaju CONFIG.stalls.model jest MODELEM z Blendera (rolki są w GLB, nie w Batchu) — wtedy bel ma być 0.
+    const jakoModel = p.s.model === true;
+    const oczBel = jakoModel ? 0 : G.bale.rows[0] + G.bale.rows[1];
+    if (p.kind === 'sukiennik' && p.bales.length !== oczBel) fails.push(`${id}: ${p.bales.length} bel zamiast ${oczBel}${jakoModel ? ' (kram jako model)' : ''}`);
     for (const g of p.goods) {
       nGoods++;
       const l = V(g.x, g.y, g.z).applyMatrix4(inv);

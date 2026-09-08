@@ -11,7 +11,7 @@ import { oklch } from './color.js';
 export async function initProps(W) {
   const { ctx, scene, loaders, CONFIG } = W;
   const cuts = ctx.flags.nocuts ? null : CONFIG.props.cuts; W.cuts = cuts;   // ?nocuts=1: stan sprzed cięć skanów (motyw #1)
-  const names = ['wooden_crate_01', 'wine_barrel_01', 'Barrel_01', 'wicker_basket_01', 'wooden_bucket_02', 'ceramic_vase_01', 'ceramic_vase_02', 'wooden_bowl_01', 'food_apple_01', 'treasure_chest', 'wooden_stool_02', 'wooden_lantern_01', 'horse_statue_01', 'grass_medium_02', 'fern_02', 'tree_stump_01', 'rock_moss_set_02', 'potted_plant_02', 'wine_bottles_01', 'Lantern_01', ...(ctx.flags.nokinds ? [] : CONFIG.stalls.goods.models), ...(ctx.flags.nogreenery ? [] : CONFIG.greenery.models)].filter(n => !cuts || n !== 'treasure_chest');   // z cięciami skrzynia skarbów nieładowana (10 332 tri); towar ról kramów (motyw #11, zasoby_etap2.md) tylko bez ?nokinds=1; zieleń (motyw #greenery, CONFIG.greenery.models) tylko bez ?nogreenery=1
+  const names = ['wooden_crate_01', 'wine_barrel_01', 'Barrel_01', 'wicker_basket_01', 'wooden_bucket_02', 'ceramic_vase_01', 'ceramic_vase_02', 'wooden_bowl_01', 'food_apple_01', 'treasure_chest', 'wooden_stool_02', 'wooden_lantern_01', 'horse_statue_01', 'grass_medium_02', 'fern_02', 'tree_stump_01', 'rock_moss_set_02', 'potted_plant_02', 'wine_bottles_01', 'Lantern_01', ...(ctx.flags.nokinds ? [] : CONFIG.stalls.goods.models), ...(ctx.flags.nogreenery ? [] : CONFIG.greenery.models), ...(ctx.flags.nomodel || loaders.mode === 'inline' ? [] : [CONFIG.stalls.model.name])].filter(n => !cuts || n !== 'treasure_chest');   // z cięciami skrzynia skarbów nieładowana (10 332 tri); towar ról kramów (motyw #11, zasoby_etap2.md) tylko bez ?nokinds=1; zieleń (motyw #greenery, CONFIG.greenery.models) tylko bez ?nogreenery=1
   const models = new Map(await Promise.all(names.map(async n => [n, await loaders.loadModel(n)])));
   const bounds = new Map();
   for (const [n, g] of models) { g.scene.updateMatrixWorld(true); bounds.set(n, new THREE.Box3().setFromObject(g.scene)); }
@@ -64,6 +64,41 @@ export async function initProps(W) {
         im.computeBoundingSphere(); // sfera obejmująca wszystkie kopie (inaczej frustum culling gubi mesh)
         scene.add(im);
       });
+    }
+  }
+  // Kram z Blendera (Etap 3, CONFIG.stalls.model): podmiana materiałów na zestawy PBR sceny + wypalone AO na drugim UV.
+  // Model ma UV0 w METRACH (rzut sześcienny cube_size = 1 m), a zestawy z loadPbrSet mają repeat = 1/mpt — więc po prostu
+  // użycie materiału sceny daje na modelu DOKŁADNIE tę samą skalę tekstury co na geometrii proceduralnej obok, bez rozciągania.
+  // aoMap w three.js czyta uv1 (texture.channel = 1) i działa na światło pośrednie — to jest ten cień w narożach i pod ladą,
+  // którego proceduralna geometria nie ma. ?nomodel=1 = wersja proceduralna (porównanie przed/po tą samą kamerą), ?noao=1 = model bez AO.
+  if (!ctx.flags.nomodel && loaders.mode !== 'inline') {
+    const M = CONFIG.stalls.model, g = models.get(M.name);
+    check(!!g, 'model kramu nie wczytany', { name: M.name });
+    if (g) {
+      let ao = null;
+      if (!ctx.flags.noao) {
+        try { ao = await loaders.loadTexture(M.ao, 'ao'); ao.flipY = false; ao.channel = 1; ao.needsUpdate = true; }
+        catch (e) { console.error('CHECK: brak tekstury AO kramu', e); }   // brak AO nie może wywalić sceny — model bez AO wygląda gorzej, ale działa
+      }
+      const dressed = {};
+      for (const [nazwaGLB, key] of Object.entries(M.materials)) {
+        const base = W.mat[key];
+        check(!!base, 'brak materiału sceny dla modelu kramu', { nazwaGLB, key });
+        if (!base) continue;
+        const m = base.clone(); if (ao) { m.aoMap = ao; m.aoMapIntensity = M.aoIntensity; } m.needsUpdate = true;
+        dressed[nazwaGLB] = m;
+      }
+      let n = 0, nieznane = [];
+      g.scene.traverse(o => { if (!o.isMesh) return; n++;
+        const nm = [].concat(o.material)[0]?.name || '';
+        if (dressed[nm]) o.material = dressed[nm]; else nieznane.push(nm);
+        check(!!o.geometry.attributes.uv1 || !ao, 'model kramu bez drugiego zestawu UV — AO nie ma na czym leżeć', { mesh: o.name, nm });
+      });
+      check(nieznane.length === 0, 'materiał modelu kramu bez wpisu w CONFIG.stalls.model.materials', { nieznane });
+      check(n >= Object.keys(M.materials).length - 1, 'model kramu ma mniej siatek niż materiałów w mapie', { n });
+      const s = W.stalls.find(q => q.kind === M.kind);
+      check(!!s, 'brak kramu rodzaju modelu w W.stalls', { kind: M.kind });
+      if (s) put(M.name, s.x, 0, s.z, s.ry, 1, { collide: false, force: true });   // kolizję dodał już buildStalls (koło collideR)
     }
   }
   W.models = models; W.bounds = bounds; W.put = put; W.flushInstances = flushInstances;

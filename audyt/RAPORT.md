@@ -184,6 +184,66 @@ Wariant odrzucony po renderze: rolki **w poprzek** lady (długość 1,8 m wzdłu
 
 Co nadal jest słabe w tym zbliżeniu (nie ukrywam): rolki sukna wciąż czytają się bardziej jak zwoje papieru niż tkanina — denka są dużymi płaskimi plamami koloru w pełnym słońcu, a faktura tkaniny na nich prawie nie pracuje. Zmierzone chromy są w normie palety (C 0,068–0,115 przy tle lady C 0,014), więc to nie kwestia „za jaskrawych" kolorów, tylko braku detalu na denku.
 
+## 6c. Etap 3 — jeden fragment podniesiony modelem z Blendera: kram sukiennika (2026-09-08)
+
+Zadanie Piotra: podnieść realizm JEDNEGO fragmentu (kram z tkaninami + sąsiednia elewacja i bruk), zachowując projekt, układ i sterowanie,
+przy czym zasoby wolno przygotowywać poza przeglądarką. Zrobiony został kram; elewacja i bruk to następny krok.
+
+### Czego faktycznie użyłem (sprawdzone komendą, nie z pamięci)
+
+| narzędzie | stan w tej sesji | rola w tym fragmencie |
+|---|---|---|
+| **Blender** | **`bpy` 5.0.1 jako moduł Pythona — binarki `blender` w PATH NIE MA**, więc `python3 skrypt.py`, nie `blender --background --python` | modelowanie, fazy krawędzi, symulacja tkanin, UV, wypalenie AO, eksport GLB |
+| Cycles | **tylko CPU** (`Intel Xeon @ 2.80GHz`; `CUEW/HIPEW initialization failed` = brak NVIDIA i AMD) | wypalenie AO 2048², 64 próbki: 44–60 s |
+| gltf-transform 4.5.0 | jest (`tools/node_modules`) | meshopt, join, flatten; 972 kB → 353 kB |
+| sharp 0.35.4 | jest | prostowanie krzywej AO, kompresja do JPG |
+| toktx | jest (`/usr/bin/toktx`) | wariant KTX2 mapy AO |
+| Chromium + WebGL | jest, ale **programowy** (`ANGLE (SwiftShader driver)`), WebGPU nie | rendery kontrolne wyglądu — **nie** pomiar płynności |
+| generator obrazów/modeli AI | **nie ma** (ZeroGPU bez tokena = 0 s limitu) | — |
+
+Poly Haven: `api.polyhaven.com` odpowiada 200, pobieranie działa (17 modeli i 10 zestawów tekstur już w projekcie). Do tego fragmentu nowych zasobów nie potrzebowałem — model jest własny, a tekstury to istniejące zestawy sceny.
+
+### Co powstało
+
+`assets_blender/kram_sukiennik.py` (skrypt odtwarzalny od zera, 79–110 s) buduje: ramę z fazowanymi krawędziami (6 mm, 2 segmenty),
+ladę z 7 osobnych desek ze szczelinami 6 mm i losowym uskokiem ±3,5 mm, czoło z 9 pionowych desek, 5 rolek sukna na drewnianych wałkach,
+**baldachim i rozwinięty bel sukna z symulacji tkaniny** oraz wypalone AO. Wynik: 9 888 trójkątów, 6 materiałów, GLB 353 kB po meshopt.
+Symulacja jest wypiekana do geometrii — **telefon jej nie liczy**.
+
+Materiały z Blendera są w grze podmieniane na zestawy PBR sceny (`CONFIG.stalls.model.materials`), więc model ma tę samą teksturę i skalę
+co geometria proceduralna obok: UV0 modelu jest w METRACH (rzut sześcienny 1 m), a `loadPbrSet` ustawia `repeat = 1/mpt`. AO idzie na uv1
+(`texture.channel = 1`). Flagi: `?nomodel=1` (wersja proceduralna, do porównań), `?noao=1`, `?nocontact=1`.
+
+### Błędy, które złapały asercje i pomiary — a nie oko
+
+| co | jak wykryte | naprawa |
+|---|---|---|
+| `gltf-transform optimize` wyciął TEXCOORD_1 (AO nie miało na czym leżeć) | `check()` w props.js → `results.errors` renderu | `--prune-attributes false` |
+| `gltf-transform` scalił 7 materiałów w 3 „PaletteMaterial" | ta sama asercja | `--palette false` |
+| cały kram na materiale `timber` = czarny | porównanie przed/po | podział na `timber` (konstrukcja) i `planks` (lada) |
+| tkanina przechodziła przez belki i krokwie (do 43 mm) | własna kontrola przenikania w skrypcie | zwis zerowany na podporach, lambrekin przed licem słupa, płótno **przywiązane do krokwi** (kolizja solvera nie działała mimo `thickness_outer` 20 mm) |
+| czarne tło atlasu AO wylewało się na wyspy | statystyka po texelach użytych (`ao_remap.mjs`) | tło → biel, gamma na średnią 0,78 |
+| `MultiplyBlending` bez `premultipliedAlpha` | ostrzeżenie three.js w `results.errors` | `premultipliedAlpha: true` |
+
+Pozostałe przenikanie: **48 wierzchołków po ≤8 mm w 70-milimetrowej krokwi**, pod płótnem, niewidoczne. Nie ukrywam tej liczby — skrypt drukuje ją przy każdym budowaniu.
+
+### Porównanie przed/po (ta sama kamera, to samo światło, Chromium + SwiftShader, 824×1830, quality high)
+
+| widok | ocena |
+|---|---|
+| całe stoisko | **lepiej**: rolki na wałkach w stosie zamiast leżących walców, rozwinięty bel sukna z fałdami, lada z osobnych desek, festonowy lambrekin |
+| zbliżenie tkaniny | **wyraźnie lepiej**: przed — dwie płaskie płyty łamiące się pod kątem; po — powierzchnia wygięta, festony między krokwiami, festonowy krój dołu, widoczny splot |
+| styk drewna z brukiem | **początkowo bez różnicy** — AO wypalone W MODELU nie ma jak przyciemnić bruku OBOK niego. Dodany decal kontaktowy (`contact`, mnożenie, 1 draw call): zmierzone przyciemnienie bruku przy słupie L 0,337 → 0,305 i 0,465 → 0,404 |
+
+Koszt: kadr całego stoiska 128 draw / 584 083 tri (przed: 116 / 565 461) — limity 250 / 700 000. Czyli **+12 draw i +19 tys. trójkątów** za cały fragment.
+Płynność sprawdza Piotr na telefonie; z SwiftShadera nie podaję FPS.
+
+### Świadome ograniczenia
+
+- **Wariant inline (Artifact) nie dostaje modelu.** Strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model z mapą AO to ok. 0,5 MB. Tam zostaje kram proceduralny; Pages i wersja lokalna mają model.
+- Wypalone AO to nie jest światło odbite. Modeluje tylko okluzję kontaktową; prawdziwe odbicie od bruku wymaga lightmapy całej sceny (osobny krok, ok. 20–25 min wypalania na atlas).
+- Elewacja i bruk z zadania jeszcze nie ruszone — najpierw kram do końca.
+
 ## 7. Co wymaga działania Piotra i co to odblokuje
 
 | Działanie | Odblokowuje |

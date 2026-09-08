@@ -52,6 +52,21 @@ export function buildStalls(W) {
     const { x, z, ry } = p;
     const L = (lx, ly, lz, lry = 0, lrx = 0, lrz = 0) => M4(lx, ly, lz, lry, lrx, lrz).premultiply(M4(x, 0, z, ry));
     const cw = 2.6, cd = 1.0, ch = 0.95, ph = 2.3;
+    // Kram, który jest MODELEM (CONFIG.stalls.model, Etap 3): geometrii proceduralnej nie budujemy — wymiary zostają,
+    // bo czyta je towar, szyld kramu i POI. Model stawia initProps (props.js) po wczytaniu modeli. ?nomodel=1 = wersja proceduralna.
+    // Wariant inline (Artifact) NIE dostaje modelu: strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model + AO to ok. 0,5 MB.
+    // Tam zostaje kram proceduralny. Pages i wersja lokalna używają modelu. (Zapisane w audyt/RAPORT.md §6c.)
+    const asModel = !ctx.flags.nomodel && W.loaders?.mode !== 'inline' && p.kind === CONFIG.stalls.model.kind;
+    if (asModel) {
+      // Cień kontaktowy: decal na bruku pod kramem. AO wypalone w modelu przyciemnia model, ale nie ziemię obok niego —
+      // bez tego słup stoi na bruku bez styku (porównanie „styk drewna z brukiem" przed/po nie pokazywało różnicy).
+      const Ct = CONFIG.stalls.model.contact;
+      if (Ct && !ctx.flags.nocontact) B.add('contact', plane(Ct.w, Ct.d, 1), L(0, Ct.y, 0, 0, -Math.PI / 2));   // rx=−π/2: lico płaszczyzny (0,0,1) → (0,1,0), czyli w górę — policzone
+      stalls.push({ x, z, ry, cw, cd, ch, ph, L, cloth: p.cloth, repoussoir: p.repoussoir, kind: p.kind, model: true });
+      ctx.addCircle(x, z, CONFIG.stalls.collideR);
+      W.dbgCircle?.(x, z, CONFIG.stalls.collideR); W.dbgAxes?.(x, 0.05, z, ry, 1.2);
+      continue;
+    }
     B.add('planks', box(cw, 0.08, cd, T.planks.mpt), L(0, ch, 0));
     B.add('planks', box(cw, ch - 0.1, 0.06, T.planks.mpt), L(0, (ch - 0.1) / 2, cd / 2 - 0.03));
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) B.add('timber', box(0.12, ph, 0.12, T.timber.mpt), L(sx * (cw / 2 - 0.1), ph / 2, sz * (cd / 2 + 0.6)));
@@ -130,7 +145,7 @@ export function stallGoodsPlan(W) {
   return stalls.map((s, i) => {
     const K = S.kinds[i % S.kinds.length], d = legacyDraws(R, i), top = s.ch + 0.04, out = { s, kind: K.name, bales: [], goods: [], ground: null };   // 0,04 = pół deski lady (stalls.js box 0,08 na ch)
     // bele sukiennika: piramida rows[0] + rows[1], przekrój w × w, długość len wzdłuż z; górny rząd na dolnym (y + w)
-    if (K.bales) { const { w, step, rows, len, yaw, lenVar } = G.bale, Rb = rng(CONFIG.seed + G.seedOffset + G.bale.jitterSeed); let k = 0;   // rolki wzdłuż lady: rozstaw wzdłuż x, długość wzdłuż z
+    if (K.bales && !s.model) { const { w, step, rows, len, yaw, lenVar } = G.bale, Rb = rng(CONFIG.seed + G.seedOffset + G.bale.jitterSeed); let k = 0;   // s.model: rolki są już w modelu z Blendera   // rolki wzdłuż lady: rozstaw wzdłuż x, długość wzdłuż z
       rows.forEach((n, row) => { for (let j = 0; j < n; j++) {   // własny strumień Rb: obrót i długość rolek nie przesuwają gniazd towaru (Rg)
         const x = (j - (n - 1) / 2) * step, y = top + w / 2 + row * w, ry = Rb.range(-yaw, yaw), bl = len * (1 - Rb.range(0, lenVar));
         out.bales.push({ key: K.bales[k++ % K.bales.length], m: s.L(x, y, 0, ry), row, x, y, ry, len: bl });   // obrót wokół y: oś rolki zostaje pozioma, więc spód nadal y − w/2
