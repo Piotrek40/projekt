@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, stallPlacements, yawFrom, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = [
   { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
@@ -139,6 +139,21 @@ for (const s of W.stalls) {
   const maxD = Math.max(...[[-1.3, -1.1], [1.3, -1.1], [-1.3, 1.1], [1.3, 1.1]].map(([lx, lz]) => { const p = V(lx, 0, lz).applyMatrix4(M4(s.x, 0, s.z, s.ry)); return Math.hypot(p.x - s.x, p.z - s.z); }));
   if (maxD > c.r + 0.35) fails.push(`C kram (${s.x.toFixed(1)},${s.z.toFixed(1)}): słup ${maxD.toFixed(2)} m od środka, koło ${c.r}+0.35`);
   else if (maxD > c.r) notes.push(`C kram (${s.x.toFixed(1)},${s.z.toFixed(1)}): róg słupa ${maxD.toFixed(2)} m > koło ${c.r} m (gracz wchodzi 0.10 m w słup — tolerowane)`);
+}
+// I) kompozycja startu (motyw #7, stalls.js stallPlacements — funkcja czysta): żaden kram bliżej niż maxDist od startu nie ma koła kolizji (collideR) w sektorze
+//    yaw [yawMin, yawMax]; kram 0 = repoussoir na |p| = ringRadius + ringOut (± 0,01), tuż za sektorem (0 ≤ luz ≤ 0,05). Kalibracja na znanym-złym: pierścień HEAD
+//    (?nocompose=1: faza 0, bez repoussoira) ma kram 0 (0,18, 11,97) z kołem do yaw 0,336 < 0,40 — policzone 2026-09-08 — więc I musi go oblać (dokładnie 1 kram).
+{
+  const C = CONFIG.composition, S = CONFIG.stalls, st = C.start, sec = C.stallFreeSector;
+  const inSector = p => { const d = Math.hypot(p.x - st.x, p.z - st.z); if (d >= sec.maxDist) return false; const yaw = yawFrom(st, p.x, p.z), half = Math.asin(S.collideR / d); return !(yaw + half <= sec.yawMin || yaw - half >= sec.yawMax); };
+  for (const s of W.stalls) if (inSector(s)) fails.push(`I kram (${s.x.toFixed(2)}, ${s.z.toFixed(2)}) w sektorze startu yaw ${sec.yawMin}–${sec.yawMax} (d ${Math.hypot(s.x - st.x, s.z - st.z).toFixed(2)} < ${sec.maxDist})`);
+  const rep = W.stalls[0];
+  if (!rep.repoussoir || Math.abs(Math.hypot(rep.x, rep.z) - (S.ringRadius + C.repoussoir.ringOut)) > 0.01) fails.push(`I kram 0 nie jest repoussoirem na skraju pierścienia: (${rep.x.toFixed(2)}, ${rep.z.toFixed(2)}) |p| ${Math.hypot(rep.x, rep.z).toFixed(2)}`);
+  const dRep = Math.hypot(rep.x - st.x, rep.z - st.z), gap = yawFrom(st, rep.x, rep.z) - Math.asin(S.collideR / dRep) - sec.yawMax;
+  if (gap < 0 || gap > 0.05) fails.push(`I repoussoir nie tuż za sektorem: luz ${gap.toFixed(3)} (d ${dRep.toFixed(2)})`);
+  const Wh = { ...W, R: rng(CONFIG.seed), ctx: { ...W.ctx, flags: { nocompose: 1 } } }; buildLayout(Wh); buildHouses(Wh); buildTower(Wh);   // ten sam stan R co przed buildStalls (world.js: layout → houses → tower → fountain(0 losowań) → stalls)
+  const headIn = stallPlacements(Wh).filter(inSector).length;
+  if (headIn !== 1) fails.push(`I kalibracja: pierścień HEAD (?nocompose=1) daje ${headIn} kramów w sektorze (oczekiwany 1)`);
 }
 // D) wieża: okna (i tarcza zegara) na licu trzonu, normalną na zewnątrz. Trzon = najwyższy element `slates` wieży; klasyfikacja po typie geometrii:
 //    walec (motyw #2: cylinder(rTop, rBot, h, seg) — promień zależy od wysokości, rAt(y) = rBot + (rTop − rBot)·y/h; policzone dla (3.2, 3.5, 24):

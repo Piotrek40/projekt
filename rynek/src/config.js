@@ -29,7 +29,7 @@ export const CONFIG = {
     // dach: klucz W.mat.roofTower z materials.js — tint i zestaw w paletteOKLCH.tint.roofTower (motyw #9: [0.72, 0.085, 185] na stone_tiles_02), parametry w paletteOKLCH.params
   },
   fountain: { radius: 3.2, rim: 0.75, columnHeight: 1.6, blockScale: 1.1 },
-  stalls: { count: 7, ringRadius: 11.5 },
+  stalls: { count: 7, ringRadius: 11.5, ringJitter: 1.5, collideR: 1.6 },   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
   lanterns: { count: 8, ringRadius: 15.5 },
   // sunColor: motyw #9, hipoteza (a) §4.4 zaliczona na lineupie (lineup_v1_sunA, 2026-09-07): przy 0xfff1e0 (C 0,027) plaster4 w słońcu H 219 (≥ 180), roof2 H 231 (≥ 200),
   // plaster0 C 0,025 (≥ 0,025), tynk słońce/cień 0,803/0,589 = 1,36 (≥ 1,3); przy 0xffd6a6 chłodne tynki żółkły (plaster4 H 145 C 0,006). Predyktor: agx_predict.mjs SUN.
@@ -140,6 +140,19 @@ export const CONFIG = {
   skyline: {},        // tor „wieża i panorama": druga linia dachów, wieże w oddali, bramy na końcach ulic, mgła, ptaki
 
   ground: {},         // tor „wieża i panorama": medalion, krawężniki, gradient wilgoci bruku, kałuże
+
+  // tor „plac" — motyw #7 „kompozycja startu" (?nocompose=1 = start HEAD (4, 19, yaw 0,15) i pierścień kramów bez fazy/repoussoira). Policzone (geom.mjs,
+  // PerspectiveCamera(70, 412/915), oko (4,5, 1,65, 19,5), YXZ): yaw fontanny 0,227, wieży 0,257; fontanna NDC x −0,086 (cembrowina −0,57..0,43 = środkowa ⅓);
+  // iglica (−6,7, 36, −23,2) NDC y 0,920 (pitch 0,06 → 0,981, 0,10 → 0,899); horyzont NDC y −0,129 = 44 % wysokości od dołu. FOV poziome ±0,305 rad.
+  composition: {
+    start: { x: 4.5, z: 19.5, yaw: 0.20, pitch: 0.09 },                       // §5.3; main.js
+    // sektor bez kramu: CAŁE koło kolizji kramu (collideR) poza yaw [yawMin, yawMax] od startu dla kramów bliżej niż maxDist (stalls.js check „kram w sektorze startu");
+    // na HEAD kram 0 (0,18, 11,97): yaw 0,521, koło do 0,336 → w sektorze (fontanna z lewej za kramem)
+    stallFreeSector: { yawMin: 0.05, yawMax: 0.40, maxDist: 14 },   // rad od startu (kadr −0,105..0,505: sektor = środkowe 70 % szerokości), m
+    // repoussoir = kram 0 (sukiennik po #11): na zewnętrznym skraju pierścienia (ringRadius + ringOut), tuż za sektorem po lewej: yaw = yawMax + asin(collideR/d) + margin
+    // (policzone: yaw 0,621, d 8,00, (−0,16, 13,00), NDC x środka −1,43 → w kadrze prawa krawędź kramu NDC −1,0..−0,75, dół y −0,46 = dolna ⅓); faza pierścienia = jego kąt
+    repoussoir: { ringOut: 1.5, margin: 0.02 },   // m za ringRadius (= ringJitter: skraj pierścienia), rad luzu za sektorem
+  },
 
   trees: {},          // tor „plac": lipy proceduralne przy fontannie
 
