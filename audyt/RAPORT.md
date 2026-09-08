@@ -149,6 +149,29 @@ Dwa błędy sterownika znalezione bisekcją na urządzeniu (przełączniki `?noi
 
 Wniosek ogólny: pomiar na telefonie był niezbędny — żaden z tych błędów nie występuje w headless Chromium ani nie wynika z dokumentacji.
 
+## 6b. Etap 2 — rynek dopracowany jako pierwsza scena gry (2026-09-08)
+
+Scena `rynek/` przeszła Etap 2: 15 motywów (wieża okrągła, zróżnicowanie kamienic, lukarny i szczyty, wykusze, portale i szyldy, paleta OKLCH z okiennicami, fontanna wielopoziomowa ze strumieniami, girlandy z lampionami, lipy i zieleń, role kramów, bruk z medalionem, panorama z mgłą i bramami, kompozycja startu, UI), potem dwie rundy krytyki adwersarialnej i poprawki. Reguły pracy: `rynek/PROMPT.md`.
+
+Pomiar headless (SwiftShader = CPU serwera, 824×1830, quality high; FPS NIE jest miarą telefonu):
+
+| widok | draw calls | trójkąty (HUD) | errors |
+|---|---|---|---|
+| start_plac / start_v2 | 114 | 599 991 | [] |
+| fontanna_zblizenie | 104 | 560 227 | [] |
+| kram_zblizenie | 107 | 578 223 | [] |
+| pierzeja_wschodnia | 90 | 511 529 | [] |
+| ulica_poludnie | 83 | 425 629 | [] |
+| ten sam widok w trybie telefonu (`?noinst=1`) | ok. 122 | ok. 250 000 | [] |
+
+Limity z `PROMPT.md` §2: 250 draw / 700 000 trójkątów w HUD (HUD liczy podwójnie: przebieg cieni + główny; zmierzony stosunek 2,05). Wszystkie widoki mieszczą się w limicie w obu trybach.
+
+Co dołożyły narzędzia weryfikacji (§8 promptu): `engine/src/check.js` (asercje geometryczne trafiające do `results.errors`), test numeryczny `audyt/testy/geo_test.sh` (asercje A–K na prawdziwych modułach sceny, bez przeglądarki), widoki diagnostyczne `?top=`/`?side=`/`?boxes=1`, lineup materiałów `?lineup=1`, maska ról `?roles=1`, sondy koloru `tools/color_probe.mjs`, `measure_render.mjs`, `hist_chroma.mjs`, `hist_roles.mjs`, porównanie zrzutów `img_diff.mjs`, predyktor palety `palette_predict.mjs`/`agx_predict.mjs`.
+
+Zasoby: 17 nowych modeli CC0 z Poly Haven w obu wariantach (KTX2/meshopt i JPG) — `audyt/research/zasoby_etap2.md`, licencje w `audyt/research/licencje_zasobow.md`. Strona Artifactu 15,4 MB z limitu 16 MB (próg ostrzegawczy 15,0 MB wpisany w `demo_artifact/build_artifact.mjs`).
+
+Znane braki po Etapie 2 (świadomie zostawione): gradient w oknach `glassLit` (jednolite prostokąty w zbliżeniu), bele sukiennika poza kadrem startowym, ulica południowa uboga w rekwizyty, chroma wody i patyny posągu poniżej celu predyktora (L zmierzone w normie), rundy 3 krytyki nie było — limit modelu przerwał dwóch krytyków rundy 2.
+
 ## 7. Co wymaga działania Piotra i co to odblokuje
 
 | Działanie | Odblokowuje |
