@@ -185,23 +185,37 @@ export const CONFIG = {
     portal: { doorW: 1.2, doorH: 2.2, archIn: 0.6, archOut: 0.9, impostY: 1.6, t: 0.25, seg: 8, key: 'blocks', keystone: { w: 0.28, h: 0.45, up: 0.125, out: 0.05 }, threshold: { h: 0.1, d: 0.35 }, front: 0.6 }, // metry; szczyt łuku wewn. 2,2 / zewn. 2,5, zwornik 2,175–2,625 < parter 3,2 i < belki jetty 3,04
   },
 
-  // tor „wieża i panorama": panorama za pierzejami (skyline.js). Flagi: ?noskyline=1 (cały moduł), ?nofog=1, ?nobirds=1.
+  // tor „wieża i panorama": panorama za pierzejami (skyline.js). Flagi: ?noskyline=1 (cały moduł), ?nofog=1, ?nobirds=1, ?nobackrow=1 (tylna linia za domami zamykającymi).
   skyline: {
     seedOffset: 400,     // własny generator rng(seed + seedOffset): kolejność losowań innych modułów nie zmienia panoramy
     groundExtent: 120,   // półwymiar płaszczyzny bruku (m); bez panoramy layout.js liczy jak dawniej (52 m). Wieże w oddali stoją na gruncie.
     // mgła: kolor EKRANOWY — Fog miesza po AgX (meshphysical.glsl.js:219), więc hex trafia na ekran 1:1. Sonda color_probe.mjs na bazowym
     // start_plac.png, pas nieba nad okapami 40,600,480,20 → #c9d5df (L 0.867 C 0.018 H 242.6); pas sąsiedni 40,620,200,20 → #cbd6df (L 0.870):
     // ΔL 0.003 ≤ 0.01, C < 0.03. Przeliczyć po każdej zmianie ?sun=/exposure/rotation nieba.
-    fog: { color: 0xc9d5df, near: 60, far: 220 },
-    // druga linia dachów: domy tła za każdą pierzeją — środek 9–16 m za osią pierzei (26 m → 35–42 m od środka placu), kalenice 12–17 m;
-    // wzdłuż pierzei od krawędzi domu zamykającego ulicę (sw/2 + depth = 11 m) + streetClear do half + depth + alongMax
-    secondLine: { distMin: 9, distMax: 16, widthMin: 5, widthMax: 8, depthMin: 7, depthMax: 9, gapMin: 0.3, gapMax: 1.5, ridgeMin: 12, ridgeMax: 17, // przerwy 0.3–1.5 m między domami
-                  streetClear: 1, alongMax: 11, windowSpacing: 2.4, windowRows: 3, gableShare: 0.3, streetSideMax: 13 }, // okna co 2.4 m, 3 rzędy od góry; 30 % domów szczytem do placu
+    // far 220 → 140 (poprawka r1): tło w 60–75 m dostaje 0–19 % (dom tła 65 m: 6 %), wieże w oddali 80–100 m: 25–50 %, kraniec bruku 120 m: 75 % (chowa krawędź)
+    fog: { color: 0xc9d5df, near: 60, far: 140 },
+    // druga linia dachów: domy tła za każdą pierzeją — środek 9–16 m za osią pierzei (26 m → 35–42 m od środka placu), kalenice 18–22 m;
+    // wzdłuż pierzei od krawędzi domu zamykającego ulicę (sw/2 + depth = 11 m) + streetClear do half + depth + alongMax.
+    // Poprawka r1 (§5.3 (3)): z oka startu (4.5, 1.65, 19.5, pitch 0.09) kalenica pierzei N w 45 m daje NDC y 0.20 (2 piętra) … 0.34 (4 piętra); dom tła w 57 m
+    // ma 0.025 NDC/m, więc kalenica 12–17 m = NDC 0.13–0.25 (schowana), 18–22 m = 0.26–0.36 → ≥ 0.04 nad domami 2-piętrowymi (yaw 0.44–0.5 od startu).
+    // distMin < 9 niemożliwe: asercja „wchodzi w pierzeję" (nearDist ≥ half + depth + 0.3 = 30.3) wymaga setback ≥ 4.3 + d/2 = 7.8–8.8 m.
+    secondLine: { distMin: 9, distMax: 16, widthMin: 5, widthMax: 8, depthMin: 7, depthMax: 9, gapMin: 0.3, gapMax: 1.5, ridgeMin: 18, ridgeMax: 22, // przerwy 0.3–1.5 m między domami
+                  streetClear: 1, alongMax: 11, windowSpacing: 2.4, windowRows: 3, gableShare: 0.3, streetSideMax: 13, // okna co 2.4 m, 3 rzędy od góry; 30 % domów szczytem do placu
+                  // tylna linia (?nobackrow=1): domy tła na osi ulicy ZA domem zamykającym (along −inner..inner, inner = sw/2 + depth + streetClear = 12 m); najbliższa ściana
+                  // ≥ tył domu zamykającego (half + depth/2 + sl + depth/2 = 46 m) + clear, oś w 46.3–50.3 + d/2 m → 70–76 m od oka startu (0.02 NDC/m); dom zamykający N
+                  // (3 piętra · 3.05 + rise 3.4 = 13.2 m) ma w kadrze startu kalenicę NDC y 0.138 w luce yaw 0.037–0.165 (lewa krawędź domu along 6 … okap hełmu wieży,
+                  // 9 m szerokości w 72 m); kalenica 18 m → NDC 0.196 (+0.06), 22 m → 0.275 (+0.14); kalenice z ridgeMin/ridgeMax jak odcinki A/B
+                  back: { clear: 0.3, distExtra: 4 },   // m: luz za domem zamykającym, losowe oddalenie
+                  // asercja widoczności z kamery startowej (skyline.js startVisibility; PerspectiveCamera(70, 412/915) jak §5.3): ≥ housesMin domów tła z fragmentem
+                  // kalenicy (5 próbek na kalenicę) i ≥ towersMin szczytów wież w oddali w kadrze (|NDC x| ≤ ndcX, przed kamerą) i ≥ over NDC nad sylwetką 1. linii
+                  // (kalenice, okapy i krawędzie szczytów pierzei z domami zamykającymi + wieża główna do szerokości hełmu) w tym samym yaw; policzone dla seed 7 — komentarz w skyline.js
+                  startVisible: { over: 0.04, ndcX: 0.9, housesMin: 2, towersMin: 1, ridgeSamples: 5 } },   // NDC, NDC, szt., szt., próbek/kalenicę
     // bramy na końcach 4 ulic: setback od osi pierzei (26 m) → 34 m od środka placu (tył pierzei 30 m, fasada domu zamykającego 38 m)
     gate: { setback: 8, span: 4, pierWidth: 2, height: 7, thickness: 2, archSpring: 3.5, bastionR: 1.6, bastionH: 9.5, bastionX: 4.6, capH: 2.4, merlons: 3 }, // łuk: nasada 3.5 m, szczyt 5.5 m; baszty r 1.6 h 9.5 + hełm 2.4
     // wieże w oddali (klucz far, jaśniejszy = perspektywa powietrzna): pierścień (sin a·R, cos a·R), 60–110 m od środka; policzone:
-    // A (−26.6, −86) yaw 0.284 ze startu (kadr 0.15 ± 0.305), B (47.9, −87.8), C (−15.9, 78.4)
-    farTowers: [{ a: Math.PI + 0.3, dist: 90, h: 40, r: 3.5 }, { a: Math.PI - 0.5, dist: 100, h: 44, r: 4 }, { a: -0.2, dist: 80, h: 32, r: 3 }], // a = kąt pierścienia (rad), dist/h/r w metrach
+    // A (−6.5, −89.8) yaw 0.100 ze startu (4.5, 19.5): w luce nad domem zamykającym ulicę N (yaw 0.037–0.178; wieża główna 0.178–0.332 zasłaniała stare
+    // a = π + 0.3 → (−26.6, −86), yaw 0.284), szczyt hełmu 53.2 m → NDC y 0.58 (dom zamykający 0.205); B (47.9, −87.8) yaw −0.38 (poza kadrem), C (−15.9, 78.4) za plecami
+    farTowers: [{ a: Math.PI + 0.072, dist: 90, h: 40, r: 3.5 }, { a: Math.PI - 0.5, dist: 100, h: 44, r: 4 }, { a: -0.2, dist: 80, h: 32, r: 3 }], // a = kąt pierścienia (rad), dist/h/r w metrach
     farColor: [0.62, 0.060, 245],   // OKLCH albedo bez tekstury (#688aa8, inGamut); cykl 1: L 0.80 → ekran L 0.82 = niebo (0.86) − 0.03; cykl 2: [0.62, 0.03] → ekran L 0.744 C 0.004 (szara); cel ekran L 0.70–0.78, C ≥ 0.01, H 230–250
     farDetail: { seg: 12, baseFlare: 1.1, ledgeH: 1.2, ledgeR: 1.25, capShare: 0.3, capR: 1.3 }, // 12 segmentów (8 dawało widoczne fasety), podstawa 10 % szersza, gzyms 1.2 m × 1.25 r pod hełmem, hełm 30 % trzonu o podstawie 1.3 r
     farBlock: { w: 12, h: 9, d: 10 },   // przybudówka przy każdej wieży (masa miasta)

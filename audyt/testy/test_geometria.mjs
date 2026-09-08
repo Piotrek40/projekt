@@ -387,14 +387,20 @@ let nGreen = { planters: 0, sillBoxes: 0, beds: 0, benches: 0 };
   const n3 = rec.length; buildSkyline(W);
   const sky = rec.slice(n3), plan = W.skylinePlan, SK = CONFIG.skyline;
   const boxXZ = (r) => { const b = r.bb.clone().applyMatrix4(r.m); return new THREE.Box2(new THREE.Vector2(b.min.x, b.min.z), new THREE.Vector2(b.max.x, b.max.z)); };
-  // S1) domy tła: 6–8 na pierzeję, za tyłem pierzei (half + depth + 0.3), poza domem zamykającym (krawędź sw/2 + depth + streetClear), bez wzajemnych przecięć
-  for (let side = 0; side < 4; side++) { const n = plan.houses.filter(h => h.side === side).length; if (n < 6 || n > 8) fails.push(`S1 strona ${side}: ${n} domów tła (ma być 6–8)`); }
+  // S1) domy tła: odcinki A/B 6–8 na pierzeję za tyłem pierzei (half + depth + 0.3), poza domem zamykającym (krawędź sw/2 + depth + streetClear); tylna linia (h.back)
+  // 2–5 na ulicę: w pasie |along| ≤ inner, najbliższa ściana ≥ tył domu zamykającego (half + depth + sl) + back.clear; kalenice w zakresie swojego odcinka; bez wzajemnych przecięć
+  for (let side = 0; side < 4; side++) {
+    const n = plan.houses.filter(h => h.side === side && !h.back).length, nb = plan.houses.filter(h => h.side === side && h.back).length;
+    if (n < 6 || n > 8) fails.push(`S1 strona ${side}: ${n} domów tła A/B (ma być 6–8)`);
+    if (nb < 2 || nb > 5) fails.push(`S1 strona ${side}: ${nb} domów tylnej linii (ma być 2–5; 24 m / szerokości 5–8 + przerwy)`);
+  }
   const inner = W.sw / 2 + H.depth + SK.secondLine.streetClear;
   for (const h of plan.houses) {
-    const near = half + H.depth / 2 + h.setback - h.d / 2;
+    const near = half + H.depth / 2 + h.setback - h.d / 2, rg = SK.secondLine;
     if (near < half + H.depth + 0.3) fails.push(`S1 dom tła s${h.side} along=${h.along.toFixed(1)}: ściana ${near.toFixed(2)} m < tył pierzei ${(half + H.depth + 0.3).toFixed(1)}`);
-    if (Math.abs(h.along) - h.w / 2 < inner - 0.01) fails.push(`S1 dom tła s${h.side} along=${h.along.toFixed(1)}: krawędź ${(Math.abs(h.along) - h.w / 2).toFixed(2)} < ${inner} (dom zamykający ulicę)`);
-    if (h.ridgeY < SK.secondLine.ridgeMin - 0.01 || h.ridgeY > SK.secondLine.ridgeMax + 0.01) fails.push(`S1 dom tła: kalenica ${h.ridgeY.toFixed(2)} poza ${SK.secondLine.ridgeMin}–${SK.secondLine.ridgeMax}`);
+    if (!h.back && Math.abs(h.along) - h.w / 2 < inner - 0.01) fails.push(`S1 dom tła s${h.side} along=${h.along.toFixed(1)}: krawędź ${(Math.abs(h.along) - h.w / 2).toFixed(2)} < ${inner} (dom zamykający ulicę)`);
+    if (h.back && (Math.abs(h.along) + h.w / 2 > inner + 0.01 || near < half + H.depth + W.sl + SK.secondLine.back.clear - 0.01)) fails.push(`S1 dom tylnej linii s${h.side} along=${h.along.toFixed(1)}: poza pasem ±${inner} albo ściana ${near.toFixed(2)} < tył domu zamykającego ${(half + H.depth + W.sl + SK.secondLine.back.clear).toFixed(1)}`);
+    if (h.ridgeY < rg.ridgeMin - 0.01 || h.ridgeY > rg.ridgeMax + 0.01) fails.push(`S1 dom tła${h.back ? ' (tył)' : ''}: kalenica ${h.ridgeY.toFixed(2)} poza ${rg.ridgeMin}–${rg.ridgeMax}`);
     for (const rc of houseRects) if (h.box.intersectsBox(new THREE.Box2(new THREE.Vector2(rc.x - rc.hw + 0.01, rc.z - rc.hd + 0.01), new THREE.Vector2(rc.x + rc.hw - 0.01, rc.z + rc.hd - 0.01)))) fails.push(`S1 dom tła s${h.side} along=${h.along.toFixed(1)} przecina dom pierzei (${rc.x}, ${rc.z})`);
   }
   for (let i = 0; i < plan.houses.length; i++) for (let j = i + 1; j < plan.houses.length; j++) if (plan.houses[i].box.intersectsBox(plan.houses[j].box)) fails.push(`S1 domy tła #${i}/#${j} przecinają się`);
@@ -426,7 +432,12 @@ let nGreen = { planters: 0, sillBoxes: 0, beds: 0, benches: 0 };
   for (const b of plan.birds) if (b.y < ridgeTop || b.y > 40) fails.push(`S4 ptak y=${b.y.toFixed(1)} poza ${ridgeTop.toFixed(2)}–40 (pod kalenicami / poza kadrem)`);
   const lowestSky = Math.min(...sky.map(r => r.bb.clone().applyMatrix4(r.m).min.y));
   if (lowestSky < -0.01) fails.push(`S4 element panoramy pod ziemią: y=${lowestSky.toFixed(3)}`);
-  console.log(`panorama: domów tła ${plan.houses.length}, połaci ${nSlab}, elementów bram ${sky.filter(r => r.key === 'blocks').length}, wież w oddali ${plan.towers.length}, ptaków ${plan.birds.length}`);
+  // S5) widoczność ze startu (§5.3 (3), poprawka r1): skylinePlan → startVisibility (kamera §5.3, rzut kalenic) — ≥ housesMin kalenic tła i ≥ towersMin wież w oddali
+  // ≥ over NDC nad sylwetką 1. linii w kadrze startu (check() w skylinePlan już liczy się w E; tu liczby do logu)
+  const SVc = SK.secondLine.startVisible, sv = plan.startVisible;
+  if (sv.houses.length < SVc.housesMin) fails.push(`S5 kalenice tła nad pierzeją w kadrze startu: ${sv.houses.length} < ${SVc.housesMin}`);
+  if (sv.towers.length < SVc.towersMin) fails.push(`S5 wieże w oddali nad pierzeją w kadrze startu: ${sv.towers.length} < ${SVc.towersMin}`);
+  console.log(`panorama: domów tła ${plan.houses.length} (tylna linia ${plan.houses.filter(h => h.back).length}), połaci ${nSlab}, elementów bram ${sky.filter(r => r.key === 'blocks').length}, wież w oddali ${plan.towers.length}, ptaków ${plan.birds.length}; S5 ze startu widoczne: ${sv.houses.map(v => `${v.id} +${v.over}`).join(', ')} | ${sv.towers.map(v => `${v.id} +${v.over}`).join(', ')}`);
 }
 // G) girlandy (bunting.js): funkcja czysta buntingCurves + bryły z buildBunting (ten sam rejestrator B)
 {

@@ -71,3 +71,47 @@ lineup / hist_roles: n/d (bez zmian w `W.mat` poza nowym kluczem `far` bez tekst
 6. `tlo_N` to słaby kadr (filar bramy zasłania połowę); lepszy dowód drugiej linii to `zaulek_N` i elewacje.
 7. HUD nadal widoczny mimo `noui=1` (§8 #2, motyw #15) — sondy omijają pasek HUD (y ≥ 100 px).
 Cykle zużyte: 3/3 (1 i 2 bez zamkniętej weryfikacji, 3 zamknięty).
+
+## Poprawka po rundzie 1 krytyki (reżyseria, „ważny": §5.3 (3) — nad okapem pierzei N samo niebo) — 2026-09-08
+
+**Problem (potwierdzony)**: `etap2_r1/start_v2.png` vs `krytyk_r1_noskyline/start_v2.png` → pctOver 0 %, z kadru znikał tylko ptak. Przyczyny policzone rzutem kamery startowej
+(`PerspectiveCamera(70, 412/915)`, oko (4.5, 1.65, 19.5), yaw 0.20, pitch 0.09): (1) domy tła stały tylko przy |along| ≥ 12 m (odcinki A/B), a jedyna luka w kadrze nad
+pierzeją N — yaw 0.037–0.165 między lewą krawędzią domu along 6.1 a okapem hełmu wieży (r 4.1) — patrzy na oś ulicy N, gdzie za domem zamykającym (kalenica 13.2 m →
+NDC y 0.138) nic nie stało; (2) kalenice 12–17 m w 57 m dawały NDC 0.13–0.25, czyli poniżej kalenic pierzei (0.20 dla 2 pięter … 0.34 dla 4); (3) wieża w oddali A
+(a = π + 0.3 → (−26.6, −86), yaw 0.284 ze startu) stała dokładnie za wieżą główną (yaw 0.165–0.344 do wysokości NDC 0.62 na okapie hełmu) — komentarz w config.js liczył
+kadr dla starego startu 0.15. Alternatywa krytyka distMin 9 → 5 jest niewykonalna: asercja „wchodzi w pierzeję" (nearDist ≥ 30.3) wymaga setback ≥ 4.3 + d/2 = 7.8–8.8 m.
+
+**Zmiany** (`rynek/src/config.js` sekcja `skyline`, `rynek/src/skyline.js`, `audyt/testy/test_geometria.mjs` S1/S5, `audyt/testy/geo/entry.mjs`):
+1. **Tylna linia** `?nobackrow=1` (`secondLine.back`): trzeci odcinek domów tła na osi każdej ulicy, along −12..12 (inner = sw/2 + depth + streetClear), najbliższa ściana
+   ≥ tył domu zamykającego (46 m) + 0.3, oś w 46.3–50.3 + d/2 m → 70–76 m od oka startu; 12 domów (3 na ulicę), bez okien bocznych (fasada już patrzy w ulicę).
+   Asercje: `check` „tylna linia nie za domem zamykającym" (nearDist, pas |along| + w/2 ≤ 12), S1 w teście (2–5 domów na ulicę, kalenice w zakresie).
+2. **Kalenice domów tła 12–17 → 18–22 m** (wszystkie odcinki; §5.2 krytyka): w 57 m NDC 0.26–0.36 → ≥ 0.04 nad 2-piętrowymi domami pierzei; w 72 m (tylna linia) 0.196–0.275
+   → +0.06..+0.14 nad domem zamykającym N.
+3. **Wieża A** a = π + 0.3 → π + 0.072: (−6.5, −89.8), yaw 0.100 ze startu, hełm ±0.043 rad mieści się w luce 0.037–0.165; szczyt hełmu 53.2 m → NDC y 0.523 (+0.385 nad sylwetką).
+4. **Mgła far 220 → 140** (propozycja z ZNANYCH BRAKÓW p.1): tylna linia 65–76 m → 6–20 %, wieża A 109 m → 61 %, kraniec bruku 120 m → 75 %.
+5. **`startVisibility(W, houses, towers)`** — funkcja czysta w skyline.js (eksport do bundla testu): kamera jak §5.3, sylwetka 1. linii = odcinki (yaw → NDC y) kalenicy,
+   4 krawędzi okapu i 4 krawędzi szczytów każdego domu pierzei (z domami zamykającymi) + wieża główna do szerokości okapu hełmu; element tła „widoczny", gdy próbka kalenicy
+   (5 na dom) / szczyt hełmu jest w kadrze (|NDC x| ≤ 0.9, przed kamerą) i ≥ 0.04 NDC nad sylwetką w swoim yaw. `check()` w `skylinePlan`: ≥ 2 domy tła i ≥ 1 wieża
+   (`secondLine.startVisible`). Wynik dla seed 7: tło s0 along −15.3 +0.059, along −9.0 tył +0.076, along −1.3 tył +0.060; wieża A +0.385 (na HEAD: 0 i 0). Test S5 loguje listę.
+
+**Widoki** (`audyt/testy/out/render/`; DPR 2, `noui=1&nosmoke=1&nosway=1&nowater=1`):
+- `skyfix_on/start_v2.png` — na prawo od wieży głównej blada wieża A (szczyt y ≈ 450 px = NDC 0.51), nad domem zamykającym ulicę N (y 790–850) dach tylnej linii
+  (px 440–600, y 720–790), przy lewej krawędzi dach 2. linii nad niskim domem pierzei; fontanna i iglica bez zmian. `skyfix_off/start_v2.png` (`?noskyline=1`) — kontrola.
+- `skyfix_on/diff_start_v2.png` — różnice tylko: wieża A, pas dachu tylnej linii, brama, dachy 2. linii po lewej, ptaki.
+- `skyfix_on/start_plac.png` — wieża A i dach tylnej linii w tym samym miejscu, reszta kadru bez regresji.
+- `skyfix_on2/start_v2_lewo.png` — dachy 2. linii (18–22 m) nad 2–3-piętrowymi domami pierzei N-W (px 0–100 y 580–650; px 230–330 y 650–700).
+- `skyfix_on2/ulica_N.png` (0, −24, yaw 0, pitch 0.12) — brama, nad murem dach domu zamykającego, nad nim hełm wieży A i fragment dachu tylnej linii (px 520–700).
+- `skyfix_top/elew_N.png` (ortho side 0, 60 m) — 2. linia wystaje nad dachy pierzei N, wieża A za wieżą główną (elewacja patrzy wzdłuż −z). `skyfix_top/top.png` (120 m) utonął
+  w mgle (ortho > 60 m) — bez wartości; `skyfix_top2/top_N.png` (70 m, `?nofog=1&boxes=1`, `ortho:{x:0,z:-44}` — x/z trzeba podać W `ortho`, app.js:200) — plan: pierzeja N
+  (dół), brama z basztami, dom zamykający (prostokąt kolizji 22 m), za nim 3 domy tylnej linii z luzem od jego tyłu, odcinki A/B po bokach; bez nakładania brył.
+
+**Budżet** (HUD, instancje): start_v2 115 draw / 579 662 → **584 502** tri (+4 840: 12 domów tylnej linii, wyższe bryły tynku bez nowych tri), start_plac 115 / 584 502,
+ulica_N 75 / 394 256, start_v2_lewo 113 / 580 184; `?noskyline=1` 113 / 567 522. **noinst** start_v2: 148 / 324 624, errors []. top-3 `__stats` bez zmian (shrub_04_c 55 512,
+timber 29 168, periwinkle 27 664). Wszystkie widoki errors [].
+
+**Diff** (próg 20): start_v2 on/off **pctOver 2.54 %** (meanDiff 2.57; kryterium ≥ 0.5 %), start_plac on/off 3.29 %, start_v2 vs `etap2_r1` 1.32 %.
+
+**Asercje**: `geo_test.sh` exit 0 (S1 z tylną linią, S5 nowe; E 0 CHECK); `rot_token.mjs skyline.js` exit 0; liczby bez komentarza w diffie rynek/src: 0.
+
+**Znane braki po poprawce**: wieża A przy far 140 jest bardzo blada (61 % mgły) — czytelna jako sylwetka, do oceny krytyka; „≥ 3 kalenice w sektorze yaw 0.05–0.35"
+z propozycji krytyka jest geometrycznie nieosiągalne (sektor to w 90 % wieża główna i luka 9 m szerokości), kryterium zastąpione asercją na całym kadrze (≥ 2 domy + ≥ 1 wieża).

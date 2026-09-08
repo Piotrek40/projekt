@@ -1,11 +1,12 @@
 // Panorama za pierzejami (tor „wieża i panorama", motywy #4 + #14): druga linia dachów, mgła, bramy zamykające osie ulic, wieże w oddali,
-// ptaki nad placem. Flagi: ?noskyline=1 (cały moduł = stan sprzed cechy, także groundExtent w layout.js), ?nofog=1, ?nobirds=1.
+// ptaki nad placem. Flagi: ?noskyline=1 (cały moduł = stan sprzed cechy, także groundExtent w layout.js), ?nofog=1, ?nobirds=1, ?nobackrow=1 (tylna linia za domami zamykającymi ulice).
 // Układ lokalny: początek na środku podstawy, +x wzdłuż pierzei, +y w górę, +z = FRONT (do placu). Metry. Do świata tylko przez L().
 // Wszystkie liczby w CONFIG.skyline; własny generator rng(seed + seedOffset), żeby kolejność losowań innych modułów nie zmieniała panoramy.
 import * as THREE from 'three';
 import { box, gable, cylinder, M4, rng } from '../../engine/src/geometry.js';
 import { check, checkInFrontOfWall, checkCollisionCovers, checkAboveGround, facadeNormal, bboxOf } from '../../engine/src/check.js';
 import { oklch } from './color.js';
+import { towerPlacement } from './tower.js';
 
 // Plan panoramy — FUNKCJA CZYSTA (bez DOM, loaderów i W.B): test geometrii (audyt/testy/test_geometria.mjs, asercje S) importuje ją
 // i sprawdza liczby na tych samych danych, z których buildSkyline stawia bryły.
@@ -38,6 +39,28 @@ export function skylinePlan(W) {
       }
     }
   }
+  // ---- tylna linia (?nobackrow=1): odcinek C na osi każdej ulicy ZA domem zamykającym (along −inner..inner) — jedyne domy tła w luce nad domem zamykającym
+  // w kadrze startu (config.js secondLine.back); setback = sl + depth/2 + clear + d/2 (+0..distExtra) → najbliższa ściana ≥ tył domu zamykającego + clear ----
+  if (!W.ctx.flags.nobackrow) {
+    const Bk = SL.back, sl = CONFIG.plaza.streetLength;
+    for (let side = 0; side < 4; side++) {
+      let pos = -inner;
+      while (inner - pos > SL.widthMin) {
+        let w = Math.min(R.range(SL.widthMin, SL.widthMax), inner - pos);
+        if (inner - pos - w < SL.widthMin) w = inner - pos; // ostatni dom domyka odcinek
+        const d = R.range(SL.depthMin, SL.depthMax), setback = sl + H.depth / 2 + Bk.clear + d / 2 + R.range(0, Bk.distExtra), ridgeY = R.range(SL.ridgeMin, SL.ridgeMax);
+        const gableFront = R() < SL.gableShare;
+        const rise = ((gableFront ? w : d) / 2) * Math.tan(H.roofPitch), eaveY = ridgeY - rise;
+        const h = { side, along: pos + w / 2, setback, w, d, eaveY, ridgeY, rise, gableFront, back: true, plaster: R.int(0, W.P.plaster.length - 1), roof: R.int(0, W.P.roof.length - 1),
+                    chimney: (R() - 0.5) * ((gableFront ? d : w) - 2), lit: R(), off: [R(), R()] }; // jak odcinki A/B; back = bez okien bocznych, własne asercje
+        const tr = sideTransform(side, h.along, setback);
+        const hw = side % 2 === 0 ? w / 2 : d / 2, hd = side % 2 === 0 ? d / 2 : w / 2;
+        h.box = new THREE.Box2(new THREE.Vector2(tr.x - hw, tr.z - hd), new THREE.Vector2(tr.x + hw, tr.z + hd));
+        pos += w + R.range(SL.gapMin, SL.gapMax);
+        placed.push(h.box); houses.push(h); // za domem zamykającym (46 m) nic innego nie stoi — odcinki A/B kończą się 42 m od środka
+      }
+    }
+  }
   // ---- bramy: na osi każdej ulicy, setback za osią pierzei (26 + 8 = 34 m; tył pierzei 30 m, fasada domu zamykającego half + sl = 38 m) ----
   const gates = [0, 1, 2, 3].map(side => ({ side, tr: sideTransform(side, 0, S.gate.setback), dist: half + H.depth / 2 + S.gate.setback }));
   // ---- wieże w oddali: pierścień wokół placu ----
@@ -45,7 +68,60 @@ export function skylinePlan(W) {
   // ---- ptaki: okręgi nad placem ----
   const Bd = S.birds, birds = [];
   for (let i = 0; i < Bd.count; i++) birds.push({ cx: R.range(-half / 3, half / 3), cz: R.range(-half / 3, half / 3), y: R.range(Bd.yMin, Bd.yMax), r: R.range(Bd.rMin, Bd.rMax), w: R.range(Bd.speedMin, Bd.speedMax) * (R() < 0.5 ? 1 : -1), phi: R() * Math.PI * 2 }); // połowa ptaków krąży w drugą stronę; środki w środkowej ⅓ placu
-  return { houses, gates, towers, birds };
+  // ---- widoczność ze startu (§5.3 (3)): ≥ housesMin kalenic tła i ≥ towersMin wież w oddali nad sylwetką 1. linii w kadrze startu; policzone dla seed 7 (2026-09-08):
+  // tło s0 along−15.3 +0.059 (prawy koniec kalenicy nad szczytem domu −13.8, na prawo od hełmu wieży yaw 0.344), along−9.0 tył +0.076, along−1.3 tył +0.060 (luka nad
+  // domem zamykającym N, NDC 0.138); wieża A +0.385 (szczyt hełmu NDC 0.523 w yaw 0.100). Na HEAD (kalenice 12–17, bez tylnej linii, A za wieżą główną): 0 i 0 ----
+  const startVisible = startVisibility(W, houses, towers), SV = S.secondLine.startVisible;
+  check(startVisible.houses.length >= SV.housesMin, `panorama: ${startVisible.houses.length} kalenic tła nad pierzeją w kadrze startu (ma być ≥ ${SV.housesMin})`, startVisible.houses);
+  check(startVisible.towers.length >= SV.towersMin, `panorama: ${startVisible.towers.length} wież w oddali nad pierzeją w kadrze startu (ma być ≥ ${SV.towersMin})`, startVisible.towers);
+  return { houses, gates, towers, birds, startVisible };
+}
+
+// Kalenica domu pierzei (jak buildings.js: parter + (floors−1)·fh, jetty na każdym piętrze, rise z połowy szerokości szczytu albo głębokości poddasza).
+function firstLineRidgeY(h, H) {
+  const fh = h.floorHeight ?? H.floorHeight, pitch = h.pitch ?? H.roofPitch, jet = h.jetty ? H.jetty * (h.floors - 1) : 0;
+  const y = H.groundFloor + (h.floors - 1) * fh, rise = ((h.gableFront ? h.w : H.depth + jet) / 2) * Math.tan(pitch);
+  return { y, ridgeY: y + rise };
+}
+
+// Widoczność panoramy z kamery startowej — FUNKCJA CZYSTA (test S5). Kamera jak §5.3: PerspectiveCamera(70, 412/915) w CONFIG.composition.start, oko 1.65 m, YXZ.
+// Sylwetka 1. linii = odcinki (yaw → NDC y): kalenica i 4 krawędzie okapu każdego domu pierzei (z domami zamykającymi) + wieża główna (szczyt iglicy na
+// szerokości trzonu). Element tła „widoczny", gdy środek kalenicy / szczyt hełmu jest w kadrze (|NDC x| ≤ ndcX, przed kamerą) i ≥ over NDC nad sylwetką w swoim yaw.
+export function startVisibility(W, houses, towers) {
+  const { CONFIG, H } = W, st = CONFIG.composition.start, SV = CONFIG.skyline.secondLine.startVisible, Fd = CONFIG.skyline.farDetail;
+  const cam = new THREE.PerspectiveCamera(70, 412 / 915, 0.05, 300); // telefon pionowo (§5.3), far jak app.js
+  cam.position.set(st.x, 1.65, st.z); cam.rotation.set(st.pitch, st.yaw, 0, 'YXZ'); cam.updateMatrixWorld(); cam.updateProjectionMatrix(); // oko 1.65 (§3.7)
+  const yawOf = p => Math.atan2(-(p.x - st.x), -(p.z - st.z)), ndc = p => p.clone().project(cam);
+  const pt = p => ({ yaw: yawOf(p), y: ndc(p).y });
+  const segs = [];
+  const seg = (p, q) => segs.push([pt(p), pt(q)]);
+  for (const h of W.houses) {
+    const tr = W.sideTransform(h.side, h.along, h.setback ?? 0), LP = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(M4(tr.x, 0, tr.z, tr.ry));
+    const { y, ridgeY } = firstLineRidgeY(h, H), hw = h.w / 2, hd = H.depth / 2;
+    const r = h.gableFront ? [LP(0, ridgeY, -hd), LP(0, ridgeY, hd)] : [LP(-hw, ridgeY, 0), LP(hw, ridgeY, 0)]; // końce kalenicy
+    const c = [LP(-hw, y, -hd), LP(hw, y, -hd), LP(hw, y, hd), LP(-hw, y, hd)]; // narożniki okapu (poddasze widziane z ukosa jest szersze niż kalenica)
+    seg(r[0], r[1]);
+    for (let i = 0; i < 4; i++) seg(c[i], c[(i + 1) % 4]);
+    for (let i = 0; i < 4; i++) seg(c[i], r[h.gableFront ? (i < 2 ? 0 : 1) : (i === 0 || i === 3 ? 0 : 1)]); // krawędzie szczytów: narożnik okapu → bliższy koniec kalenicy (trójkąt szczytu)
+  }
+  const tw = towerPlacement(CONFIG), Tw = CONFIG.tower, towerTop = Tw.trunkH + Tw.roofH + Tw.spireH; // 36 m
+  seg(new THREE.Vector3(tw.tx - Tw.roofR, towerTop, tw.tz), new THREE.Vector3(tw.tx + Tw.roofR, towerTop, tw.tz)); // wieża główna: prostokąt szerokości okapu hełmu (roofR) do szczytu iglicy
+  const topAt = yaw => segs.reduce((m, [a, b]) => { const lo = Math.min(a.yaw, b.yaw), hi = Math.max(a.yaw, b.yaw); if (yaw < lo || yaw > hi || hi - lo > Math.PI) return m; const t = hi > lo ? (yaw - a.yaw) / (b.yaw - a.yaw) : 0; return Math.max(m, a.y + (b.y - a.y) * t); }, -1);
+  const visible = (p, id) => { const n = ndc(p); if (n.z >= 1 || Math.abs(n.x) > SV.ndcX) return null; const over = n.y - topAt(yawOf(p)); return over >= SV.over ? { id, yaw: +yawOf(p).toFixed(3), ndcX: +n.x.toFixed(3), ndcY: +n.y.toFixed(3), over: +over.toFixed(3) } : null; };
+  const out = { houses: [], towers: [] };
+  for (const h of houses) {
+    // kalenica próbkowana w ridgeSamples punktach (luka nad domem zamykającym ma ~9 m w 72 m — środek kalenicy trafia w nią losowo); dom widoczny = najlepsza próbka
+    const tr = W.sideTransform(h.side, h.along, h.setback), M = M4(tr.x, 0, tr.z, tr.ry), half = (h.gableFront ? h.d : h.w) / 2, id = `tło s${h.side} along${h.along.toFixed(1)}${h.back ? ' tył' : ''}`;
+    let best = null;
+    for (let i = 0; i < SV.ridgeSamples; i++) {
+      const u = -half + (i + 0.5) * 2 * half / SV.ridgeSamples; // środki równych odcinków kalenicy (0.5 = połowa odcinka)
+      const p = (h.gableFront ? new THREE.Vector3(0, h.ridgeY, u) : new THREE.Vector3(u, h.ridgeY, 0)).applyMatrix4(M);
+      const v = visible(p, id); if (v && (!best || v.over > best.over)) best = v;
+    }
+    if (best) out.houses.push(best);
+  }
+  for (const t of towers) { const v = visible(new THREE.Vector3(t.x, t.h + Fd.ledgeH + t.h * Fd.capShare, t.z), `wieża w oddali ${t.i}`); if (v) out.towers.push(v); } // szczyt hełmu (buildFarTowers)
+  return out;
 }
 
 export function buildSkyline(W) {
@@ -80,6 +156,8 @@ function buildSecondLine(W, houses) {
     const nearDist = half + H.depth / 2 + h.setback - d / 2;
     check(nearDist >= half + H.depth + 0.3, `${id}: wchodzi w pierzeję`, { nearDist }); // ≥ 0.3 m luzu od tyłu pierzei
     check(eaveY >= 3 && ridgeY >= SL.ridgeMin - 0.01 && ridgeY <= SL.ridgeMax + 0.01, `${id}: kalenica poza zakresem`, { eaveY, ridgeY }); // okap ≥ 3 m (parter), tolerancja 1 cm
+    // tylna linia: najbliższa ściana ≥ tył domu zamykającego ulicę (half + depth/2 + sl + depth/2) + clear; cały dom w pasie |along| ≤ inner (na osi ulicy)
+    if (h.back) check(nearDist >= half + H.depth + W.sl + SL.back.clear - 0.01 && Math.abs(h.along) + w / 2 <= W.sw / 2 + H.depth + SL.streetClear + 0.01, `${id}: tylna linia nie za domem zamykającym`, { nearDist, along: h.along, w }); // tolerancja 1 cm
     B.add(plasterKey, box(w, eaveY, d, T.plaster.mpt, h.off), L(0, eaveY / 2, 0));
     // połacie: kalenica z TEJ SAMEJ macierzy co połać musi być wyżej niż okap (K1)
     const ridgeCheck = (m, slope, axis) => {
@@ -107,7 +185,7 @@ function buildSecondLine(W, houses) {
     // ≥ 0.3 m pod okapem. Lokalne −x domu wskazuje ulicę dla along > 0 (§3.1.2), więc ściana od ulicy = −sign(along)·w/2.
     const faceZ = d / 2, wh = 1.3, ww = 1.0; // okno piętra 1.0 × 1.3 (słownik §3.7)
     const faces = [{ tag: 'f', len: w, m: (cx, wy) => L(cx, wy, faceZ + 0.01), ctr: (cx, wy) => LP(cx, wy, faceZ + 0.01), wall: (cx, wy) => LP(cx, wy, faceZ), nrm }]; // fasada: środek okna 1 cm przed licem
-    if (Math.abs(h.along) - w / 2 < SL.streetSideMax) { // dom przy ulicy: okna też na ścianie od ulicy
+    if (!h.back && Math.abs(h.along) - w / 2 < SL.streetSideMax) { // dom przy ulicy: okna też na ścianie od ulicy (tylna linia stoi NA osi ulicy — fasada już patrzy w ulicę)
       const sg = -Math.sign(h.along), faceX = sg * w / 2, ry = sg * Math.PI / 2; // ry=−π/2: lokalne +z okna → −x (§3.1 tabela; policzone: sg=−1 → (−1,0,0)), ry=+π/2 → +x
       const sideN = new THREE.Vector3(sg, 0, 0).transformDirection(M4(0, 0, 0, tr.ry));
       faces.push({ tag: 'b', len: d, m: (cz, wy) => L(faceX + sg * 0.01, wy, cz, ry), ctr: (cz, wy) => LP(faceX + sg * 0.01, wy, cz), wall: (cz, wy) => LP(faceX, wy, cz), nrm: sideN }); // środek 1 cm przed ścianą boczną

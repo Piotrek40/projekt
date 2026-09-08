@@ -11,7 +11,7 @@ export { buildCart, signMatrix, signPlacements } from '../../../rynek/src/props.
 export { treePlacements, buildTrees } from '../../../rynek/src/trees.js';   // lipy (motyw #7): funkcja czysta + geometria Batch (bez materiałów — W.sets brak offline); asercja H
 export { stallPlacements, yawFrom } from '../../../rynek/src/stalls.js';   // kramy (motyw #7): pozycje (repoussoir + sektor bez kramu); asercja I
 export { stallGoodsPlan, buildStallGoods } from '../../../rynek/src/stalls.js';   // role kramów (motyw #11): plan towaru/bel/szyldów (funkcja czysta) + geometria; asercja J
-export { buildSkyline, skylinePlan } from '../../../rynek/src/skyline.js';
+export { buildSkyline, skylinePlan, startVisibility } from '../../../rynek/src/skyline.js';   // startVisibility: funkcja czysta widoczności ze startu (asercja S5)
 export { buntingCurves, buildBunting } from '../../../rynek/src/bunting.js';
 export { fountainPlan, buildFountain } from '../../../rynek/src/fountain.js';
 export { poiPlan } from '../../../rynek/src/ui.js';
