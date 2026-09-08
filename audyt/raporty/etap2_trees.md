@@ -1,0 +1,38 @@
+# Etap 2 — motyw #7 lipy proceduralne (?notrees=1) — raport (cykl 1/3)
+
+Stan wyjściowy: `5c1e440` + commit kompozycji (etap2_compose.md — te same rendery, worktree /home/user/wt-a, PORT 8376). Lista „co ma być widać" PRZED kodem: `$SP/m7/lista.md` p. 4–8.
+
+ZMIANY:
+- rynek/src/config.js: `CONFIG.trees = { count: 2, dist: 6, phase: π/2, seed: 700, trunk: {rTop: 0.2, rBot: 0.32, h: 2.8, seg: 8, root: {r: 0.42, h: 0.3}}, branches: {n: 5, rTop: 0.05, rBot: 0.1, len: 2.0, tilt: 0.7, tiltJitter: 0.15, in: 0.2}, crown: {y: 4.6, r: 2.4, blobs: [{y 4.8, ring 0, n 1, rB 1.4}, {y 4.2, ring 1.4, n 5, rB 1.0–1.3}, {y 5.6, ring 0.8, n 3, rB 0.9–1.1}], cards: 36, cardSize: 1.3, cardIn: [0.75, 1.0], elevMin: −0.5}, collideR: 0.45, headroom: 2.3, sway: 0.04, tint: {leaf0 [0.70, 0.010, 140], leaf1 [0.95, 0.005, 135], leafCard [0.92, 0.010, 135]}, canvas: {dark [0.45, 0.080, 145], mid [0.60, 0.090, 140], silver [0.80, 0.045, 135], vein [0.86, 0.030, 130]}, texRepeat: 3 }`; `CONFIG.roles.mat`: `leaf0/leaf1/leafCard: 'w'`. §2.4: 0.
+- rynek/src/trees.js (stub → moduł): nagłówek układu lokalnego; `treePlacements(W)` — FUNKCJA CZYSTA: count lip na okręgu dist od kąta phase (`ring:`) → (±6, 0), r = collideR, seed per lipa; `buildTrees`: check „lipa za blisko schodka fontanny" (6 − 0,32 = 5,68 ≥ 4,4 + 0,5), `buildTree` per lipa (rng(seed + i) — W.R nietknięte), `ctx.addCircle(x, z, 0.45)`, `W.trees`. `buildTree`: pień `cylinder(0.2, 0.32, 2.8, 8)` + odziomek na `timber` (0 nowych draw), `checkCollisionCovers` z macierzy pnia; 5 konarów `cylinder(0.05, 0.1, 2.0, 6)` od y 2,6 z `rz = −tilt` (`rot:` (0,1,0)→(0.644, 0.765, 0), czubek (0, len/2, 0) tą samą macierzą: y 4,13, promień 1,29 — check „konar poza koroną": czubek ≥ 2,7 m i ≤ 1,9 m od osi); korona = 9 ikosaedrów (80 tri) w 3 pierścieniach (pozycje przez `setFromSphericalCoords`, bez sin/cos), środek `leaf0`, reszta `leaf1`, check „bryła korony za nisko" (spód ≥ 2,3: min 4,05 − 1,3 = 2,75); 36 kart `plane(1.3, 1.3)` `leafCard` na sferze r 2,4·(0,75–1,0), licem na zewnątrz (`ry = atan2(d.x, d.z), rx = −asin(d.y)` — `rot:` policzone: normalna = d), check „karta liści za nisko". Materiały (tylko w przeglądarce, `if (W.sets)`): `leafTexture()` = canvas 256² z liśćmi sercowatymi (2 Béziery + nerw) w kolorach `canvas.*` (sRGB), gęsta kafelkowana (bryły, repeat 3) i pęk (karty); MeshStandard `alphaTest 0.5, DoubleSide, roughness 0.9`, tint `oklch(tint[k])`; falowanie `W.sway ?? localSway` (kopia sway z materials.js — tor B jeszcze nie eksportuje `W.sway`), amp 0,04, `?nosway=1` wyłącza.
+- audyt/testy/geo/entry.mjs: eksport `treePlacements, buildTrees`; test_geometria.mjs: asercja **H** — `buildTrees(W)` na stubie (bez W.sets): każda lipa z `treePlacements` ma `addCircle` o tym samym środku (± 0,01) i r collideR, |p| = dist ± 0,01, pień timber ze spodem na y 0 w osi, korona ≥ 10 elementów leaf* ze spodem ≥ headroom; B6 pokrywa pień (2 lipy = 4 elementy timber < 2 m → kołem).
+- rynek/app.js: bundle. Flaga: `grep flags.notrees rynek/src` → trees.js:22.
+
+CO MIAŁO BYĆ / CO WIDAĆ (odhaczone na PNG):
+1. [x] start_v2: prawa lipa (6, 0) pień NDC x 0,91 (na PNG pień x ≈ 760–800 px, dół y ≈ 1150 px = NDC −0,26), korona y ≈ 640–1000 px (NDC 0,30..−0,09); lewa lipa (−6, 0) korona w lewym górnym rogu nad baldachimem kramu 0 (x 0–160 px, y 700–900 px). Korony NIE zasłaniają fontanny (x 130–690 px) ani wieży (x 220–460 px).
+2. [x] lipa_szeroko (6, 9,5 → −z, pitch 0,18): cała lipa: odziomek, pień 2,8 m, 5 konarów rozchodzących się w koronę, korona kulista ~4,8 m średnicy (y 3,1–7,0 m), liście srebrzystozielone z jaśniejszymi kartami na obwodzie; wierzch korony poniżej okapów pierzei W.
+3. [x] lipa_L (9,9, 3,9, yaw 0,785, pitch 0,35): z 5,5 m — pień ze słojami old_planks_02 (pionowe deski — patrz braki), 3 konary w kadrze wchodzą w koronę, karty liści z nerwem czytelne, prześwity alphaTest w bryłach; lipa_P (9,9, −3,9, yaw 2,356): to samo z drugiej strony, korona nad baldachimem kramu 2.
+4. [x] elew (ortho side 3 z x = 24, 30 m): pień pionowy na ziemi, korona 3,1–7,0 m (wiersze 850–715 px), konary widoczne pod koroną; lipa (−6, 0) dokładnie za (6, 0) na osi x — jedna sylwetka.
+5. [x] top: 2 korony symetrycznie ±6 od fontanny (x ≈ 405 / 620 px, y 510 px), cienie koron na bruku ku −x −z; nic na ulicy.
+6. [x] Budżet: +6 draw (leaf0/leaf1/leafCard × 2 przebiegi), +3 904 tri HUD w start_v2 (94 / 371 340 → 100 / 375 244; szacunek 2 × 1 070 realnych ≈ +4,3 k HUD).
+
+WIDOKI (audyt/testy/out/render/, noui=1&nosmoke=1&nosway=1&nowater=1, QUALITY=high DPR=2; ortho 1024² DPR 1; każdy obejrzany, elewacja przed zbliżeniami — cecha > 4 m z rx/rz):
+- trees_on/lipa_L.png, lipa_P.png, lipa_szeroko.png; trees_off/start_v2.png, lipa_szeroko.png (?notrees=1); trees_on/diff_start_v2.png, diff_lipa_szeroko.png.
+- compose_on/start_v2.png, start_v2_lewo.png, start_plac.png (kontrolny); compose_on_top/top.png (+ diff_top.png); compose_on_elew/elew.png; compose_on_noinst/start_v2.png, start_plac.png.
+
+BUDŻET (HUD, tryb instancji; przed = ?notrees=1, po = z lipami): start_v2 94 / 371 340 → 100 / 375 244; lipa_szeroko 87 / 349 547 → 93 / 353 451; lipa_L 96 / 372 216; lipa_P 96 / 390 286; start_plac 100 / 375 244 (cel ≤ 600 k: zapas 225 k); top 124 / 423 531; elew 99 / 366 588. Wszystko ≤ 250 / ≤ 700 000.
+- noinst (?noinst=1): start_v2 122 / 249 544, start_plac 122 / 249 544; errors []; inst vs noinst pctOver 0,04 %.
+- top-3 __stats start_v2: timber 1 / 29 168 (+368 = pnie i konary), wooden_lantern_01 3 / 27 232, wicker_basket_01 1 / 17 776. Lipy rzucają cień (celowo — duże obiekty; bez `CONFIG.noShadowKeys` § 8 #17 nie ma czym wyłączyć).
+
+KOLOR: lineup n/d (nowe klucze leaf0/leaf1/leafCard to CanvasTexture sRGB z alphaTest, tinty prawie białe — nie ma sensu liczyć predyktorem na teksturze PBR); kolory liści z CONFIG.trees.canvas w OKLCH przez oklch(): H 130–145 = rodzina szałwii (§4.2 rodzina {145}, bez nowej rodziny), L 0,45–0,86 (3 walory + nerw); na PNG (start_v2) korona w słońcu czyta się jako jasna srebrzysta zieleń, w cieniu (lipa_P) ciemniejsza szałwia — pomiar sondą nie robiony (brak celu z predyktora dla canvasu); rola `w` w masce ról (roles.mat) — hist_roles [E] na koniec etapu.
+
+ASERCJE: geo_test.sh exit 0 (lip H 2, B6 135 elementów, KNOWN 1, CHECK 0 — pełna linia w etap2_compose.md); rot_token.mjs trees.js exit 0 (3 linie z rot: konary, karty); results.errors [] w każdym renderze; grep §3.1 → 0 (trees.js: 1 linia `ring:`, reszta przez `setFromSphericalCoords`/macierze); nowe check(): „lipa za blisko schodka fontanny" (5,68 ≥ 4,9), checkCollisionCovers pień (r 0,45 ≥ 0,8·0,32 = 0,26; środek w AABB) × 2, „konar poza koroną" × 10 (czubek y 3,9–4,4 ≥ 2,7; promień 1,1–1,5 ≤ 1,9), „bryła korony za nisko" × 18 (spód ≥ 2,75 ≥ 2,3), „karta liści za nisko" × 72 (spód ≥ 2,8) — wszystkie PASS; test H: 0 FAIL.
+
+DIFF (img_diff, próg 20): start_v2 trees on/off 5,13 %, lipa_szeroko 19,92 % (cecha ≥ 0,5 %); kontrolny start_plac (compose on/off) 5,05 % = tylko kramy; top 3,25 % (lipy + kramy); vs baza repo start_plac 31,67 %.
+
+ZNANE BRAKI:
+- Pień i konary na `timber` (old_planks_02): z bliska (lipa_L) widać pionowe deski zamiast kory — brak tekstury kory w zestawie CC0 repo; osobny klucz `bark` = +2 draw, odłożone.
+- Na obrysie korony część kart liści widać krawędzią (płaskie elipsy, lipa_szeroko góra) — karty to pojedyncze płaszczyzny; krzyżaki (2 płaszczyzny) = +72 tri/lipa, do rozważenia po ocenie krytyka.
+- Bez `W.sway` z toru B: falowanie przez lokalną kopię `localSway` w trees.js (po scaleniu #5 usunąć kopię — `W.sway ?? localSway` już preferuje W.sway).
+- Elewacja z boku pokazuje obie lipy jako jedną sylwetkę (obie na z = 0) — elewacja z side 0/2 przy x = 0 wymagałaby near < 6 (ortho near 16 domyślnie).
+- Cykle: 1/3.

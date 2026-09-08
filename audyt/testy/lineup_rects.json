@@ -1,89 +1,194 @@
 [
- { "name": "cobble_sun", "view": "row0", "key": "cobble", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "cobble_shade", "view": "row0", "key": "cobble", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45 },
- { "name": "cobble_cube", "view": "row0", "key": "cobble", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "stone_sun", "view": "row0", "key": "stone", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "stone_shade", "view": "row0", "key": "stone", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41 },
- { "name": "stone_cube", "view": "row0", "key": "stone", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "blocks_sun", "view": "row0", "key": "blocks", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "blocks_shade", "view": "row0", "key": "blocks", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29 },
- { "name": "blocks_cube", "view": "row0", "key": "blocks", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "slates_sun", "view": "row0", "key": "slates", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "slates_shade", "view": "row0", "key": "slates", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11 },
- { "name": "slates_cube", "view": "row0", "key": "slates", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "timber_sun", "view": "row0", "key": "timber", "kind": "sun", "x": 790, "y": 395, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "timber_shade", "view": "row0", "key": "timber", "kind": "shade", "x": 733, "y": 425, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "timber_cube", "view": "row0", "key": "timber", "kind": "cube", "x": 771, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "planks_sun", "view": "row0", "key": "planks", "kind": "sun", "x": 920, "y": 397, "w": 12, "h": 12, "dotNL": 0.96 },
- { "name": "planks_shade", "view": "row0", "key": "planks", "kind": "shade", "x": 858, "y": 423, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "planks_cube", "view": "row0", "key": "planks", "kind": "cube", "x": 907, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "door_sun", "view": "row0", "key": "door", "kind": "sun", "x": 1049, "y": 399, "w": 12, "h": 12, "dotNL": 0.88 },
- { "name": "door_shade", "view": "row0", "key": "door", "kind": "shade", "x": 983, "y": 422, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "door_cube", "view": "row0", "key": "door", "kind": "cube", "x": 1044, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "plaster0_sun", "view": "row1", "key": "plaster0", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "plaster0_shade", "view": "row1", "key": "plaster0", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45 },
- { "name": "plaster0_cube", "view": "row1", "key": "plaster0", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "plaster1_sun", "view": "row1", "key": "plaster1", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "plaster1_shade", "view": "row1", "key": "plaster1", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41 },
- { "name": "plaster1_cube", "view": "row1", "key": "plaster1", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "plaster2_sun", "view": "row1", "key": "plaster2", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "plaster2_shade", "view": "row1", "key": "plaster2", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29 },
- { "name": "plaster2_cube", "view": "row1", "key": "plaster2", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "plaster3_sun", "view": "row1", "key": "plaster3", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "plaster3_shade", "view": "row1", "key": "plaster3", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11 },
- { "name": "plaster3_cube", "view": "row1", "key": "plaster3", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "plaster4_sun", "view": "row1", "key": "plaster4", "kind": "sun", "x": 790, "y": 395, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "plaster4_shade", "view": "row1", "key": "plaster4", "kind": "shade", "x": 733, "y": 425, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "plaster4_cube", "view": "row1", "key": "plaster4", "kind": "cube", "x": 771, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "roof0_sun", "view": "row1", "key": "roof0", "kind": "sun", "x": 920, "y": 397, "w": 12, "h": 12, "dotNL": 0.96 },
- { "name": "roof0_shade", "view": "row1", "key": "roof0", "kind": "shade", "x": 858, "y": 423, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "roof0_cube", "view": "row1", "key": "roof0", "kind": "cube", "x": 907, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "roof1_sun", "view": "row1", "key": "roof1", "kind": "sun", "x": 1049, "y": 399, "w": 12, "h": 12, "dotNL": 0.88 },
- { "name": "roof1_shade", "view": "row1", "key": "roof1", "kind": "shade", "x": 983, "y": 422, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "roof1_cube", "view": "row1", "key": "roof1", "kind": "cube", "x": 1044, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "roof2_sun", "view": "row2", "key": "roof2", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "roof2_shade", "view": "row2", "key": "roof2", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45 },
- { "name": "roof2_cube", "view": "row2", "key": "roof2", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "roofTower_sun", "view": "row2", "key": "roofTower", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "roofTower_shade", "view": "row2", "key": "roofTower", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41 },
- { "name": "roofTower_cube", "view": "row2", "key": "roofTower", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "cloth0_sun", "view": "row2", "key": "cloth0", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "cloth0_shade", "view": "row2", "key": "cloth0", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29 },
- { "name": "cloth0_cube", "view": "row2", "key": "cloth0", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "cloth1_sun", "view": "row2", "key": "cloth1", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "cloth1_shade", "view": "row2", "key": "cloth1", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11 },
- { "name": "cloth1_cube", "view": "row2", "key": "cloth1", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "cloth2_sun", "view": "row2", "key": "cloth2", "kind": "sun", "x": 790, "y": 395, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "cloth2_shade", "view": "row2", "key": "cloth2", "kind": "shade", "x": 733, "y": 425, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "cloth2_cube", "view": "row2", "key": "cloth2", "kind": "cube", "x": 771, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "cloth3_sun", "view": "row2", "key": "cloth3", "kind": "sun", "x": 920, "y": 397, "w": 12, "h": 12, "dotNL": 0.96 },
- { "name": "cloth3_shade", "view": "row2", "key": "cloth3", "kind": "shade", "x": 858, "y": 423, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "cloth3_cube", "view": "row2", "key": "cloth3", "kind": "cube", "x": 907, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "glass_sun", "view": "row2", "key": "glass", "kind": "sun", "x": 1049, "y": 399, "w": 12, "h": 12, "dotNL": 0.88 },
- { "name": "glass_shade", "view": "row2", "key": "glass", "kind": "shade", "x": 983, "y": 422, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "glass_cube", "view": "row2", "key": "glass", "kind": "cube", "x": 1044, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "glassLit_sun", "view": "row3", "key": "glassLit", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "glassLit_shade", "view": "row3", "key": "glassLit", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45 },
- { "name": "glassLit_cube", "view": "row3", "key": "glassLit", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "iron_sun", "view": "row3", "key": "iron", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "iron_shade", "view": "row3", "key": "iron", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41 },
- { "name": "iron_cube", "view": "row3", "key": "iron", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "water_sun", "view": "row3", "key": "water", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "water_shade", "view": "row3", "key": "water", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29 },
- { "name": "water_cube", "view": "row3", "key": "water", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "flame_sun", "view": "row3", "key": "flame", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "flame_shade", "view": "row3", "key": "flame", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11 },
- { "name": "flame_cube", "view": "row3", "key": "flame", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "banner0_sun", "view": "row3", "key": "banner0", "kind": "sun", "x": 790, "y": 395, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "banner0_shade", "view": "row3", "key": "banner0", "kind": "shade", "x": 733, "y": 425, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "banner0_cube", "view": "row3", "key": "banner0", "kind": "cube", "x": 771, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "banner1_sun", "view": "row3", "key": "banner1", "kind": "sun", "x": 920, "y": 397, "w": 12, "h": 12, "dotNL": 0.96 },
- { "name": "banner1_shade", "view": "row3", "key": "banner1", "kind": "shade", "x": 858, "y": 423, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "banner1_cube", "view": "row3", "key": "banner1", "kind": "cube", "x": 907, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "banner2_sun", "view": "row3", "key": "banner2", "kind": "sun", "x": 1049, "y": 399, "w": 12, "h": 12, "dotNL": 0.88 },
- { "name": "banner2_shade", "view": "row3", "key": "banner2", "kind": "shade", "x": 983, "y": 422, "w": 12, "h": 12, "dotNL": 0 },
- { "name": "banner2_cube", "view": "row3", "key": "banner2", "kind": "cube", "x": 1044, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 },
- { "name": "banner3_sun", "view": "row4", "key": "banner3", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1 },
- { "name": "banner3_shade", "view": "row4", "key": "banner3", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45 },
- { "name": "banner3_cube", "view": "row4", "key": "banner3", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71 }
+ { "name": "cobble_sun", "view": "row0", "key": "cobble", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#b8bfc4", "set": "cobble", "ao": 0.7 },
+ { "name": "cobble_shade", "view": "row0", "key": "cobble", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45, "normal": [ 0.541, -0.547, 0.638
+  ], "tint": "#b8bfc4", "set": "cobble", "ao": 0.7 },
+ { "name": "cobble_cube", "view": "row0", "key": "cobble", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#b8bfc4", "set": "cobble", "ao": 0.7 },
+ { "name": "stone_sun", "view": "row0", "key": "stone", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#c9c3ba", "set": "stone", "ao": 0.85 },
+ { "name": "stone_shade", "view": "row0", "key": "stone", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41, "normal": [ 0.151, -0.522, 0.84
+  ], "tint": "#c9c3ba", "set": "stone", "ao": 0.85 },
+ { "name": "stone_cube", "view": "row0", "key": "stone", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#c9c3ba", "set": "stone", "ao": 0.85 },
+ { "name": "blocks_sun", "view": "row0", "key": "blocks", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#c1bdb5", "set": "blocks", "ao": 0.67 },
+ { "name": "blocks_shade", "view": "row0", "key": "blocks", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29, "normal": [ -0.273, -0.391, 0.879
+  ], "tint": "#c1bdb5", "set": "blocks", "ao": 0.67 },
+ { "name": "blocks_cube", "view": "row0", "key": "blocks", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#c1bdb5", "set": "blocks", "ao": 0.67 },
+ { "name": "slates_sun", "view": "row0", "key": "slates", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#c1bdb5", "set": "slates", "ao": 0.45 },
+ { "name": "slates_shade", "view": "row0", "key": "slates", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11, "normal": [ -0.583, -0.281, 0.762
+  ], "tint": "#c1bdb5", "set": "slates", "ao": 0.45 },
+ { "name": "slates_cube", "view": "row0", "key": "slates", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#c1bdb5", "set": "slates", "ao": 0.45 },
+ { "name": "timber_sun", "view": "row0", "key": "timber", "kind": "sun", "x": 790, "y": 395, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.443, 0.485, 0.754
+  ], "tint": "#b59884", "set": "timber", "ao": 0.85 },
+ { "name": "timber_shade", "view": "row0", "key": "timber", "kind": "shade", "x": 733, "y": 425, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.778, -0.229, 0.585
+  ], "tint": "#b59884", "set": "timber", "ao": 0.85 },
+ { "name": "timber_cube", "view": "row0", "key": "timber", "kind": "cube", "x": 771, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#b59884", "set": "timber", "ao": 0.85 },
+ { "name": "planks_sun", "view": "row0", "key": "planks", "kind": "sun", "x": 920, "y": 397, "w": 12, "h": 12, "dotNL": 0.96, "normal": [ 0.252, 0.454, 0.854
+  ], "tint": "#ffffff", "set": "planks", "ao": 0.85 },
+ { "name": "planks_shade", "view": "row0", "key": "planks", "kind": "shade", "x": 858, "y": 423, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.886, -0.211, 0.413
+  ], "tint": "#ffffff", "set": "planks", "ao": 0.85 },
+ { "name": "planks_cube", "view": "row0", "key": "planks", "kind": "cube", "x": 907, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#ffffff", "set": "planks", "ao": 0.85 },
+ { "name": "door_sun", "view": "row0", "key": "door", "kind": "sun", "x": 1049, "y": 399, "w": 12, "h": 12, "dotNL": 0.88, "normal": [ 0.058, 0.432, 0.9
+  ], "tint": "#876b59", "set": "planks", "ao": 0.85 },
+ { "name": "door_shade", "view": "row0", "key": "door", "kind": "shade", "x": 983, "y": 422, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.939, -0.207, 0.275
+  ], "tint": "#876b59", "set": "planks", "ao": 0.85 },
+ { "name": "door_cube", "view": "row0", "key": "door", "kind": "cube", "x": 1044, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#876b59", "set": "planks", "ao": 0.85 },
+ { "name": "plaster0_sun", "view": "row1", "key": "plaster0", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#e7ddc8", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster0_shade", "view": "row1", "key": "plaster0", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45, "normal": [ 0.541, -0.547, 0.638
+  ], "tint": "#e7ddc8", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster0_cube", "view": "row1", "key": "plaster0", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#e7ddc8", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster1_sun", "view": "row1", "key": "plaster1", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#e8e4dc", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster1_shade", "view": "row1", "key": "plaster1", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41, "normal": [ 0.151, -0.522, 0.84
+  ], "tint": "#e8e4dc", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster1_cube", "view": "row1", "key": "plaster1", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#e8e4dc", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster2_sun", "view": "row1", "key": "plaster2", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#b9dcb9", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster2_shade", "view": "row1", "key": "plaster2", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29, "normal": [ -0.273, -0.391, 0.879
+  ], "tint": "#b9dcb9", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster2_cube", "view": "row1", "key": "plaster2", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#b9dcb9", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster3_sun", "view": "row1", "key": "plaster3", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#f3c8ca", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster3_shade", "view": "row1", "key": "plaster3", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11, "normal": [ -0.583, -0.281, 0.762
+  ], "tint": "#f3c8ca", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster3_cube", "view": "row1", "key": "plaster3", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#f3c8ca", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster4_sun", "view": "row1", "key": "plaster4", "kind": "sun", "x": 790, "y": 395, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.443, 0.485, 0.754
+  ], "tint": "#aed7f5", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster4_shade", "view": "row1", "key": "plaster4", "kind": "shade", "x": 733, "y": 425, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.778, -0.229, 0.585
+  ], "tint": "#aed7f5", "set": "plaster", "ao": 0.96 },
+ { "name": "plaster4_cube", "view": "row1", "key": "plaster4", "kind": "cube", "x": 771, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#aed7f5", "set": "plaster", "ao": 0.96 },
+ { "name": "roof0_sun", "view": "row1", "key": "roof0", "kind": "sun", "x": 920, "y": 397, "w": 12, "h": 12, "dotNL": 0.96, "normal": [ 0.252, 0.454, 0.854
+  ], "tint": "#d4896e", "set": "roof", "ao": 0.5 },
+ { "name": "roof0_shade", "view": "row1", "key": "roof0", "kind": "shade", "x": 858, "y": 423, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.886, -0.211, 0.413
+  ], "tint": "#d4896e", "set": "roof", "ao": 0.5 },
+ { "name": "roof0_cube", "view": "row1", "key": "roof0", "kind": "cube", "x": 907, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#d4896e", "set": "roof", "ao": 0.5 },
+ { "name": "roof1_sun", "view": "row1", "key": "roof1", "kind": "sun", "x": 1049, "y": 399, "w": 12, "h": 12, "dotNL": 0.88, "normal": [ 0.058, 0.432, 0.9
+  ], "tint": "#b17f69", "set": "roof", "ao": 0.5 },
+ { "name": "roof1_shade", "view": "row1", "key": "roof1", "kind": "shade", "x": 983, "y": 422, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.939, -0.207, 0.275
+  ], "tint": "#b17f69", "set": "roof", "ao": 0.5 },
+ { "name": "roof1_cube", "view": "row1", "key": "roof1", "kind": "cube", "x": 1044, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#b17f69", "set": "roof", "ao": 0.5 },
+ { "name": "roof2_sun", "view": "row2", "key": "roof2", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#87a1bd", "set": "tiles", "ao": 0.93 },
+ { "name": "roof2_shade", "view": "row2", "key": "roof2", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45, "normal": [ 0.541, -0.547, 0.638
+  ], "tint": "#87a1bd", "set": "tiles", "ao": 0.93 },
+ { "name": "roof2_cube", "view": "row2", "key": "roof2", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#87a1bd", "set": "tiles", "ao": 0.93 },
+ { "name": "roofTower_sun", "view": "row2", "key": "roofTower", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#61b6ab", "set": "tiles", "ao": 0.93 },
+ { "name": "roofTower_shade", "view": "row2", "key": "roofTower", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41, "normal": [ 0.151, -0.522, 0.84
+  ], "tint": "#61b6ab", "set": "tiles", "ao": 0.93 },
+ { "name": "roofTower_cube", "view": "row2", "key": "roofTower", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#61b6ab", "set": "tiles", "ao": 0.93 },
+ { "name": "paint0_sun", "view": "row2", "key": "paint0", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#599480", "set": "timber", "ao": 0.85 },
+ { "name": "paint0_shade", "view": "row2", "key": "paint0", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29, "normal": [ -0.273, -0.391, 0.879
+  ], "tint": "#599480", "set": "timber", "ao": 0.85 },
+ { "name": "paint0_cube", "view": "row2", "key": "paint0", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#599480", "set": "timber", "ao": 0.85 },
+ { "name": "paint1_sun", "view": "row2", "key": "paint1", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#b6706b", "set": "timber", "ao": 0.85 },
+ { "name": "paint1_shade", "view": "row2", "key": "paint1", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11, "normal": [ -0.583, -0.281, 0.762
+  ], "tint": "#b6706b", "set": "timber", "ao": 0.85 },
+ { "name": "paint1_cube", "view": "row2", "key": "paint1", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#b6706b", "set": "timber", "ao": 0.85 },
+ { "name": "paint2_sun", "view": "row2", "key": "paint2", "kind": "sun", "x": 790, "y": 395, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.443, 0.485, 0.754
+  ], "tint": "#748eb1", "set": "timber", "ao": 0.85 },
+ { "name": "paint2_shade", "view": "row2", "key": "paint2", "kind": "shade", "x": 733, "y": 425, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.778, -0.229, 0.585
+  ], "tint": "#748eb1", "set": "timber", "ao": 0.85 },
+ { "name": "paint2_cube", "view": "row2", "key": "paint2", "kind": "cube", "x": 771, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#748eb1", "set": "timber", "ao": 0.85 },
+ { "name": "cloth0_sun", "view": "row2", "key": "cloth0", "kind": "sun", "x": 920, "y": 397, "w": 12, "h": 12, "dotNL": 0.96, "normal": [ 0.252, 0.454, 0.854
+  ], "tint": "#743981", "set": "none", "ao": 1 },
+ { "name": "cloth0_shade", "view": "row2", "key": "cloth0", "kind": "shade", "x": 858, "y": 423, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.886, -0.211, 0.413
+  ], "tint": "#743981", "set": "none", "ao": 1 },
+ { "name": "cloth0_cube", "view": "row2", "key": "cloth0", "kind": "cube", "x": 907, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#743981", "set": "none", "ao": 1 },
+ { "name": "cloth1_sun", "view": "row2", "key": "cloth1", "kind": "sun", "x": 1049, "y": 399, "w": 12, "h": 12, "dotNL": 0.88, "normal": [ 0.058, 0.432, 0.9
+  ], "tint": "#018d87", "set": "none", "ao": 1 },
+ { "name": "cloth1_shade", "view": "row2", "key": "cloth1", "kind": "shade", "x": 983, "y": 422, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.939, -0.207, 0.275
+  ], "tint": "#018d87", "set": "none", "ao": 1 },
+ { "name": "cloth1_cube", "view": "row2", "key": "cloth1", "kind": "cube", "x": 1044, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#018d87", "set": "none", "ao": 1 },
+ { "name": "cloth2_sun", "view": "row3", "key": "cloth2", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#d79700", "set": "none", "ao": 1 },
+ { "name": "cloth2_shade", "view": "row3", "key": "cloth2", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45, "normal": [ 0.541, -0.547, 0.638
+  ], "tint": "#d79700", "set": "none", "ao": 1 },
+ { "name": "cloth2_cube", "view": "row3", "key": "cloth2", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#d79700", "set": "none", "ao": 1 },
+ { "name": "cloth3_sun", "view": "row3", "key": "cloth3", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#b02a2d", "set": "none", "ao": 1 },
+ { "name": "cloth3_shade", "view": "row3", "key": "cloth3", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41, "normal": [ 0.151, -0.522, 0.84
+  ], "tint": "#b02a2d", "set": "none", "ao": 1 },
+ { "name": "cloth3_cube", "view": "row3", "key": "cloth3", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#b02a2d", "set": "none", "ao": 1 },
+ { "name": "glass_sun", "view": "row3", "key": "glass", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ], "tint": "#1a222b", "set": "none", "ao": 1 },
+ { "name": "glass_shade", "view": "row3", "key": "glass", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29, "normal": [ -0.273, -0.391, 0.879
+  ], "tint": "#1a222b", "set": "none", "ao": 1 },
+ { "name": "glass_cube", "view": "row3", "key": "glass", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#1a222b", "set": "none", "ao": 1 },
+ { "name": "glassLit_sun", "view": "row3", "key": "glassLit", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ] },
+ { "name": "glassLit_shade", "view": "row3", "key": "glassLit", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11, "normal": [ -0.583, -0.281, 0.762
+  ] },
+ { "name": "glassLit_cube", "view": "row3", "key": "glassLit", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ] },
+ { "name": "iron_sun", "view": "row3", "key": "iron", "kind": "sun", "x": 790, "y": 395, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.443, 0.485, 0.754
+  ], "tint": "#2c2e30", "set": "none", "ao": 1 },
+ { "name": "iron_shade", "view": "row3", "key": "iron", "kind": "shade", "x": 733, "y": 425, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.778, -0.229, 0.585
+  ], "tint": "#2c2e30", "set": "none", "ao": 1 },
+ { "name": "iron_cube", "view": "row3", "key": "iron", "kind": "cube", "x": 771, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#2c2e30", "set": "none", "ao": 1 },
+ { "name": "water_sun", "view": "row3", "key": "water", "kind": "sun", "x": 920, "y": 397, "w": 12, "h": 12, "dotNL": 0.96, "normal": [ 0.252, 0.454, 0.854
+  ], "tint": "#286f73", "set": "none", "ao": 1 },
+ { "name": "water_shade", "view": "row3", "key": "water", "kind": "shade", "x": 858, "y": 423, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.886, -0.211, 0.413
+  ], "tint": "#286f73", "set": "none", "ao": 1 },
+ { "name": "water_cube", "view": "row3", "key": "water", "kind": "cube", "x": 907, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ], "tint": "#286f73", "set": "none", "ao": 1 },
+ { "name": "flame_sun", "view": "row3", "key": "flame", "kind": "sun", "x": 1049, "y": 399, "w": 12, "h": 12, "dotNL": 0.88, "normal": [ 0.058, 0.432, 0.9
+  ] },
+ { "name": "flame_shade", "view": "row3", "key": "flame", "kind": "shade", "x": 983, "y": 422, "w": 12, "h": 12, "dotNL": 0, "normal": [ -0.939, -0.207, 0.275
+  ] },
+ { "name": "flame_cube", "view": "row3", "key": "flame", "kind": "cube", "x": 1044, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ] },
+ { "name": "banner0_sun", "view": "row4", "key": "banner0", "kind": "sun", "x": 251, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ] },
+ { "name": "banner0_shade", "view": "row4", "key": "banner0", "kind": "shade", "x": 258, "y": 440, "w": 12, "h": 12, "dotNL": 0.45, "normal": [ 0.541, -0.547, 0.638
+  ] },
+ { "name": "banner0_cube", "view": "row4", "key": "banner0", "kind": "cube", "x": 224, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ] },
+ { "name": "banner1_sun", "view": "row4", "key": "banner1", "kind": "sun", "x": 386, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ] },
+ { "name": "banner1_shade", "view": "row4", "key": "banner1", "kind": "shade", "x": 369, "y": 441, "w": 12, "h": 12, "dotNL": 0.41, "normal": [ 0.151, -0.522, 0.84
+  ] },
+ { "name": "banner1_cube", "view": "row4", "key": "banner1", "kind": "cube", "x": 361, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ] },
+ { "name": "banner2_sun", "view": "row4", "key": "banner2", "kind": "sun", "x": 521, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ] },
+ { "name": "banner2_shade", "view": "row4", "key": "banner2", "kind": "shade", "x": 485, "y": 436, "w": 12, "h": 12, "dotNL": 0.29, "normal": [ -0.273, -0.391, 0.879
+  ] },
+ { "name": "banner2_cube", "view": "row4", "key": "banner2", "kind": "cube", "x": 497, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ] },
+ { "name": "banner3_sun", "view": "row4", "key": "banner3", "kind": "sun", "x": 656, "y": 394, "w": 12, "h": 12, "dotNL": 1, "normal": [ 0.498, 0.5, 0.709
+  ] },
+ { "name": "banner3_shade", "view": "row4", "key": "banner3", "kind": "shade", "x": 608, "y": 429, "w": 12, "h": 12, "dotNL": 0.11, "normal": [ -0.583, -0.281, 0.762
+  ] },
+ { "name": "banner3_cube", "view": "row4", "key": "banner3", "kind": "cube", "x": 634, "y": 322, "w": 12, "h": 12, "dotNL": 0.71, "normal": [ 0, 0, 1
+  ] }
 ]

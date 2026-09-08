@@ -34,6 +34,7 @@ export async function buildWorld(ctx) {
   if (ctx.flags.sun) skyOpt.sunColor = parseInt(ctx.flags.sun.replace('#', ''), 16);
   if (ctx.flags.env) skyOpt.environmentIntensity = +ctx.flags.env;
   if (ctx.flags.exposure) ctx.renderer.toneMappingExposure = +ctx.flags.exposure;
+  if (ctx.flags.sunint !== undefined) skyOpt.sunIntensity = +ctx.flags.sunint;   // ?sunint=0: sam cień (pomiar chłodu w cieniu na lineupie, §4.3.3/§4.3.6)
   const sun = await ctx.sky(skyOpt);
   if (!ctx.flags.nofollow) ctx.updaters.push((dt, t, p) => followShadow(sun, p.x, p.z));
 
@@ -58,8 +59,31 @@ export async function buildWorld(ctx) {
   W.flushInstances();
   // PRZED B.build (po scaleniu nie ma osobnych brył): koplanarne płaszczyzny tego samego materiału = z-fighting. Tylko klucze z cienkimi
   // płaszczyznami (kilkadziesiąt sztuk, O(n²)); dla timber/stone nie ma sensu — bryły grubsze niż 6 cm, a 2000 belek to 2 mln par.
-  for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign)/.test(key)) checkNoCoplanar(key, geos);
+  for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign|clock|wet|bunting|jet)/.test(key)) checkNoCoplanar(key, geos);
   W.B.build(W.mat, W.scene);
   buildSmoke(W);
   initUI(W);          // UI po zbudowaniu świata (podpisy miejsc czytają W)
+  if (ctx.flags.roles) applyRoles(W);   // ?roles=1(&noaa=1): maska ról do hist_roles.mjs (§4.3.5) — zamiast obrazu
+}
+
+// Maska ról (§4.3.5): każdy mesh dostaje MeshBasicMaterial w kolorze roli z CONFIG.roles (klucz W.mat po materiale, model po nazwie z put(),
+// bez wpisu → „inne" biel), bez tone mappingu, bez cieni, tło czarne, bez mgły; wycinanki alfa (liście) zachowują map + alphaTest, a kolor
+// wymusza onBeforeCompile (diffuseColor.rgb = diffuse po map_fragment). Cząstki (dym) ukryte. Render z ?noaa=1, żeby krawędzie nie mieszały heksów.
+function applyRoles(W) {
+  const { scene, mat, CONFIG } = W, R = CONFIG.roles;
+  const byMat = new Map(Object.entries(mat).map(([k, m]) => [m, k]));
+  const roleOf = o => { const key = byMat.get(Array.isArray(o.material) ? o.material[0] : o.material); return key !== undefined ? (R.mat[key] ?? 'x') : (R.props[o.name] ?? (o.name ? R.props.default : 'x')); };
+  const mk = (m, role) => {
+    const b = new THREE.MeshBasicMaterial({ color: R.color[role] ?? R.color.x, map: m.alphaTest > 0 ? m.map : null, alphaTest: m.alphaTest, side: m.side, toneMapped: false });
+    if (b.map) b.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb = diffuse;'); };
+    return b;
+  };
+  scene.traverse(o => {
+    if (o.isPoints || o.isSprite) { o.visible = false; return; }
+    if (!o.isMesh) return;
+    const role = roleOf(o);
+    o.material = Array.isArray(o.material) ? o.material.map(m => mk(m, role)) : mk(o.material, role);
+    o.castShadow = o.receiveShadow = false;
+  });
+  scene.background = new THREE.Color(R.color.bg); scene.fog = null; scene.environment = null;
 }

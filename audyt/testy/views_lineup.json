@@ -1,7 +1,7 @@
 [
-  { "name": "row0", "x": 0, "z": 4,  "yaw": 0, "pitch": -0.08 },
-  { "name": "row1", "x": 0, "z": 1,  "yaw": 0, "pitch": -0.08 },
-  { "name": "row2", "x": 0, "z": -2, "yaw": 0, "pitch": -0.08 },
-  { "name": "row3", "x": 0, "z": -5, "yaw": 0, "pitch": -0.08 },
-  { "name": "row4", "x": 0, "z": -8, "yaw": 0, "pitch": -0.08 }
+  {"name":"row0","x":0,"z":4,"yaw":0,"pitch":-0.08},
+  {"name":"row1","x":0,"z":-4,"yaw":0,"pitch":-0.08},
+  {"name":"row2","x":0,"z":-12,"yaw":0,"pitch":-0.08},
+  {"name":"row3","x":0,"z":-20,"yaw":0,"pitch":-0.08},
+  {"name":"row4","x":0,"z":-28,"yaw":0,"pitch":-0.08}
 ]

@@ -16,21 +16,36 @@ export function agx(rgb, exposure = 1.15) {
   c = mulM(OUTSET, c).map(v => Math.max(0, v) ** 2.2);
   return mulM(R2020_TO_SRGB, c).map(v => Math.min(1, Math.max(0, v)));
 }
-// Oświetlenie sceny rynek: słońce 5.0 × 0xffd6a6, env 0.6 × średnia HDRI (policzona z sky_1k.hdr przez hdr_stats.mjs).
-const SUN = [0xff, 0xd6, 0xa6].map(v => srgbToLin(v / 255) * 5.0);
-const ENV_SPHERE = [0.631, 0.726, 0.884].map(v => v * 0.6);   // ściany (przybliżenie: PMREM przy roughness 1 ≈ średnia otoczenia)
-const ENV_UP = [0.814, 0.952, 1.178].map(v => v * 0.6);       // podłoga (normalna w górę)
-// radiancja wyjściowa Lamberta: albedo/π * (dotNL*sun) + albedo/π * (π*env) = albedo * (sun*dotNL/π + env)
-export const radiance = (albedo, { sun = 1, env = ENV_SPHERE, ao = 1 } = {}) => albedo.map((a, i) => a * (SUN[i] * sun / Math.PI + env[i] * ao));
+// Oświetlenie sceny rynek: słońce 5.0 × CONFIG.sky.sunColor, env 0.6 × radiancja HDRI (średnia sfery z hdr_stats.mjs albo irradiance(n) z hdr_env.mjs).
+let SUN = [0xff, 0xf1, 0xe0].map(v => srgbToLin(v / 255) * 5.0), ENV_I = 0.6;   // CONFIG.sky.sunColor 0xfff1e0 (motyw #9, hipoteza (a)); do 2026-09-07: 0xffd6a6
+// nadpisanie na czas skryptu (jak ?sun=&env= w world.js): kolor słońca (hex '#rrggbb', intensywność 5,0) i environmentIntensity (CONFIG.sky: 0,6)
+export function setSun(hex, intensity = 5.0) { SUN = [1, 3, 5].map(i => srgbToLin(parseInt(hex.slice(i, i + 2), 16) / 255) * intensity); }
+export function setEnv(envIntensity) { ENV_I = envIntensity; }
+// Radiancja otoczenia SUROWA (bez environmentIntensity — mnoży radiance()): średnia sfery HDRI (hdr_stats.mjs) i „góra"; dokładniej: irradiance(n) z hdr_env.mjs
+// (cosinusowa konwolucja HDRI dla normalnej: +z 0.954 1.002 1.099, ku słońcu 1.184 1.229 1.324, −z 0.456 0.603 0.826 — zwalidowana na lineupie ?sunint=0)
+export const ENV_SPHERE = [0.631, 0.726, 0.884];   // ściany bez kierunku (średnia sfery)
+export const ENV_UP = [0.814, 0.952, 1.178];       // podłoga (normalna w górę; hdr_stats — irradiance([0,1,0]) daje 0.658 0.827 1.105)
+// Mnożniki tekstur diff (średnia liniowa 2k, tex_stats.mjs 2026-09-07) i średnie AO z kanału R mapy arm (tex_ao_weighted.mjs) — klucze = CONFIG.textures.
+// AO ciemni TYLKO światło otoczenia (aomap_fragment), nie słońce. Zmierzone: planks 0,85, stone 0,85, blocks 0,67 (§4.4 zakładał 0,9 — liczba wygrywa).
+export const TEX = { plaster: [0.436, 0.392, 0.335], roof: [0.254, 0.185, 0.129], stone: [0.251, 0.180, 0.111], cobble: [0.279, 0.228, 0.149], timber: [0.123, 0.091, 0.064], planks: [0.081, 0.058, 0.044], blocks: [0.375, 0.242, 0.135], slates: [0.275, 0.227, 0.150], tiles: [0.198, 0.196, 0.171], none: [1, 1, 1] };
+export const AO = { plaster: 0.96, roof: 0.50, stone: 0.85, cobble: 0.70, timber: 0.85, planks: 0.85, blocks: 0.67, slates: 0.45, tiles: 0.93, none: 1 };
+// średnia chropowatość (kanał G mapy arm, tex_ao_weighted.mjs) — skaluje składnik zwierciadlany; 'none' = materiały bez mapy (tkaniny roughness 1)
+export const ROUGH = { plaster: 0.91, roof: 0.75, stone: 0.71, cobble: 0.63, timber: 0.67, planks: 0.74, blocks: 0.86, slates: 0.52, tiles: 0.67, none: 1 };
+// Składnik zwierciadlany dielektryka (F0 0,04): sam Lambert zaniżał L ciemnych materiałów o 0,08–0,23 (door, paint*, timber na lineup_v1 —
+// przy albedo 0,02–0,05 odbicie nieba jest rzędu dyfuzji). Dopasowane do 78 plam lineup_v1 (2026-09-07): rad += F0·k·(env·ao·SPEC.env + sun·dotNL·SPEC.sun),
+// k = (0,75 / rough)²; dopasowanie ŁĄCZNE na słońcu (lineup_v1) i cieniu (lineup_v1_shade, ?sunint=0) z env z HDRI (hdr_env.mjs), 138 plam bez glass/iron/water:
+// bez członu 31/78 FAIL w słońcu (średnia ΔL 0,056); z członem 4/138 FAIL, średnia ΔL 0,018, bias +0,003 (raport motywu #9).
+export const SPEC = { F0: 0.04, env: 0.5, sun: 0.2, roughRef: 0.75 };
+// radiancja wyjściowa: Lambert albedo * (sun*dotNL/π + env*ao) + zwierciadlany; env: 'wall' (sfera/ściana) | 'up' (podłoga) | [r,g,b]; rough: chropowatość zestawu (ROUGH)
+export const radiance = (albedo, { sun = 1, env = ENV_SPHERE, ao = 1, rough = 1 } = {}) => { const e = env === 'up' ? ENV_UP : env === 'wall' ? ENV_SPHERE : env, k = SPEC.F0 * (SPEC.roughRef / rough) ** 2; return albedo.map((a, i) => a * (SUN[i] * sun / Math.PI + e[i] * ENV_I * ao) + k * (e[i] * ENV_I * ao * SPEC.env + SUN[i] * sun * SPEC.sun)); };
 const toHex = lin => '#' + lin.map(v => Math.round(linToSrgb(v) * 255).toString(16).padStart(2, '0')).join('');
 export function predict(hexTint, texLinear = [1, 1, 1], opts = {}) {
   const tint = [parseInt(hexTint.slice(1, 3), 16), parseInt(hexTint.slice(3, 5), 16), parseInt(hexTint.slice(5, 7), 16)].map(v => srgbToLin(v / 255));
   const albedo = tint.map((v, i) => v * texLinear[i]);
   const out = agx(radiance(albedo, opts));
-  return { albedoHex: toHex(albedo), albedoOKLCH: linToOklch(...albedo), out: toHex(out), outOKLCH: linToOklch(...out) };
+  return { albedoHex: toHex(albedo), albedoOKLCH: linToOklch(...albedo), albedoLin: albedo, out: toHex(out), outLin: out, outOKLCH: linToOklch(...out) };
 }
 if (process.argv[1]?.endsWith('agx_predict.mjs')) {
-  const TEX = { plaster: [0.436, 0.392, 0.335], roof: [0.254, 0.185, 0.129], stone: [0.251, 0.180, 0.111], cobble: [0.279, 0.228, 0.149], planks: [0.123, 0.091, 0.064], none: [1, 1, 1] };
   const row = (label, hex, tex, o) => { const p = predict(hex, tex, o); console.log(label.padEnd(30), 'tint', hex, 'albedo', p.albedoHex, JSON.stringify(p.albedoOKLCH), '→ ekran', p.out, JSON.stringify(p.outOKLCH)); };
   console.log('== słońce (dotNL=1) + niebo, exposure 1.15 ==');
   row('plaster0 e3d3b2 × plastered_wall', '#e3d3b2', TEX.plaster);
@@ -41,7 +56,7 @@ if (process.argv[1]?.endsWith('agx_predict.mjs')) {
   row('stone cfc6b8 × rustic_stone', '#cfc6b8', TEX.stone);
   row('cobble b9b3aa × cobble (góra)', '#b9b3aa', TEX.cobble, { env: ENV_UP });
   row('cobble w cieniu (góra)', '#b9b3aa', TEX.cobble, { env: ENV_UP, sun: 0 });
-  row('timber 5a4030 × old_planks', '#5a4030', TEX.planks);
+  row('timber 5a4030 × old_planks', '#5a4030', TEX.timber);
   row('cloth0 8c1f28 (bez map)', '#8c1f28', TEX.none);
   row('cloth0 w cieniu', '#8c1f28', TEX.none, { sun: 0 });
   row('cloth1 1f4d3a', '#1f4d3a', TEX.none);

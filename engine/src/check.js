@@ -51,6 +51,11 @@ export function checkNoCoplanar(key, geometries, eps = 0.003, thin = 0.06) {
   }
   return check(dup === 0, `${key}: ${dup} par koplanarnych płaszczyzn (z-fighting)`);
 }
+// (f) punkt nad powierzchnią (np. spód okna lukarny nad WIERZCHEM połaci roofTopY(z), nie nad osią płyty): point.y ≥ surfaceY + tol
+export function checkAboveSurface(name, pointWorld, surfaceY, tol = 0.05) {
+  const d = pointWorld.y - surfaceY;
+  return check(d >= tol, `${name}: punkt ${d.toFixed(3)} m nad powierzchnią (min ${tol})`, { p: pointWorld.toArray(), surfaceY });
+}
 // (e) kolizja pokrywa bryłę: środek koła/prostokąta kolizji leży w rzucie XZ bounding boxa bryły, a promień ≥ ~połowy mniejszego boku
 export function checkCollisionCovers(name, worldBox, col) {
   const cx = col.x, cz = col.z;
