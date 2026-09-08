@@ -2,7 +2,7 @@
 // kontekstu i sprawdza asercje przestrzenne na faktycznych macierzach (klasy błędów z przestrzen.md §3: znak obrotu, lico vs środek,
 // kolizja vs bryła, 4 strony pierzei). Uruchom: bash audyt/testy/geo_test.sh (= bundle geo/entry.mjs → geo/scene.bundle.mjs + ten test)
 // albo komendą z rynek/PROMPT.md §3.4. Exit 1 przy FAIL. Nową cechę dopisujesz jako nową asercję (najpierw skalibrowaną na znanym-dobrym przypadku).
-import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, stallPlacements, yawFrom, checkFailures } from './geo/scene.bundle.mjs';
+import { THREE, M4, rng, CONFIG, buildLayout, buildHouses, buildStalls, buildTower, buildCart, signMatrix, signPlacements, treePlacements, buildTrees, stallPlacements, yawFrom, checkFailures } from './geo/scene.bundle.mjs';
 // Znane wady HEAD (B6): element w obszarze chodzenia bez kolizji — lista ma się KURCZYĆ (kto dotyka modułu, naprawia i usuwa wpis). Dopasowanie: klucz + środek AABB ± 0,1 m.
 const KNOWN_B6 = [
   { key: 'timber', x: -9.94, z: 10.11, why: 'dyszel wozu (props.js buildCart, box(2.2,0.1,0.1) na L(−2.2,0.75,±0.4,0,0,0.08)): 2,24 m od koła (−8,9) r 1,5 — gracz wchodzi w dyszel; naprawa: addCircle w L(−2.2,0,0) r 0,6 (motyw dotykający buildCart)', date: '2026-09-07' },
@@ -155,6 +155,24 @@ for (const s of W.stalls) {
   const headIn = stallPlacements(Wh).filter(inSector).length;
   if (headIn !== 1) fails.push(`I kalibracja: pierścień HEAD (?nocompose=1) daje ${headIn} kramów w sektorze (oczekiwany 1)`);
 }
+// H) lipy (trees.js treePlacements — funkcja czysta; buildTrees dodaje geometrię do W.B i koła kolizji): każda lipa ma addCircle o tym samym środku (± 0,01) i promieniu
+//    collideR; count sztuk w odległości dist od fontanny (± 0,01); pień (timber ze spodem na y 0 w osi lipy) pokryty kołem → B6; korona (leaf*) ze spodem ≥ headroom.
+let nTree = 0;
+{
+  const n0 = rec.length; buildTrees(W); const items = rec.slice(n0), C = CONFIG.trees;
+  const places = treePlacements(W);
+  if (places.length !== C.count) fails.push(`H lip ${places.length} ≠ CONFIG.trees.count ${C.count}`);
+  for (const p of places) {
+    nTree++;
+    if (Math.abs(Math.hypot(p.x, p.z) - C.dist) > 0.01) fails.push(`H lipa (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) nie w odległości ${C.dist} od fontanny`);
+    if (!col.circles.some(c => Math.abs(c.x - p.x) < 0.01 && Math.abs(c.z - p.z) < 0.01 && Math.abs(c.r - C.collideR) < 1e-6)) fails.push(`H lipa (${p.x.toFixed(2)}, ${p.z.toFixed(2)}) bez koła kolizji r ${C.collideR} w osi pnia`);
+    const near = items.filter(r => { const b = r.bb.clone().applyMatrix4(r.m); return Math.hypot((b.min.x + b.max.x) / 2 - p.x, (b.min.z + b.max.z) / 2 - p.z) < C.crown.r + 1; });
+    const trunk = near.filter(r => r.key === 'timber' && r.bb.clone().applyMatrix4(r.m).min.y < 0.01);
+    if (trunk.length < 1) fails.push(`H lipa (${p.x.toFixed(2)}, ${p.z.toFixed(2)}): pień nie stoi na ziemi`);
+    const leaves = near.filter(r => r.key.startsWith('leaf')), lowest = Math.min(...leaves.map(r => r.bb.clone().applyMatrix4(r.m).min.y));
+    if (leaves.length < 10 || lowest < C.headroom) fails.push(`H lipa (${p.x.toFixed(2)}, ${p.z.toFixed(2)}): korona ${leaves.length} elementów, spód ${lowest.toFixed(2)} < headroom ${C.headroom}`);
+  }
+}
 // D) wieża: okna (i tarcza zegara) na licu trzonu, normalną na zewnątrz. Trzon = najwyższy element `slates` wieży; klasyfikacja po typie geometrii:
 //    walec (motyw #2: cylinder(rTop, rBot, h, seg) — promień zależy od wysokości, rAt(y) = rBot + (rTop − rBot)·y/h; policzone dla (3.2, 3.5, 24):
 //    y 8/15/21 → 3.40/3.31/3.24, więc stała półszerokość AABB ± 0.05 dawałaby 12–16 fałszywych FAIL) albo prostopadłościan (stara kwadratowa: lico = ściana AABB).
@@ -239,7 +257,7 @@ if (!puts.some(p => p.name === 'wooden_crate_01') || !puts.some(p => p.name === 
 }
 // E) asercje CHECK z modułów sceny (engine/src/check.js): w przeglądarce idą do results.errors renderu, tu liczą się jako FAIL
 if (checkFailures() > 0) fails.push(`E: ${checkFailures()} nieudanych asercji CHECK w modułach sceny (linie "CHECK:" wyżej)`);
-console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
+console.log(`sprawdzono: okien/ram ${nWin}, okien/ram wykuszy B1b ${nWinO}, połaci ${nRoof}, podparć B5 ${nSupp}, lukarn B5b ${nDormer}, domów ${allHouses.length}, kramów ${W.stalls.length}, wieża ${isRound ? 'walec' : 'prostopadłościan'} okien/tarcz ${nTowerWin}, szyldów F ${nSign} (stary łańcuch ${nSignOld}/8), szyldów F2 ${signs.length} (plakiet ${signs.filter(s => s.plaque).length}), lip H ${nTree}, modeli put ${puts.length}, elementów w obszarze chodzenia B6 ${nWalk}, znanych wad (KNOWN_*) ${known}, asercji CHECK nieudanych ${checkFailures()}`);
 notes.forEach(n => console.log('uwaga:', n));
 console.log(fails.length ? `FAIL (${fails.length}):\n` + fails.join('\n') : 'OK');
 process.exit(fails.length ? 1 : 0);

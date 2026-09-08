@@ -154,7 +154,22 @@ export const CONFIG = {
     repoussoir: { ringOut: 1.5, margin: 0.02 },   // m za ringRadius (= ringJitter: skraj pierścienia), rad luzu za sektorem
   },
 
-  trees: {},          // tor „plac": lipy proceduralne przy fontannie
+  // tor „plac" — motyw #7 lipy proceduralne (?notrees=1; trees.js treePlacements() = funkcja czysta, asercja H): count sztuk na okręgu dist wokół fontanny od kąta phase
+  // (π/2 → (±6, 0): 1,6 m za schodkiem fontanny r 4,4; z kadru startowego korony przy krawędziach NDC x ±0,9..±0,97, nie zasłaniają fontanny −0,57..0,43 ani wieży −0,45..0,07).
+  // Geometria (metry): pień cylinder rTop/rBot/h, odziomek, konary count od szczytu pnia (y h − in) pochylone tilt rad od pionu (rot: rz=−0,7 → (0,1,0)→(0.644, 0.765, 0),
+  // czubek y 2,6 + 2,0·0,765 = 4,13, promień 1,29 — w koronie), korona: bryły ikosaedr (80 tri) blobs [{y, ring r, n, rB}] + cards kart liści size na sferze r (elewacja
+  // ≥ elevMin, żeby spód karty ≥ headroom), spód każdej bryły ≥ headroom nad ziemią. Kolizja: koło collideR w osi pnia (≥ 0,8·rBot dla checkCollisionCovers).
+  // Kolory OKLCH (§4.2: zieleń = rodzina szałwii H 135–145, wtórne): tinty kluczy leaf0/leaf1/leafCard mnożą teksturę canvas (liście w kolorach canvas.*).
+  trees: {
+    count: 2, dist: 6, phase: Math.PI / 2, seed: 700,   // seed: strumień rng(seed + i) per lipa (niezależny od W.R → reszta sceny bez przetasowania)
+    trunk: { rTop: 0.2, rBot: 0.32, h: 2.8, seg: 8, root: { r: 0.42, h: 0.3 } },   // m; pień lipy ~40-letniej (obwód 2 m), 8 segmentów (48 tri)
+    branches: { n: 5, rTop: 0.05, rBot: 0.1, len: 2.0, tilt: 0.7, tiltJitter: 0.15, in: 0.2 },   // m / rad; czubki y 4,13 ± jitter wewnątrz korony (check konar poza koroną)
+    crown: { y: 4.6, r: 2.4, blobs: [{ y: 4.8, ring: 0, n: 1, rB: 1.4 }, { y: 4.2, ring: 1.4, n: 5, rB: [1.0, 1.3] }, { y: 5.6, ring: 0.8, n: 3, rB: [0.9, 1.1] }], cards: 36, cardSize: 1.3, cardIn: [0.75, 1.0], elevMin: -0.5 },   // m / rad; spód: bryły 4,05 − 1,3 = 2,75, karty 4,6 − 2,4·sin 0,5 − 0,65 = 2,8 ≥ headroom
+    collideR: 0.45, headroom: 2.3, sway: 0.04,   // sway: amplituda falowania liści (m) przez W.sway albo kopię w trees.js; ?nosway=1 wyłącza
+    tint: { leaf0: [0.70, 0.010, 140], leaf1: [0.95, 0.005, 135], leafCard: [0.92, 0.010, 135] },   // wnętrze korony ciemniejsze (× 0,7), zewnętrzne bryły i karty prawie bez tintu
+    canvas: { dark: [0.45, 0.080, 145], mid: [0.60, 0.090, 140], silver: [0.80, 0.045, 135], vein: [0.86, 0.030, 130] },   // liście na canvasie (sRGB): ciemna, średnia, srebrzysta lipa, nerw
+    texRepeat: 3,   // powtórzenie tekstury liści na bryle korony
+  },
 
   greenery: {},       // tor „plac": krzewy w donicach, rabatki, skrzynki kwiatowe (na parapetach z W.sills)
 
@@ -184,7 +199,7 @@ export const CONFIG = {
   roles: {
     color: { n: 0xff0000, w: 0x00ff00, a: 0x0000ff, x: 0xffffff, bg: 0x000000 },   // n neutralne, w wtórne, a akcent, x inne (bez wpisu), bg tło
     mat: { cobble: 'n', stone: 'n', blocks: 'n', slates: 'n', plaster0: 'n', plaster1: 'n', plaster2: 'n', plaster3: 'n', plaster4: 'n', roof2: 'n', far: 'n', wet: 'n', iron: 'n', glass: 'n', jet: 'n',
-           roof0: 'w', roof1: 'w', roofTower: 'w', timber: 'w', planks: 'w', door: 'w', paint0: 'w', paint1: 'w', paint2: 'w', water: 'w',
+           roof0: 'w', roof1: 'w', roofTower: 'w', timber: 'w', planks: 'w', door: 'w', paint0: 'w', paint1: 'w', paint2: 'w', water: 'w', leaf0: 'w', leaf1: 'w', leafCard: 'w',   // leaf*: lipy (motyw #7) = zieleń bez kwiatów
            cloth0: 'a', cloth1: 'a', cloth2: 'a', cloth3: 'a', banner0: 'a', banner1: 'a', banner2: 'a', banner3: 'a', sign: 'a', clock: 'a', bunting: 'a', paperLit: 'a', flame: 'a', glassLit: 'a' },
     props: { default: 'n', horse_statue_01: 'n', gothic_statue: 'n', marble_bust_01: 'n', rock_moss_set_02: 'n',   // kamień
              wine_barrel_01: 'w', Barrel_01: 'w', wooden_crate_01: 'w', wooden_crate_02: 'w', wooden_bucket_02: 'w', wooden_stool_02: 'w', wooden_lantern_01: 'w', Lantern_01: 'w', tree_stump_01: 'w', treasure_chest: 'w',
