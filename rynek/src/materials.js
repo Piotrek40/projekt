@@ -21,10 +21,17 @@ export async function buildMaterials(W) {
   P.roof.forEach((c, i) => { mat['roof' + i] = pbr('roof' + i); });
   mat.roofTower = PK ? pbr('roofTower', PK.params.roofTower) : sets.slates.material({ color: oklch(...P.roofTowerOKLCH), params: CONFIG.paletteOKLCH.params.roofTower }); // ?nopalette=1: stan po motywie #2 (tower.js)
   if (PK) for (let i = 0; i < 3; i++) mat['paint' + i] = pbr('paint' + i);   // drewno malowane (okiennice) — tylko z paletą (bez niej okiennic nie ma: ?nopalette wyłącza też ?noshutters-owy klucz)
+  // Sukno kramów. Do Etapu 3 materiał miał tylko normalMap i roughnessMap, a przy roughness 1 i miękkim świetle HDRI
+  // mapa normalnych praktycznie nie pracuje — całe płótno renderowało się jako JEDNA płaska wartość RGB (krytyka zrzutu z S24).
+  // fabricDiff to mapa SPLOTU zbudowana z AO tej samej tkaniny (tools/fabric_weave.mjs), znormalizowana tak, że jej średnia
+  // w liniowym wynosi dokładnie 1,0 — tint × mapa ma więc tę samą jasność średnią co sam tint i kalibracja palety zostaje w mocy.
+  // roughness 1 → 0.88: płótno ma lekki połysk włókna, inaczej splot nadal nie łapie światła.
   const fabricNor = await loaders.loadTexture('fabric_pattern_07', 'nor'), fabricArm = await loaders.loadTexture('fabric_pattern_07', 'arm');
-  for (const t of [fabricNor, fabricArm]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = ctx.aniso(); }
+  let fabricDiff = null;
+  try { fabricDiff = await loaders.loadTexture('fabric_pattern_07', 'diff'); } catch (e) { console.error('CHECK: brak mapy splotu sukna', e); }
+  for (const t of [fabricNor, fabricArm, fabricDiff]) { if (!t) continue; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = ctx.aniso(); }
   const clothHex = P.cloth.map((c, i) => hexOf('cloth' + i));
-  clothHex.forEach((c, i) => { mat['cloth' + i] = new THREE.MeshStandardMaterial({ color: c, roughness: 1, metalness: 0, normalMap: fabricNor, roughnessMap: fabricArm, side: THREE.DoubleSide }); });
+  clothHex.forEach((c, i) => { mat['cloth' + i] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.88, metalness: 0, map: fabricDiff, normalMap: fabricNor, roughnessMap: fabricArm, side: THREE.DoubleSide }); });
   // szyby: kwatery z ołowianym podziałem (poprawka po zrzutach z telefonu — okna były jednolitymi prostokątami, w zbliżeniu jak papierowe wycinanki).
   // UV pudełka są w METRACH / mpt (geometry.js box, mpt 2), więc wzór musi być OKRESOWY: repeat dobrane tak, by kwatera miała ok. 0.37 m w świecie.
   const paneRep = CONFIG.houseDetail.panes.repeat, paneTex = () => { const t = windowPane(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(paneRep, paneRep); return t; };

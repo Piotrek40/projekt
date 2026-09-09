@@ -271,6 +271,25 @@ jednoznaczne na każdym GPU. Geometria decalu to goła `PlaneGeometry` (UV dokł
 **Wniosek na przyszłość:** render w SwiftShaderze weryfikuje geometrię, UV i kolor, ale NIE weryfikuje trybów mieszania. Każdy nowy
 `blending:` inny niż domyślny trzeba uznać za niesprawdzony, dopóki nie zobaczy go telefon.
 
+### Runda krytyki 4 zrzutów z S24 — pierwsze naprawy
+
+Czterech krytyków z dostępem do kodu ocenia cztery zrzuty, każde znalezisko próbuje obalić osobny sceptyk. Naprawione od razu:
+
+| znalezisko | dowód | naprawa |
+|---|---|---|
+| **Lada wisi w powietrzu** | czoło lady ma wysokość `ch − 0,1` = 0,85 m, a spód blatu jest na 0,91 — przez całe 2,6 m widać przez szparę bruk | czoło sięga spodu blatu (`ch − 0,04`), z asercją |
+| **Płótno nie leży na ramie** | kąt płótna liczony z `depth = cd + 1,4` = 2,4 → atan2(0,4; 2,4) = 0,165 rad, a rama ma rozstaw 2,2 → 0,180 rad | rozpiętość płótna = rzeczywisty rozstaw belek (2·postZ); płótno wystaje poza belki o `frame.overhang` |
+| **Cień kontaktowy tylko pod kramem-modelem** | pozostałe 6 kramów stało na bruku bez śladu styku | decal `contact` dla KAŻDEGO kramu (ten sam klucz = 1 draw call) |
+| **Sukno to płaska plama koloru** | `cloth0-3` miały tylko `normalMap` i `roughnessMap`; przy roughness 1 i miękkim HDRI normalna nie pracuje. Zmierzone σL płótna: **0,0067** | mapa splotu z AO tej samej tkaniny (`tools/fabric_weave.mjs`), znormalizowana tak, że średnia w liniowym = 1,0 → tint bez zmiany; roughness 1 → 0,88. Zmierzone: średnia L 0,5068 → 0,5018 (paleta nietknięta), **σL 0,0067 → 0,0105 = +58 % kontrastu** |
+
+`tools/fabric_weave.mjs` istnieje, bo Poly Haven ma dla `fabric_pattern_07` mapy koloru (`col_1`, `col_2`, `col_03`), ale to wzór w **kratę piknikową** —
+nałożony na tinty palety zniszczyłby ją. Splot z AO daje fakturę bez ingerencji w barwę.
+
+Znaleziska jeszcze NIEnaprawione (kolejna tura): zastrzały szachulcowe wiszące w powietrzu w elewacjach, okna jako płytki bez ościeży,
+kosz przebijający burtę wozu (pozycja liczona w układzie świata zamiast wozu), ta sama pułapka `plane()` + ClampToEdge na chorągwiach
+i fladze iglicy (38 % płótna to zaciśnięty pasek), promień medalionu czytający się jak naklejona kartka (4× mniejszy lokalny kontrast
+niż bruk: σL 0,027–0,034 vs 0,115–0,118), butelki winiarza jaśniejsze od tynku fasady.
+
 ### Świadome ograniczenia
 
 - **Wariant inline (Artifact) nie dostaje modelu.** Strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model z mapą AO to ok. 0,5 MB. Tam zostaje kram proceduralny; Pages i wersja lokalna mają model.

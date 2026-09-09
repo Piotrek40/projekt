@@ -57,29 +57,31 @@ export function buildStalls(W) {
     // Wariant inline (Artifact) NIE dostaje modelu: strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model + AO to ok. 0,5 MB.
     // Tam zostaje kram proceduralny. Pages i wersja lokalna używają modelu. (Zapisane w audyt/RAPORT.md §6c.)
     const asModel = !ctx.flags.nomodel && W.loaders?.mode !== 'inline' && p.kind === CONFIG.stalls.model.kind;
+    // Cień kontaktowy na bruku pod kramem — dla KAŻDEGO kramu, nie tylko modelu. Bez niego słup kończy się na bruku
+    // płaskim cięciem, bez śladu styku (krytyka zrzutu 4). Jeden klucz `contact` = 1 draw call na całą scenę.
+    // UWAGA: NIE używać tu plane() z geometry.js — ono skaluje UV przez rozmiar/mpt, więc plane(3.5, 3.1, 1) dawało UV 0..3,5,
+    // a tekstura jest zaciskana do krawędzi, więc 97 % decalu brało wartość z brzegu mapy (stąd biała plama na telefonie).
+    const Ct = CONFIG.stalls.model.contact;
+    if (Ct && !ctx.flags.nocontact) {
+      const gC = new THREE.PlaneGeometry(Ct.w, Ct.d), uvC = gC.attributes.uv;
+      let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+      for (let i = 0; i < uvC.count; i++) { u0 = Math.min(u0, uvC.getX(i)); u1 = Math.max(u1, uvC.getX(i)); v0 = Math.min(v0, uvC.getY(i)); v1 = Math.max(v1, uvC.getY(i)); }
+      check(Math.abs(u0) < 1e-6 && Math.abs(u1 - 1) < 1e-6 && Math.abs(v0) < 1e-6 && Math.abs(v1 - 1) < 1e-6,
+            `kram ${p.kind}: decal cienia ma UV ${u0}..${u1} × ${v0}..${v1} zamiast 0..1 — mapa krycia zostanie zaciśnięta do krawędzi`, { u0, u1, v0, v1 });
+      B.add('contact', gC, L(0, Ct.y, 0, 0, -Math.PI / 2));   // rx=−π/2: lico płaszczyzny (0,0,1) → (0,1,0), czyli w górę — policzone
+    }
     if (asModel) {
-      // Cień kontaktowy: decal na bruku pod kramem. AO wypalone w modelu przyciemnia model, ale nie ziemię obok niego —
-      // bez tego słup stoi na bruku bez styku (porównanie „styk drewna z brukiem" przed/po nie pokazywało różnicy).
-      const Ct = CONFIG.stalls.model.contact;
-      if (Ct && !ctx.flags.nocontact) {
-        // UWAGA: NIE używać tu plane() z geometry.js — ono skaluje UV przez rozmiar/mpt, więc plane(3.5, 3.1, 1) dawało UV 0..3,5.
-        // Tekstura decalu jest zaciskana do krawędzi (ClampToEdge), więc 97 % powierzchni brało wartość z brzegu mapy:
-        // w wersji z mnożeniem brzeg był biały (żadnego cienia), po zmianie na alphaMap — czarny (decal całkiem niewidoczny).
-        // Decal musi mieć UV dokładnie 0..1 na całej płycie, stąd goła PlaneGeometry.
-        const gC = new THREE.PlaneGeometry(Ct.w, Ct.d), uvC = gC.attributes.uv;
-        let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
-        for (let i = 0; i < uvC.count; i++) { u0 = Math.min(u0, uvC.getX(i)); u1 = Math.max(u1, uvC.getX(i)); v0 = Math.min(v0, uvC.getY(i)); v1 = Math.max(v1, uvC.getY(i)); }
-        check(Math.abs(u0) < 1e-6 && Math.abs(u1 - 1) < 1e-6 && Math.abs(v0) < 1e-6 && Math.abs(v1 - 1) < 1e-6,
-              `${p.kind}: decal cienia ma UV ${u0}..${u1} × ${v0}..${v1} zamiast 0..1 — mapa krycia zostanie zaciśnięta do krawędzi`, { u0, u1, v0, v1 });
-        B.add('contact', gC, L(0, Ct.y, 0, 0, -Math.PI / 2));   // rx=−π/2: lico płaszczyzny (0,0,1) → (0,1,0), czyli w górę — policzone
-      }
       stalls.push({ x, z, ry, cw, cd, ch, ph, L, cloth: p.cloth, repoussoir: p.repoussoir, kind: p.kind, model: true });
       ctx.addCircle(x, z, CONFIG.stalls.collideR);
       W.dbgCircle?.(x, z, CONFIG.stalls.collideR); W.dbgAxes?.(x, 0.05, z, ry, 1.2);
       continue;
     }
     B.add('planks', box(cw, 0.08, cd, T.planks.mpt), L(0, ch, 0));
-    B.add('planks', box(cw, ch - 0.1, 0.06, T.planks.mpt), L(0, (ch - 0.1) / 2, cd / 2 - 0.03));
+    // Czoło lady sięga SPODU blatu. Wcześniej miało wysokość ch − 0,1 = 0,85, a spód blatu jest na 0,91 —
+    // przez całą długość 2,6 m widać było przez tę 6-centymetrową szparę bruk i lada wyglądała, jakby wisiała.
+    const frontH = ch - 0.04;   // blat: box 0,08 o środku na ch → spód ch − 0,04
+    B.add('planks', box(cw, frontH, 0.06, T.planks.mpt), L(0, frontH / 2, cd / 2 - 0.03));
+    check(Math.abs(frontH - (ch - 0.04)) < 1e-9, 'czoło lady nie sięga spodu blatu', { frontH, spodBlatu: ch - 0.04 });
     const F = CONFIG.stalls.frame, Vl = CONFIG.stalls.valance, postZ = cd / 2 + 0.6, postX = cw / 2 - 0.1;
     // Słupy: TYLNE wyższe o backRise, bo to na nich ma spoczywać belka tylna. Dotąd wszystkie miały ph = 2,30,
     // a belka tylna siedziała na 2,65 — wisiała 30 cm nad nimi w powietrzu (zrzut z telefonu, „niedokończone belki").
@@ -92,7 +94,10 @@ export function buildStalls(W) {
     B.add('timber', box(beamLen, 0.1, 0.1, T.timber.mpt), L(0, ph + F.backRise - 0.05, -postZ));         // wierzch belki = wierzch słupa tylnego
     // baldachim: jedna połać opadająca ku przodowi, plus zwis z przodu
     const cloth = p.cloth;   // z rolą kramu = kinds[i].cloth (stallPlacements), bez ról = losowany jak HEAD
-    const depth = cd + 1.4, rise = F.backRise, slope = Math.hypot(depth, rise);
+    // ROZPIĘTOŚĆ płótna = rzeczywisty rozstaw belek (2·postZ = 2,2 m), nie cd + 1,4 = 2,4.
+    // Przy 2,4 kąt płótna wychodził atan2(0,4; 2,4) = 0,165 rad, a rama ma atan2(0,4; 2,2) = 0,180 —
+    // płótno leżało pod innym spadkiem niż krokwie i płatwie, na których miało spoczywać.
+    const depth = 2 * postZ, rise = F.backRise, slope = Math.hypot(depth, rise);
     // Płatwie boczne: wiążą słup przedni z tylnym po obu stronach. Bez nich kram był dwiema osobnymi „bramkami”.
     // Długość i kąt liczone z RZECZYWISTEGO rozstawu słupów (2·postZ), nie z `depth` płótna.
     const railLen = Math.hypot(2 * postZ, rise), railRx = -Math.PI / 2 + Math.atan2(rise, 2 * postZ);
@@ -103,7 +108,7 @@ export function buildStalls(W) {
       B.add('timber', box(F.braceT, F.brace * Math.SQRT2, F.braceT, T.timber.mpt),
             L(sx * postX - sx * F.brace / 2, yBeam - F.brace / 2, sz * postZ, 0, 0, sx * Math.PI / 4));   // rot: rz=sx·π/4 → górny koniec zastrzału ku środkowi kramu (sx=+1: (0,+1,0)→(−0.707,0.707,0)) — policzone
     }
-    B.add(cloth, plane(cw + 0.5, slope, 1), L(0, ph + rise / 2, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));   // płótno LEŻY na wierzchach belek (ph i ph+backRise), więc jego środek jest na ich połowie   // rot: rx=−1.406 → normalna (0,0,1)→(0, 0.986, 0.164) licem w górę, góra płótna (0,1,0)→(0, 0.164, −0.986): tył wyżej, płótno opada ku +z (front) — policzone
+    B.add(cloth, plane(cw + 0.5, slope + 2 * F.overhang, 1), L(0, ph + rise / 2, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));   // + overhang z każdej strony: płótno wystaje poza belki tyle, co one poza słupy   // płótno LEŻY na wierzchach belek (ph i ph+backRise), więc jego środek jest na ich połowie   // rot: rx=−1.406 → normalna (0,0,1)→(0, 0.986, 0.164) licem w górę, góra płótna (0,1,0)→(0, 0.164, −0.986): tył wyżej, płótno opada ku +z (front) — policzone
     B.add(cloth, plane(cw + 0.5, Vl.h, 1), L(0, ph - Vl.drop, cd / 2 + 0.62));   // zwis DŁUŻSZY: szyld kramu (0,32 m) ma się na nim zmieścić, a nie wystawać pod spód
     // krokwie pod płótnem (poprawka po zrzutach z telefonu: spód baldachimu z bliska był płaską plamą koloru):
     // ta sama macierz co połać płótna, 5 cm niżej (normalna połaci (0, 0.986, 0.164) — przesunięcie w y wystarcza)

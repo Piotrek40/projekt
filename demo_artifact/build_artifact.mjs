@@ -39,7 +39,8 @@ const SCENES = {
     textures: {
       cobblestone_floor_04: [1024, 1024, 512], plastered_wall: [1024, 512, 512], old_planks_02: [512, 512, 256], weathered_planks: [512, 512, 256],
       roof_09: [1024, 512, 256], rustic_stone_wall_02: [1024, 512, 512], medieval_blocks_05: [1024, 512, 512], castle_wall_slates: [512, 512, 256],
-      fabric_pattern_07: [0, 512, 256], stone_tiles_02: [1024, 512, 512],   // Etap 2, motyw #9: baza łupku i miedzi (roof2, roofTower)
+      fabric_pattern_07: [256, 512, 256],   // Etap 3: doszła mapa splotu (diff) — bez niej sukno kramów jest płaską plamą koloru
+      stone_tiles_02: [1024, 512, 512],   // Etap 2, motyw #9: baza łupku i miedzi (roof2, roofTower)
     },
     hdri: 'kloppenheim_06_puresky_1k.hdr',
   },
