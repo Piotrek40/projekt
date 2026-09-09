@@ -287,43 +287,68 @@ log("polygony smooth:", sum(1 for p in obj.data.polygons if p.use_smooth), "/",
 hdr("6b. wplywy kosci na wierzcholek")
 
 
+BONE_NAMES = {b.name for b in arm.data.bones}
+DEFORM_IDX = {vg.index for vg in obj.vertex_groups if vg.name in BONE_NAMES}
+log("grup wierzcholkow razem: %d, z tego deformujacych (= nazwa kosci): %d"
+    % (len(obj.vertex_groups), len(DEFORM_IDX)))
+
+
 def influence_stats(o):
     hist = {}
     lost_max = 0.0
     lost_sum = 0.0
     n_over = 0
+    sums = []
     for v in o.data.vertices:
-        ws = sorted((g.weight for g in v.groups if g.weight > 1e-6), reverse=True)
-        k = len(ws)
-        hist[k] = hist.get(k, 0) + 1
-        if k > 4:
+        ws = sorted((g.weight for g in v.groups
+                     if g.group in DEFORM_IDX and g.weight > 1e-6), reverse=True)
+        hist[len(ws)] = hist.get(len(ws), 0) + 1
+        sums.append(sum(ws))
+        if len(ws) > 4:
             n_over += 1
             tot = sum(ws)
             lost = sum(ws[4:]) / tot if tot > 0 else 0.0
             lost_sum += lost
             lost_max = max(lost_max, lost)
-    return hist, n_over, lost_max, (lost_sum / n_over if n_over else 0.0)
+    return hist, n_over, lost_max, (lost_sum / n_over if n_over else 0.0), sums
 
 
-h0, n_over0, lmax0, lavg0 = influence_stats(obj)
+h0, n_over0, lmax0, lavg0, s0 = influence_stats(obj)
 log("histogram wplywow PRZED obcieciem:", dict(sorted(h0.items())))
 log("wierzcholkow z >4 wplywami: %d (%.2f%%)  max utracona waga %.4f  srednia %.4f"
     % (n_over0, 100.0 * n_over0 / len(obj.data.vertices), lmax0, lavg0))
+log("suma wag deformujacych PRZED: min=%.6f max=%.6f" % (min(s0), max(s0)))
 
-bpy.context.view_layer.objects.active = obj
-obj.select_set(True)
-bpy.ops.object.vertex_group_limit_total(group_select_mode='ALL', limit=4)
-bpy.ops.object.vertex_group_normalize_all(group_select_mode='ALL', lock_active=False)
+# recznie, bez operatorow: bpy.ops.object.vertex_group_normalize_all normalizuje
+# KAZDA GRUPE osobno (sumy wychodza 3.0/4.0), a nie sume wag na wierzcholku.
+t = time.time()
+IDX2VG = {vg.index: vg for vg in obj.vertex_groups}
+n_touched = 0
+for v in obj.data.vertices:
+    ws = [(g.group, g.weight) for g in v.groups
+          if g.group in DEFORM_IDX and g.weight > 1e-6]
+    ws.sort(key=lambda x: -x[1])
+    keep = ws[:4]
+    drop = ws[4:]
+    tot = sum(w for _, w in keep)
+    if not tot:
+        continue
+    if drop or abs(sum(w for _, w in ws) - 1.0) > 1e-5:
+        n_touched += 1
+    for gi, _ in drop:
+        IDX2VG[gi].remove([v.index])
+    for gi, w in keep:
+        IDX2VG[gi].add([v.index], w / tot, 'REPLACE')
+log("przepisanych wierzcholkow: %d  (%.2f s)" % (n_touched, time.time() - t))
 
-h1, n_over1, lmax1, lavg1 = influence_stats(obj)
+h1, n_over1, lmax1, lavg1, s1 = influence_stats(obj)
 log("histogram wplywow PO obcieciu: ", dict(sorted(h1.items())))
-assert n_over1 == 0, "po limit_total nadal %d wierzcholkow z >4 wplywami" % n_over1
-
-wsum = [sum(g.weight for g in v.groups) for v in obj.data.vertices]
-log("suma wag na wierzcholek: min=%.6f max=%.6f" % (min(wsum), max(wsum)))
-assert abs(min(wsum) - 1.0) < 1e-4 and abs(max(wsum) - 1.0) < 1e-4, \
-    "wagi nieznormalizowane: %.6f..%.6f" % (min(wsum), max(wsum))
-log("OK: <=4 wplywy, wagi znormalizowane do 1.0")
+log("suma wag deformujacych PO: min=%.6f max=%.6f" % (min(s1), max(s1)))
+assert n_over1 == 0, "nadal %d wierzcholkow z >4 wplywami" % n_over1
+assert abs(min(s1) - 1.0) < 1e-4 and abs(max(s1) - 1.0) < 1e-4, \
+    "wagi nieznormalizowane: %.6f..%.6f" % (min(s1), max(s1))
+assert min(h1.keys()) >= 1, "wierzcholek bez zadnej wagi"
+log("OK: <=4 wplywy, kazdy wierzcholek ma sume wag 1.0")
 
 # ===========================================================================
 # 7. EKSPORT GLB
@@ -469,10 +494,20 @@ LIMB = ["thigh_l", "calf_l", "foot_l", "ball_l",
         "clavicle_l", "clavicle_r",
         "spine_01", "spine_02", "spine_03", "neck_01", "head", "pelvis"]
 
-log("%-12s %8s %10s %10s" % ("kosc", "dlug_mm", "glowa_mm", "ogon_mm"))
+# ogon kosci jest STAWEM, gdy jakies dziecko zaczyna sie w tym samym punkcie.
+# ogon koncowy (czubek palca, czubek czaszki) LEZY na powierzchni z definicji -
+# wymaganie, zeby byl w srodku, byloby bledem anatomicznym, nie testem.
+def tail_is_joint(b):
+    return any((c.head_local - b.tail_local).length < 1e-4 for c in b.children)
+
+
+JOINT_MIN_DEPTH_MM = 5.0    # staw musi byc co najmniej 5 mm pod skora
+TERMINAL_TOL_MM = 20.0      # ogon koncowy: max 20 mm poza powierzchnia
+
+log("%-12s %8s %10s %10s  %s" % ("kosc", "dlug_mm", "glowa_mm", "ogon_mm", "ogon"))
 anat = {}
-worst = 0.0
-worst_name = None
+bad_joint = []
+bad_term = []
 for bn in LIMB:
     b = arm.data.bones[bn]
     h = mw_arm @ b.head_local
@@ -480,21 +515,92 @@ for bn in LIMB:
     dh, _ = depth_mm(h)
     dt, _ = depth_mm(tl)
     L = (tl - h).length * 1000.0
+    tj = tail_is_joint(b)
     anat[bn] = (L, dh, dt)
-    log("%-12s %8.1f %10.1f %10.1f" % (bn, L, dh, dt))
-    for d in (dh, dt):
-        if d is not None and d > worst:
-            worst = d
-            worst_name = bn
+    log("%-12s %8.1f %10.1f %10.1f  %s"
+        % (bn, L, dh, dt, "staw" if tj else "koncowy"))
+    if dh > -JOINT_MIN_DEPTH_MM:
+        bad_joint.append(("%s.head" % bn, round(dh, 1)))
+    if tj and dt > -JOINT_MIN_DEPTH_MM:
+        bad_joint.append(("%s.tail" % bn, round(dt, 1)))
+    if (not tj) and dt > TERMINAL_TOL_MM:
+        bad_term.append(("%s.tail" % bn, round(dt, 1)))
 
-log("\nnajgorszy punkt na zewnatrz siatki: %s, %+.1f mm" % (worst_name, worst))
+log("\nstawy plycej niz %.0f mm pod skora: %s" % (JOINT_MIN_DEPTH_MM, bad_joint or "brak"))
+log("ogony koncowe dalej niz %.0f mm poza siatka: %s" % (TERMINAL_TOL_MM, bad_term or "brak"))
+assert not bad_joint, "stawy poza/przy powierzchni siatki: %s" % bad_joint
+assert not bad_term, "ogony koncowe za daleko poza siatka: %s" % bad_term
+log("OK: %d kosci - kazdy staw >=%.0f mm pod skora, ogony koncowe w normie"
+    % (len(LIMB), JOINT_MIN_DEPTH_MM))
 
-# ---- ASERCJA: kazdy staw konczyny wewnatrz siatki -------------------------
-OUTSIDE_TOL_MM = 0.0
-bad = [(k, v) for k, v in anat.items()
-       if (v[1] is not None and v[1] > OUTSIDE_TOL_MM) or (v[2] is not None and v[2] > OUTSIDE_TOL_MM)]
-assert not bad, "kosci wystajace poza siatke: %s" % bad
-log("OK: wszystkie %d sprawdzanych kosci ma glowe i ogon wewnatrz siatki" % len(LIMB))
+# ---- 9b. CENTROWANIE OSI KOSCI W KONCZYNIE --------------------------------
+# Kosc moze byc "wewnatrz siatki" i mimo to biec tuz pod skora zamiast srodkiem
+# konczyny - wtedy zginanie wyglada nieludzko. Mierzymy: w kilku punktach wzdluz
+# kosci bierzemy plaster siatki prostopadly do osi kosci i liczymy
+# offset = |punkt_kosci - srodek_plastra| / promien_plastra.
+import numpy as np  # noqa: E402
+import mathutils    # noqa: E402
+
+VCO = np.empty(len(obj.data.vertices) * 3, dtype=np.float64)
+obj.data.vertices.foreach_get("co", VCO)
+VCO = VCO.reshape(-1, 3)
+MW = np.array(obj.matrix_world.to_4x4())
+VW = VCO @ MW[:3, :3].T + MW[:3, 3]
+
+
+def axis_centering(bn, nsamp=5):
+    b = arm.data.bones[bn]
+    h = np.array(mw_arm @ b.head_local)
+    tl = np.array(mw_arm @ b.tail_local)
+    ax = tl - h
+    L = np.linalg.norm(ax)
+    if L < 1e-9:
+        return None
+    ax = ax / L
+    slab = max(0.010, L * 0.10)
+    out = []
+    for f in np.linspace(0.15, 0.85, nsamp):
+        p = h + ax * (L * f)
+        d = VW - p
+        t = d @ ax
+        sel = np.abs(t) < slab
+        if sel.sum() < 12:
+            continue
+        perp = d[sel] - np.outer(t[sel], ax)
+        r = np.linalg.norm(perp, axis=1)
+        # tylko wierzcholki blizsze niz 2.2x mediana promienia: odcina tulow,
+        # gdy plaster kosci ramienia lapie zebra
+        keep = r < 2.2 * np.median(r)
+        if keep.sum() < 12:
+            continue
+        pc = perp[keep]
+        c = pc.mean(axis=0)
+        rad = np.linalg.norm(pc - c, axis=1).mean()
+        out.append((np.linalg.norm(c), rad))
+    if not out:
+        return None
+    off = np.array([o[0] for o in out])
+    rad = np.array([o[1] for o in out])
+    return off.max() * 1000.0, rad.mean() * 1000.0, (off / rad).max()
+
+
+log("\ncentrowanie osi kosci w konczynie (offset od srodka przekroju / promien):")
+log("%-12s %12s %12s %10s" % ("kosc", "max_off_mm", "sr_prom_mm", "off/prom"))
+CENTER_LIMBS = ["thigh_l", "calf_l", "upperarm_l", "lowerarm_l",
+                "thigh_r", "calf_r", "upperarm_r", "lowerarm_r", "neck_01"]
+CENTER_MAX = 0.40
+bad_center = []
+for bn in CENTER_LIMBS:
+    r = axis_centering(bn)
+    if r is None:
+        log("%-12s  (za malo wierzcholkow w plastrze)" % bn)
+        continue
+    log("%-12s %12.1f %12.1f %10.3f" % (bn, r[0], r[1], r[2]))
+    if r[2] > CENTER_MAX:
+        bad_center.append((bn, round(r[2], 3)))
+log("kosci biegnace poza srodkiem (off/prom > %.2f): %s" % (CENTER_MAX, bad_center or "brak"))
+assert not bad_center, "kosci nie biegna srodkiem konczyny: %s" % bad_center
+log("OK: wszystkie %d kosci konczyn biegna srodkiem konczyny" % len(CENTER_LIMBS))
 
 # ---- proporcje antropometryczne (Drillis & Contini, ulamki wzrostu H) -----
 log("\nproporcje wzgledem wzrostu %.4f m (odniesienie: Drillis & Contini 1966)" % H_POST)
