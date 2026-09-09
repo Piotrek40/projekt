@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Test sterownika: skinning</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #14130f; color: #e8e0d0; font: 14px/1.45 system-ui, -apple-system, sans-serif; padding: 12px; }
+  h1 { font-size: 17px; margin: 0 0 4px; letter-spacing: .01em; }
+  p.lead { margin: 0 0 12px; color: #a49a86; font-size: 12.5px; }
+  #gpu { background: #1e1c17; border: 1px solid #35312a; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; word-break: break-word; }
+  #gpu small { color: #a49a86; }
+  #werdykt { font-weight: 600; padding: 10px 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid; }
+  .w { border: 1px solid #35312a; border-left-width: 4px; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; background: #1a1814; }
+  .w b { display: inline-block; min-width: 34px; color: #d8cbb0; }
+  .w small { color: #9d937f; display: inline-block; margin-top: 3px; }
+  .ok { border-color: #4a7d4a; color: #b7e0b7; }
+  .zle { border-color: #9d4b3f; color: #f0b6ac; }
+  .uwaga { border-color: #937a3a; color: #e8d49a; }
+  .w.ok { border-left-color: #4a7d4a; } .w.zle { border-left-color: #9d4b3f; } .w.uwaga { border-left-color: #937a3a; }
+  #podglad { margin-top: 14px; }
+  canvas { width: 100%; aspect-ratio: 1 / 1; display: block; border-radius: 8px; background: #1b1a17; }
+  #perf { font-variant-numeric: tabular-nums; padding: 8px 10px; border-radius: 6px; border: 1px solid #35312a; margin-top: 8px; }
+  #geo { color: #a49a86; font-size: 12.5px; margin: 6px 0 0; }
+  footer { color: #7d745f; font-size: 11.5px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<h1>Test sterownika: czy ten GPU umie skinning</h1>
+<p class="lead">Etap 4, krok 0. three.js podaje macierze kości wyłącznie teksturą float czytaną w vertex shaderze — bez żadnego wariantu zapasowego. To urządzenie zepsuło już KTX2 i InstancedMesh, więc sprawdzamy, zanim powstanie model.</p>
+
+<div id="gpu">wykrywanie GPU…</div>
+<div id="werdykt">test w toku…</div>
+<div id="lista"></div>
+
+<div id="podglad">
+  <canvas id="c"></canvas>
+  <p id="geo"></p>
+  <div id="perf">pomiar…</div>
+  <p class="lead" style="margin-top:6px">Cel to <b>p95 ≤ 16,7 ms</b> (pełne 60 Hz). Ta liczba ma sens wyłącznie na prawdziwym telefonie — w renderze programowym na serwerze wychodzi ok. 83 ms i nic nie znaczy.</p>
+  <p class="lead" style="margin-top:8px">Rura ma się <b>falować</b>. Jeśli widzisz prosty, sztywny słupek — skinning nie działa, choćby testy wyżej były zielone.</p>
+</div>
+
+<footer>Rynek Srebrnych Liści · test diagnostyczny, nie część gry</footer>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
