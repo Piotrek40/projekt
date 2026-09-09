@@ -283,8 +283,9 @@ console.log('\n=== D. Miary FUNKCJONALNE — to, czego zgodność kierunków NIE
 console.log('\n=== E. Blokada stóp: lewitacja, ślizg, prześwit (wady zgłoszone przez Piotra) ===');
 {
   // Trzy wady z jednego zgłoszenia — „ślizgawica stóp", „lewitująca postać" — mają wspólną przyczynę
-  // geometryczną: nasze ciało ma biodro 973,0 mm, a nogę plus kostkę nad podeszwą 972,8 mm, czyli ZAPAS 0,3 mm.
-  // Przy kroku 0,66 m biodro musi opaść o ok. 48 mm, żeby stopa sięgnęła ziemi; stały offset tego nie robi.
+  // geometryczną: noga jest praktycznie wyprostowana (udo + goleń 898,1 mm, odległość staw biodrowy–kostka
+  // 896,8 mm, czyli zapas wyprostu 1,3 mm; w ruchu stosunek 0,985–0,99979). Stopy nie da się opuścić nogą,
+  // musi opaść miednica — a stały offset tego nie robi i zostawia obie stopy w powietrzu na do 47,1 mm.
   const cialo = await wczytaj(CIALO);
   let skin = null; cialo.scene.traverse(o => { if (o.isSkinnedMesh) skin = o; });
   const idle = await wczytaj(ANIM + 'idle_sway.glb');

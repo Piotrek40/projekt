@@ -419,15 +419,21 @@ export function przyziem(klip, skin, korzenObj, { fps = 30, kosciStop = /foot|ba
 // BLOKADA STÓP. Trzy wady widoczne gołym okiem — lewitacja, ślizg i „chód na sztywnych nogach" — mają jedną
 // wspólną przyczynę geometryczną, i warto ją tu zapisać, bo bez niej poprawka wygląda na arbitralną.
 //
-// Nasze ciało (MPFB) ma biodro na 973,0 mm, a nogę (udo 451,2 + goleń 446,9) plus kostkę nad podeszwą
-// (74,6 mm) razem 972,8 mm. ZAPAS: 0,3 mm. Postać stoi na nogach wyprostowanych do zera — kolano nie ma
-// czego rozprostować. Mocap ACCAD ma inne proporcje: biodro 1065,6 mm, noga 923,5 mm, czyli kostkę
-// 142,1 mm nad ziemią. Noga względem bioder jest u nas o 6,5% dłuższa.
+// Noga naszego ciała (MPFB) jest w pozie spoczynkowej praktycznie WYPROSTOWANA: udo 451,2 + goleń 446,9 =
+// 898,1 mm, a rzeczywista odległość staw biodrowy–kostka to 896,8 mm. ZAPAS WYPROSTU: 1,3 mm (kolano zgięte
+// o 6,23°, ale przy niemal prostej nodze długość zmienia się jak cosinus, więc te 6° kupuje tylko 1,3 mm).
+// W ruchu jest tak samo: stosunek |biodro–kostka|/(udo+goleń) ma medianę 0,985 w chodzie i 0,998 w staniu,
+// maksimum 0,99979. Kolano nie ma czego rozprostować, więc STOPY NIE DA SIĘ OPUŚCIĆ NOGĄ.
 //
-// Konsekwencja: przy kroku 0,66 m stopa oddala się od pionu o ok. 20°, więc BIODRO MUSI OPAŚĆ o
-// 973·(1−cos 20°) ≈ 48 mm, żeby stopa w ogóle sięgnęła ziemi. Wysokość miednicy bierzemy ze źródła przez
-// stosunek wysokości bioder, a ten opad w naszych proporcjach jest inny niż w cudzych — i stąd zmierzone
-// dwa razy na cykl „obie stopy w powietrzu" (30,1 mm i 47,1 mm nad podłogą), czego w chodzie człowieka nie ma.
+// (Uwaga na pułapkę, w którą sam wpadłem: kość `pelvis` NIE jest stawem biodrowym — thigh_l leży 6,2 mm
+// niżej i 112,5 mm w bok. Odejmowanie długości nogi od wysokości miednicy nie jest tożsamością i daje
+// liczbę bez sensu. Zapas liczy się z odległości staw–staw.)
+//
+// Konsekwencja: żeby stopa sięgnęła ziemi przy rozkroku, MIEDNICA MUSI OPAŚĆ. Wysokość miednicy bierzemy
+// ze źródła przez stosunek wysokości bioder (mocap ACCAD: biodro 1065,6 mm, noga 923,5 mm — kostka 142,1 mm
+// nad ziemią wobec naszych 74,6), a potrzebny opad w naszych proporcjach jest inny niż w cudzych. Stąd
+// zmierzone dwa razy na cykl „obie stopy w powietrzu" (30,1 mm i 47,1 mm nad podłogą), czego w chodzie
+// człowieka nie ma.
 //
 // DLATEGO KOREKTA IDZIE W MIEDNICĘ, NIE W NOGĘ. Samo IK nic tu nie da: przy medianie zasięgu nogi 0,985
 // (a w staniu 0,998) noga jest już praktycznie prosta i nie ma jak sięgnąć niżej. Kolejność:
