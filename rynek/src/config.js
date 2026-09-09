@@ -82,7 +82,7 @@ export const CONFIG = {
              // Cień kontaktowy pod kramem. AO wypalone W MODELU przyciemnia sam model, ale nie ma jak przyciemnić BRUKU obok —
              // porównanie przed/po styku drewna z brukiem nie pokazało żadnej różnicy, bo jej tam nie było. Decal na ziemi
              // (mnożenie, jeden klucz `contact` = 1 draw call) domyka ten brak. w/d: obrys kramu + rozmycie; ?nocontact=1 wyłącza.
-             contact: { w: 3.5, d: 3.1, y: 0.014, strength: 0.5, blur: 0.30, tex: 256 } },   // rafters: krokwie pod płótnem baldachimu jako ułamek jego półszerokości (poprawka po zrzutach z telefonu)   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
+             contact: { w: 3.5, d: 3.1, y: 0.014, strength: 0.38, blur: 0.40, tex: 256 } },   // strength = material.opacity czarnego decalu; blur = ułamek półboku na zanik (zmierzone: bruk L 0,447 → 0,285 przy 0,5; 0,38 daje łagodniejszy styk)   // rafters: krokwie pod płótnem baldachimu jako ułamek jego półszerokości (poprawka po zrzutach z telefonu)   // pierścień kramów R ± ringJitter (jak HEAD: R.range(−1,5, 1,5)); koło kolizji kramu (HEAD: 1,6)
     // motyw #11 „role kramów" (?nokinds=1 = stary placeGoods bez ról, bez szyldów kramów, nowe modele nieładowane). Kram i dostaje kinds[i % kinds.length]
     // (kolejność = kolejność kramów: kram 0 = repoussoir z §5.3 = sukiennik, POI „Kram sukiennika" w ui.js). cloth = baldachim (te same klucze, które seed 7
     // losował na HEAD → kadr startowy bez zmiany barw); sign = kafelek atlasu szyldów (houseDetail.sign.tiles + extraTiles); goods = [model, skala] w gniazdach

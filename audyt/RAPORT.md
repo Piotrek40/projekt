@@ -253,6 +253,24 @@ Uwaga Piotra: „belki podtrzymujące dach są jakby niedokończone, przez to pr
 
 Przy okazji: kramy stoją **frontem do fontanny**, więc widok od strony placu zewnętrznego pokazuje ich tył — pierwsze rendery kontrolne robiłem właśnie stamtąd i dlatego szyldu na nich nie było.
 
+### Błąd widoczny TYLKO na telefonie: cień kontaktowy jako jasna plama
+
+Na zrzucie z S24 decal cienia pod kramem sukiennika wyszedł **jasnym prostokątem** na bruku — dokładnie odwrotnie niż w moim renderze
+kontrolnym (SwiftShader), gdzie ten sam decal przyciemniał bruk o zmierzone L 0,337 → 0,305. Dwie niezależne przyczyny:
+
+1. **UV decalu miało zakres 0…3,5 zamiast 0…1.** Użyłem `plane(3.5, 3.1, 1)` z `engine/src/geometry.js`, a ta funkcja skaluje UV przez
+   `rozmiar / mpt`. Tekstura jest zaciskana do krawędzi (ClampToEdge), więc 97 % powierzchni decalu brało wartość z brzegu mapy.
+   Przy mnożeniu brzeg był biały — czyli „brak cienia" i efekt tylko w środku; po zamianie na `alphaMap` brzeg był czarny — decal znikał całkiem.
+2. **`MultiplyBlending` + `premultipliedAlpha` na Xclipse 940 (ANGLE/Vulkan) nie dał mnożenia**, tylko zwykłe krycie prawie białą teksturą.
+   SwiftShader liczy ten tryb poprawnie i dlatego mój render niczego nie pokazał.
+
+Naprawa: czarny `MeshBasicMaterial` z `alphaMap` (mapa krycia, kanał zielony, `NoColorSpace`) i `opacity = strength` — zwykłe mieszanie alfa,
+jednoznaczne na każdym GPU. Geometria decalu to goła `PlaneGeometry` (UV dokładnie 0…1), a `check()` w `stalls.js` pilnuje tego zakresu,
+żeby błąd nie wrócił po cichu. Zmierzone po naprawie: bruk pod kramem L 0,447 → 0,328, bruk 3 m dalej bez zmian (0,343 → 0,340).
+
+**Wniosek na przyszłość:** render w SwiftShaderze weryfikuje geometrię, UV i kolor, ale NIE weryfikuje trybów mieszania. Każdy nowy
+`blending:` inny niż domyślny trzeba uznać za niesprawdzony, dopóki nie zobaczy go telefon.
+
 ### Świadome ograniczenia
 
 - **Wariant inline (Artifact) nie dostaje modelu.** Strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model z mapą AO to ok. 0,5 MB. Tam zostaje kram proceduralny; Pages i wersja lokalna mają model.

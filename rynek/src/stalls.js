@@ -61,7 +61,18 @@ export function buildStalls(W) {
       // Cień kontaktowy: decal na bruku pod kramem. AO wypalone w modelu przyciemnia model, ale nie ziemię obok niego —
       // bez tego słup stoi na bruku bez styku (porównanie „styk drewna z brukiem" przed/po nie pokazywało różnicy).
       const Ct = CONFIG.stalls.model.contact;
-      if (Ct && !ctx.flags.nocontact) B.add('contact', plane(Ct.w, Ct.d, 1), L(0, Ct.y, 0, 0, -Math.PI / 2));   // rx=−π/2: lico płaszczyzny (0,0,1) → (0,1,0), czyli w górę — policzone
+      if (Ct && !ctx.flags.nocontact) {
+        // UWAGA: NIE używać tu plane() z geometry.js — ono skaluje UV przez rozmiar/mpt, więc plane(3.5, 3.1, 1) dawało UV 0..3,5.
+        // Tekstura decalu jest zaciskana do krawędzi (ClampToEdge), więc 97 % powierzchni brało wartość z brzegu mapy:
+        // w wersji z mnożeniem brzeg był biały (żadnego cienia), po zmianie na alphaMap — czarny (decal całkiem niewidoczny).
+        // Decal musi mieć UV dokładnie 0..1 na całej płycie, stąd goła PlaneGeometry.
+        const gC = new THREE.PlaneGeometry(Ct.w, Ct.d), uvC = gC.attributes.uv;
+        let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+        for (let i = 0; i < uvC.count; i++) { u0 = Math.min(u0, uvC.getX(i)); u1 = Math.max(u1, uvC.getX(i)); v0 = Math.min(v0, uvC.getY(i)); v1 = Math.max(v1, uvC.getY(i)); }
+        check(Math.abs(u0) < 1e-6 && Math.abs(u1 - 1) < 1e-6 && Math.abs(v0) < 1e-6 && Math.abs(v1 - 1) < 1e-6,
+              `${p.kind}: decal cienia ma UV ${u0}..${u1} × ${v0}..${v1} zamiast 0..1 — mapa krycia zostanie zaciśnięta do krawędzi`, { u0, u1, v0, v1 });
+        B.add('contact', gC, L(0, Ct.y, 0, 0, -Math.PI / 2));   // rx=−π/2: lico płaszczyzny (0,0,1) → (0,1,0), czyli w górę — policzone
+      }
       stalls.push({ x, z, ry, cw, cd, ch, ph, L, cloth: p.cloth, repoussoir: p.repoussoir, kind: p.kind, model: true });
       ctx.addCircle(x, z, CONFIG.stalls.collideR);
       W.dbgCircle?.(x, z, CONFIG.stalls.collideR); W.dbgAxes?.(x, 0.05, z, ry, 1.2);
