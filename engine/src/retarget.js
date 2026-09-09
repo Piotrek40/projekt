@@ -67,6 +67,13 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB, opcje = {
   // normalnie. Blender buduje armaturę z OFFSET-ów BVH, a w tych plikach cała orientacja siedzi w klatkach,
   // nie w hierarchii. Dopasowanie do pozy spoczynkowej dawało 87° obrotu na kręgosłupie i zwinięty tułów
   // (widoczne na zrzucie z telefonu; test tego NIE złapał, bo mierzył tylko kierunki kości).
+  // Pominięcie pozy odniesienia daje wynik CICHO ZŁY, nie błąd — dlatego jest tu twardy wymóg. Cztery
+  // z siedmiu sekcji testu przez chwilę wołały przygotuj() bez niej i sprawdzały konfigurację, której
+  // produkcja nigdy nie używa. Kto naprawdę chce pozy spoczynkowej, musi to napisać wprost.
+  if (!opcje.klipOdniesienia && !opcje.pozaSpoczynkowa) {
+    throw new Error('przygotuj: podaj klipOdniesienia (pierwsza klatka klipu stojącego) albo jawnie pozaSpoczynkowa: true. '
+      + 'Poza spoczynkowa BVH bywa śmieciem — w plikach ACCAD wszystko powyżej bioder wskazuje w bok.');
+  }
   let mieszaczOdn = null;
   if (opcje.klipOdniesienia) {
     mieszaczOdn = new THREE.AnimationMixer(zrodloRoot);
@@ -93,7 +100,7 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB, opcje = {
   // Dla kości z WIELOMA zmapowanymi dziećmi „pierwsze dziecko" zależy od kolejności w pliku, a ta może się
   // różnić między szkieletami — miednica dostałaby raz kierunek do kręgosłupa, raz do uda. Dlatego dla tych
   // dwóch kości kierunek jest wskazany jawnie. Reszta ma dokładnie jedno zmapowane dziecko.
-  const KIERUNEK_JAWNY = { Hips: 'Spine', Spine1: 'Neck' };
+  const KIERUNEK_JAWNY = { Hips: opcje.kierunekMiednicy || 'Spine', Spine1: 'Neck' };
   // Dziecko zmapowane: pierwszy potomek źródła, który też jest w mapie (dla kierunku kości).
   const dzieckoZmapowane = (obj, poNazwie) => {
     for (const d of obj.children) { if (poNazwie.has(d.name)) return d; }
@@ -112,6 +119,24 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB, opcje = {
     return jawne || dzieckoZmapowane(o, { has: n => maC.get(n) === true });
   };
 
+  // KTÓRE KOŚCI DOPASOWUJEMY. To nie jest szczegół — to sedno.
+  //
+  // Dopasowanie zrównuje KIERUNKI kości celu z kierunkami źródła, czyli przenosi na cel także GEOMETRIĘ
+  // cudzego szkieletu, nie sam ruch. Dla kręgosłupa to katastrofa: kręgosłup MPFB jest prosty (kąt
+  // pelvis–spine_02–spine_03 w pozie spoczynkowej wynosi 0,8°), a szkielet ACCAD ma w rozstawie stawów
+  // 45,4° załamania. Dopasowanie wtłaczało te 45° w tors naszej postaci — to jest ta wada, którą Piotr
+  // opisał jako „dolna połowa przyszyta nierówno do górnej".
+  //
+  // Dla kości NIEDOPASOWANYCH poprawka wychodzi C = qŹródła(odniesienie)⁻¹ · qCelu(spoczynek), czyli
+  // qCelu(t) = (qŹródła(t) · qŹródła(odniesienie)⁻¹) · qCelu(spoczynek) — przeniesienie ZMIANY względem pozy
+  // odniesienia przy zachowaniu własnej geometrii celu. To jest właściwe wszędzie tam, gdzie oba szkielety
+  // stoją podobnie: tułów, szyja, nogi.
+  //
+  // Ręce są wyjątkiem i dlatego domyślnie JE dopasowujemy: ciało MPFB ma pozę A (ramię 41,1° od pionu),
+  // a mocap w pozie odniesienia trzyma ręce opuszczone. Bez dopasowania NPC chodziłby z rękami odstawionymi
+  // o te ~40° na boki. Tam różnica jest różnicą POZY, a nie budowy szkieletu — i tylko wtedy dopasowanie pomaga.
+  const DOPASUJ = opcje.dopasuj ?? /clavicle|upperarm|lowerarm|hand/i;
+
   // ---- KROK 1: dopasowanie pozy celu do POZY ODNIESIENIA źródła ----
   // Nie wystarczy zrównać KIERUNKÓW kości: kierunek ma 2 stopnie swobody, rotacja 3, a setFromUnitVectors
   // daje obrót minimalny, czyli o niekontrolowanym SKRĘCIE wokół osi kości. Ten skręt wchodził potem do
@@ -125,7 +150,7 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB, opcje = {
     return new THREE.Matrix4().makeBasis(d, u, new THREE.Vector3().crossVectors(d, u));
   };
   const OS_GORA = new THREE.Vector3(0, 1, 0), OS_PRZOD = new THREE.Vector3(0, 0, 1);
-  const diag = { dopasowane: [], odchylkaPrzed: [], odchylkaPo: [] };
+  const diag = { dopasowane: [], bezDopasowania: [], odchylkaPrzed: [], odchylkaPo: [] };
   for (const w of wpisy) {
     const dz = kierunek(w.z, dzZ(w.z));
     if (!dz) continue;                       // liść mapy — nie ma czego dopasować
@@ -133,6 +158,7 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB, opcje = {
     const dc = kierunek(w.c, dzC(w.c));
     if (!dc) continue;
     diag.odchylkaPrzed.push([w.cs, Math.acos(Math.max(-1, Math.min(1, dc.dot(dz)))) * 180 / Math.PI]);
+    if (!DOPASUJ.test(w.cs)) { diag.bezDopasowania.push(w.cs); continue; }
     // Oś odniesienia wybrana po ŹRÓDLE i użyta po obu stronach: dla kości pionowych (nogi, zwisające ręce,
     // kręgosłup) rzut światowego „w górę" degeneruje się do zera, więc bierzemy wtedy „w przód".
     const ref = Math.abs(dz.dot(OS_GORA)) > 0.9 ? OS_PRZOD : OS_GORA;
