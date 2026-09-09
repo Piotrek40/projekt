@@ -15,10 +15,12 @@
 // kontrolerowi, który przesuwa cały obiekt. Pion miednicy ZOSTAJE w klipie — bez niego chód wygląda jak
 // sunięcie (zmierzone: cykl chodu ma 37,0 mm pionu miednicy przy normie 25–50 mm).
 import * as THREE from 'three';
-import { przygotuj, przenies, przyziem, wydzielRuchKorzenia, ruchKorzeniaW, MAPA_ACCAD_MPFB } from '../../engine/src/retarget.js';
+import { przygotuj, przenies, przyziem, zapetlij, zablokujStopy, odsunRece, wydzielRuchKorzenia, ruchKorzeniaW, MAPA_ACCAD_MPFB } from '../../engine/src/retarget.js';
 import { check } from '../../engine/src/check.js';
 
 const KLIPY = ['idle_sway', 'idle_lookaround', 'idle_arms', 'walk_cycle', 'stand_to_walk', 'walk_to_stand'];
+// Które klipy są grane w pętli — jedno źródło prawdy dla domykania pętli przy ładowaniu i dla setLoop poniżej.
+const petlowe = new Set(KLIPY.filter(n => n.startsWith('idle') || n === 'walk_cycle'));
 
 export async function buildNPC(W) {
   const { ctx, scene, loaders, CONFIG } = W;
@@ -60,8 +62,13 @@ export async function buildNPC(W) {
   const przyg = przygotuj(klipyGltf[0].scene, cialoGltf.scene, MAPA_ACCAD_MPFB,
     { klipOdniesienia: klipyGltf[0].animations[0], czasOdniesienia: 0 });
   check(przyg.pary.length >= 20, 'npc: za mało zmapowanych kości między mocapem a rigiem ciała', { par: przyg.pary.length });
-  const maxOdchylka = Math.max(...przyg.diag.odchylkaPo.map(x => x[1]));
-  check(maxOdchylka < 0.5, 'npc: dopasowanie póz spoczynkowych nie zeszło poniżej 0,5°', { maxOdchylka });
+  // Odchyłkę sprawdzamy TYLKO na kościach faktycznie dopasowywanych (ręce). Maksimum po wszystkich kościach
+  // wynosi 24,7° i jest ZAMIERZONE — reszta szkieletu ma zachować własną geometrię, bo inaczej do tułowia
+  // wchodzi 45,4° załamania z rozstawu stawów ACCAD. Pierwsza wersja tego check() mierzyła wszystkie kości
+  // i od zmiany na dopasowanie samych rąk zgłaszała błąd w results.errors na każdym uruchomieniu sceny.
+  const dopasowane = new Set(przyg.diag.dopasowane);
+  const maxOdchylka = Math.max(...przyg.diag.odchylkaPo.filter(x => dopasowane.has(x[0])).map(x => x[1]));
+  check(maxOdchylka < 0.5, 'npc: dopasowanie kości rąk do źródła nie zeszło poniżej 0,5°', { maxOdchylka, dopasowanych: dopasowane.size });
 
   const klipy = {}, ruchy = {};
   for (let i = 0; i < KLIPY.length; i++) {
@@ -73,7 +80,15 @@ export async function buildNPC(W) {
     // bruk, albo się w niego zapada. Zmierzone przed poprawką: chód +3,5 mm nad bruk, idle −10…−11 mm pod,
     // klipy przejściowe −44 i −52 mm pod bruk.
     const pelvisKosc = przyg.pary.find(w => w.cs === 'pelvis').c;
+    // Klipy grane w pętli muszą się domykać: mocap ACCAD to wycinki nagrania i skaczą na szwie o 3,5–11,75°.
+    // Idzie PRZED przyziemieniem i blokadą stóp, żeby te dwie widziały już poprawnie zapętlony klip.
+    if (petlowe.has(nazwa)) zapetlij(k, { korzen: nazwa === 'walk_cycle' ? 'pion' : 'pelna' });
     przyziem(k, skin, pelvisKosc, { fps: N.fps });
+    // Blokada stóp i odsunięcie rąk — obie poprawki liczone RAZ, przy ładowaniu; w czasie gry kosztują zero.
+    // Kolejność jest istotna: obie muszą pójść PRZED wydzielRuchKorzenia, bo operują na klipie niosącym
+    // jeszcze pełne przemieszczenie, czyli w świecie, w którym „stopa stoi w miejscu" znaczy to, co powinno.
+    zablokujStopy(k, skin, pelvisKosc);
+    odsunRece(k, skin, pelvisKosc);
     ruchy[nazwa] = wydzielRuchKorzenia(k, pelvisKosc);
     klipy[nazwa] = k;
   }
@@ -99,7 +114,7 @@ export async function buildNPC(W) {
   const mieszacz = new THREE.AnimationMixer(cialoGltf.scene);
   const akcje = {};
   for (const [n, k] of Object.entries(klipy)) {
-    const petla = n.startsWith('idle') || n === 'walk_cycle';
+    const petla = petlowe.has(n);
     const a = mieszacz.clipAction(k);
     a.setLoop(petla ? THREE.LoopRepeat : THREE.LoopOnce);
     if (!petla) a.clampWhenFinished = true;

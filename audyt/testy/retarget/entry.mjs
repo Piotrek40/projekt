@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import fs from 'fs';
-import { przygotuj, przenies, przyziem, wydzielRuchKorzenia, MAPA_ACCAD_MPFB } from '../../../engine/src/retarget.js';
+import { przygotuj, przenies, przyziem, zapetlij, zablokujStopy, odsunRece, wydzielRuchKorzenia, ruchKorzeniaW, MAPA_ACCAD_MPFB } from '../../../engine/src/retarget.js';
 
 const CIALO = '/home/user/projekt/rynek/assets/models/npc_body.glb';
 const ANIM = '/home/user/projekt/rynek/assets/anim/';
@@ -254,6 +254,205 @@ console.log('\n=== D. Miary FUNKCJONALNE — to, czego zgodność kierunków NIE
   const kL = kor(C.ramieL, C.udoL), kP = kor(C.ramieP, C.udoP);
   sprawdz(kL <= -0.80 && kP <= -0.80, 'ramię i udo TEJ SAMEJ strony w przeciwfazie (K7, próg −0,80)', { lewa: +kL.toFixed(3), prawa: +kP.toFixed(3) });
   sprawdz(zakres(C.ramieL) > 10 && zakres(C.ramieP) > 10, 'ręce naprawdę machają (próg 10°; asymetria 33/16° jest w SAMYM mocapie, nie jest wadą)', { L: +zakres(C.ramieL).toFixed(1), P: +zakres(C.ramieP).toFixed(1) });
+
+  // TE SAME MIARY PO PEŁNYM POTOKU. Blokada stóp przepisuje rotacje ud, goleni i stóp, a odsunięcie rąk —
+  // rotacje ramion. Obie mogłyby po cichu zjeść wymach albo rozbić przeciwfazę, a asercje wyżej by tego
+  // nie zobaczyły, bo mierzą klip SPRZED tych kroków. Ta wada — „test mierzy nie to, co jedzie na telefon" —
+  // wystąpiła w tym projekcie już dwa razy, więc nie jest teoretyczna.
+  let skinD = null; cialo.scene.traverse(o => { if (o.isSkinnedMesh) skinD = o; });
+  const chodP = await wczytaj(ANIM + 'walk_cycle.glb');
+  const klipPelny = przenies({ zrodloRoot: chodP.scene, klip: chodP.animations[0], pary: P.pary, celRoot: cialo.scene, skala: P.skala, fps: 30 });
+  klipPelny.name = 'walk_cycle';
+  const pelvisD = P.pary.find(w => w.cs === 'pelvis').c;
+  zapetlij(klipPelny, { korzen: 'pion' });
+  przyziem(klipPelny, skinD, pelvisD, { fps: 30 });
+  zablokujStopy(klipPelny, skinD, pelvisD);
+  odsunRece(klipPelny, skinD, pelvisD);
+  const mixP = new THREE.AnimationMixer(cialo.scene); mixP.clipAction(klipPelny).play();
+  const F = serie(cialo.scene, mixP, klipPelny, [['udoL', 'thigh_l', 'calf_l'], ['udoP', 'thigh_r', 'calf_r'],
+    ['ramieL', 'upperarm_l', 'lowerarm_l'], ['ramieP', 'upperarm_r', 'lowerarm_r']], 'pelvis');
+  for (const n of ['udoL', 'udoP', 'ramieL', 'ramieP']) {
+    // Próg 6°: blokada stóp MA prawo zmienić wymach uda, bo po to jest — dokłada tyle zgięcia, ile trzeba,
+    // żeby stopa dosięgła bruku. Odgradzamy zjedzenie wymachu, nie jego korektę. Zmierzone różnice poniżej.
+    sprawdz(Math.abs(zakres(F[n]) - zakres(C[n])) < 6, `pełny potok nie zjada wymachu "${n}" (próg 6°)`, { przed: +zakres(C[n]).toFixed(1), po: +zakres(F[n]).toFixed(1) });
+  }
+  const fL = kor(F.ramieL, F.udoL), fP = kor(F.ramieP, F.udoP);
+  sprawdz(fL <= -0.80 && fP <= -0.80, 'po pełnym potoku ramię i udo nadal w przeciwfazie (próg −0,80)', { lewa: +fL.toFixed(3), prawa: +fP.toFixed(3) });
+}
+
+console.log('\n=== E. Blokada stóp: lewitacja, ślizg, prześwit (wady zgłoszone przez Piotra) ===');
+{
+  // Trzy wady z jednego zgłoszenia — „ślizgawica stóp", „lewitująca postać" — mają wspólną przyczynę
+  // geometryczną: nasze ciało ma biodro 973,0 mm, a nogę plus kostkę nad podeszwą 972,8 mm, czyli ZAPAS 0,3 mm.
+  // Przy kroku 0,66 m biodro musi opaść o ok. 48 mm, żeby stopa sięgnęła ziemi; stały offset tego nie robi.
+  const cialo = await wczytaj(CIALO);
+  let skin = null; cialo.scene.traverse(o => { if (o.isSkinnedMesh) skin = o; });
+  const idle = await wczytaj(ANIM + 'idle_sway.glb');
+  const P = przygotuj(idle.scene, cialo.scene, MAPA_ACCAD_MPFB, { klipOdniesienia: idle.animations[0], czasOdniesienia: 0 });
+  const pelvis = P.pary.find(w => w.cs === 'pelvis').c;
+  let szczyt = pelvis; while (szczyt.parent) szczyt = szczyt.parent;
+
+  const grupa = re => {
+    const geo = skin.geometry, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight;
+    const ids = new Set(skin.skeleton.bones.map((b, j) => re.test(b.name) ? j : -1).filter(j => j >= 0));
+    const out = [];
+    for (let v = 0; v < geo.attributes.position.count; v++) {
+      let w = 0;
+      for (const k of ['X', 'Y', 'Z', 'W']) if (ids.has(si[`get${k}`](v))) w += sw[`get${k}`](v);
+      if (w > 0.5) out.push(v);
+    }
+    return out;
+  };
+  const STOPY = [grupa(/^(foot_l|ball_l)$/), grupa(/^(foot_r|ball_r)$/)];
+  const RECE = [grupa(/^(hand_l|lowerarm_l)$/), grupa(/^(hand_r|lowerarm_r)$/)];
+  const TULOW = grupa(/^(pelvis|spine_0[123]|thigh_[lr])$/);
+  const wp = new THREE.Vector3();
+  const pkt = idx => { const a = []; for (const v of idx) { wp.fromBufferAttribute(skin.geometry.attributes.position, v); skin.applyBoneTransform(v, wp); wp.applyMatrix4(skin.matrixWorld); a.push(wp.clone()); } return a; };
+  // Otoczka wypukła przekroju tułowia — miara NIEZALEŻNA od modelu elips, którego używa odsunRece().
+  // Gdyby test mierzył tym samym modelem co poprawka, sprawdzałby wyłącznie sam siebie.
+  const otoczka = pts => {
+    const p = pts.map(v => [v.x, v.z]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    if (p.length < 3) return null;
+    const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const d = [], g = [];
+    for (const q of p) { while (d.length >= 2 && cr(d[d.length - 2], d[d.length - 1], q) <= 0) d.pop(); d.push(q); }
+    for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (g.length >= 2 && cr(g[g.length - 2], g[g.length - 1], q) <= 0) g.pop(); g.push(q); }
+    d.pop(); g.pop(); return d.concat(g);
+  };
+  const zanurzenie = (h, x, z) => {
+    if (!h) return -Infinity;
+    let m = Infinity;
+    for (let i = 0; i < h.length; i++) {
+      const a = h[i], b = h[(i + 1) % h.length], ex = b[0] - a[0], ez = b[1] - a[1];
+      const dd = (ex * (z - a[1]) - ez * (x - a[0])) / Math.hypot(ex, ez);
+      if (dd < m) m = dd;
+    }
+    return m;
+  };
+
+  const pliki = fs.readdirSync(ANIM).filter(x => x.endsWith('.glb')).sort();
+  console.log('  klip              podeszwa min/mediana [mm]  ślizg w podparciu [m/s]  prześwit machającej [mm]  ręka w tułowiu [mm]');
+  for (const f of pliki) {
+    const nazwa = f.replace('.glb', '');
+    const src = await wczytaj(ANIM + f);
+    const k = przenies({ zrodloRoot: src.scene, klip: src.animations[0], pary: P.pary, celRoot: cialo.scene, skala: P.skala, fps: 30 });
+    k.name = nazwa;
+    const petlowy = nazwa.startsWith('idle') || nazwa === 'walk_cycle';
+    let szewPrzed = 0;
+    for (const t of k.tracks) {
+      if (!t.name.endsWith('.quaternion')) continue;
+      const v = t.values, n = v.length / 4;
+      const a = new THREE.Quaternion(v[0], v[1], v[2], v[3]).normalize();
+      const b = new THREE.Quaternion(v[(n - 1) * 4], v[(n - 1) * 4 + 1], v[(n - 1) * 4 + 2], v[(n - 1) * 4 + 3]).normalize();
+      szewPrzed = Math.max(szewPrzed, a.angleTo(b) * 180 / Math.PI);
+    }
+    if (petlowy) zapetlij(k, { korzen: nazwa === 'walk_cycle' ? 'pion' : 'pelna' });
+    przyziem(k, skin, pelvis, { fps: 30 });
+    const ds = zablokujStopy(k, skin, pelvis, { przebiegi: true });
+    const dr = odsunRece(k, skin, pelvis);
+    const rk = wydzielRuchKorzenia(k, pelvis);
+
+    const czasy = k.tracks.find(t => t.name === 'pelvis.position').times, N = czasy.length;
+    const mix = new THREE.AnimationMixer(szczyt), akcja = mix.clipAction(k); akcja.play();
+    const off = new THREE.Vector3();
+    const wysoko = [], mied = [], poprz = [null, null];
+    let maxSlizg = 0, minPrzeswit = Infinity, najglebiej = 0, klatekWTulowiu = 0, najnizej = 0;
+    // idle_lookaround ma 479 klatek; kolizję rąk (otoczka na 2171 wierzchołkach) liczymy co czwartą,
+    // bo test ma się mieścić w kilkudziesięciu sekundach, a ręka nie wskakuje w biodro na jedną klatkę.
+    const coIle = N > 200 ? 4 : 1;
+    for (let i = 0; i < N; i++) {
+      mix.setTime(Math.min(k.duration - 1e-4, czasy[i]));
+      szczyt.updateMatrixWorld(true);
+      ruchKorzeniaW(rk, czasy[i], off);
+      mied.push(poz(pelvis).y * 1000);
+      let mn = Infinity;
+      for (let n = 0; n < 2; n++) {
+        const p = pkt(STOPY[n]);
+        let m = Infinity;
+        for (const v of p) if (v.y < m) m = v.y;
+        mn = Math.min(mn, m); najnizej = Math.min(najnizej, m * 1000);
+        const teraz = new Map();
+        p.forEach((v, j) => { if (v.y < m + 0.012) teraz.set(STOPY[n][j], [v.x + off.x, v.z + off.z]); });
+        if (poprz[n] && i > 0) {
+          let sx = 0, sz = 0, c = 0;
+          for (const [v, q] of teraz) { const r = poprz[n].get(v); if (r) { sx += q[0] - r[0]; sz += q[1] - r[1]; c++; } }
+          const vv = c ? Math.hypot(sx / c, sz / c) * 30 : 0;
+          if (ds.przebiegi.wagi[n][i] > 0.5) maxSlizg = Math.max(maxSlizg, vv);
+          else if (vv > 1.0) minPrzeswit = Math.min(minPrzeswit, m * 1000);
+        }
+        poprz[n] = teraz;
+      }
+      wysoko.push(mn * 1000);
+      if (i % coIle === 0) {
+        const tu = pkt(TULOW);
+        for (const g of RECE) {
+          let mx = -Infinity;
+          for (const v of pkt(g)) {
+            const pas = tu.filter(u => Math.abs(u.y - v.y) < 0.015);
+            const d = zanurzenie(otoczka(pas), v.x, v.z);
+            if (d > mx) mx = d;
+          }
+          najglebiej = Math.max(najglebiej, mx * 1000);
+          if (mx > 0) klatekWTulowiu++;
+        }
+      }
+    }
+    akcja.stop(); mix.uncacheClip(k);
+    const sort = wysoko.slice().sort((a, b) => a - b);
+    const mediana = sort[Math.floor(sort.length / 2)];
+    let szarp = 0;
+    for (let i = 2; i < N; i++) szarp = Math.max(szarp, Math.abs(mied[i] - 2 * mied[i - 1] + mied[i - 2]));
+    const kol = Math.max(...mied) - Math.min(...mied);
+    console.log(`  ${nazwa.padEnd(17)} ${najnizej.toFixed(1).padStart(6)} / ${mediana.toFixed(1).padStart(5)}          ${maxSlizg.toFixed(2).padStart(6)}                 ${(Number.isFinite(minPrzeswit) ? minPrzeswit.toFixed(1) : '—').padStart(6)}              ${najglebiej.toFixed(1).padStart(6)}`);
+
+    // Progi z pomiaru na TYCH plikach. Kalibracja każdej asercji to liczba, na której oblewa.
+    sprawdz(mediana < 3, `"${nazwa}": stopa stoi na ziemi (mediana podeszwy < 3 mm; bez korekty pionu per klatka było 0,7–36,7 mm, w chodzie 12,3)`, { mediana_mm: +mediana.toFixed(1) });
+    sprawdz(najnizej > -3, `"${nazwa}": stopa nie wchodzi pod bruk (próg −3 mm; bez ogranicznika przenikania wychodziło −7,9 mm)`, { najnizej_mm: +najnizej.toFixed(1) });
+    sprawdz(maxSlizg < 0.35, `"${nazwa}": stopa w podparciu nie ślizga się (próg 0,35 m/s; pierwsza wersja blokady dawała 3,04 m/s przy chodzie 1,20 m/s)`, { szczyt_ms: +maxSlizg.toFixed(2) });
+    if (Number.isFinite(minPrzeswit)) sprawdz(minPrzeswit > 8, `"${nazwa}": stopa machająca nie szoruje po ziemi (próg 8 mm; bez wymuszonego prześwitu spadało do 0,0 mm)`, { przeswit_mm: +minPrzeswit.toFixed(1) });
+    sprawdz(klatekWTulowiu === 0, `"${nazwa}": ręka nie wchodzi w tułów ani w udo (0 klatek; przed poprawką idle_sway miał 282 z 282, zanurzenie 48,3 mm)`, { klatek: klatekWTulowiu, najglebiej_mm: +najglebiej.toFixed(1) });
+    sprawdz(szarp < 8, `"${nazwa}": miednica nie szarpie w pionie (próg 8 mm/klatkę²; korekta bez wygładzania dawała 19,67)`, { szarpniecie: +szarp.toFixed(2), kolysanie_mm: +kol.toFixed(1) });
+    sprawdz(dr.maxKat.every(x => x < 12), `"${nazwa}": odsunięcie ręki jest małą poprawką (próg 12°; zmierzone maksimum 10,05° w idle_sway)`, { kat_st: dr.maxKat });
+    if (petlowy) {
+      // Klipy ACCAD to wycinki nagrania, nie zaprojektowane pętle. Zmierzone skoki na szwie PRZED domknięciem:
+      // idle_sway 11,75° (dłoń prawa), idle_arms 5,05°, idle_lookaround 3,54° — przy LoopRepeat postać
+      // co kilka sekund szarpie ręką.
+      let szewPo = 0;
+      for (const t of k.tracks) {
+        if (!t.name.endsWith('.quaternion')) continue;
+        const v = t.values, n = v.length / 4;
+        const a = new THREE.Quaternion(v[0], v[1], v[2], v[3]).normalize();
+        const b = new THREE.Quaternion(v[(n - 1) * 4], v[(n - 1) * 4 + 1], v[(n - 1) * 4 + 2], v[(n - 1) * 4 + 3]).normalize();
+        szewPo = Math.max(szewPo, a.angleTo(b) * 180 / Math.PI);
+      }
+      sprawdz(szewPo < 0.5, `"${nazwa}": klip grany w pętli domyka się (próg 0,5°; przed domknięciem idle_sway skakał o 11,75°)`, { przed_st: +szewPrzed.toFixed(2), po_st: +szewPo.toFixed(3) });
+    }
+    if (ds.cykliczny) {
+      // Klip zapętlony musi zamykać się co do bitu, inaczej blokada zostawia na szwie skok o tyle poślizgu,
+      // ile uzbierała faza podparcia przechodząca przez koniec klipu.
+      // Porównujemy SKŁADOWE, nie Quaternion.angleTo — ta liczy 2·acos(|dot|), a dla kwaternionu zapisanego
+      // we float32 |q|² odbiega od 1 o ~1e−7, co daje 0,04° na DWÓCH IDENTYCZNYCH wartościach. Pierwsza wersja
+      // tej asercji oblewała właśnie na tym artefakcie, nie na wadzie klipu.
+      let szew = 0;
+      for (const nazwaK of ['thigh_r', 'calf_r', 'foot_r']) {
+        const t = k.tracks.find(x => x.name === nazwaK + '.quaternion').values, n = t.length / 4;
+        for (let c = 0; c < 4; c++) szew = Math.max(szew, Math.abs(t[(n - 1) * 4 + c] - t[c]));
+      }
+      sprawdz(szew < 1e-6, `"${nazwa}": klip zapętlony zamyka się co do bitu na kościach nóg (próg 1e−6 na składowej kwaternionu)`, { szew });
+    }
+    if (nazwa === 'walk_cycle') {
+      sprawdz(kol >= 25 && kol <= 60, 'cykl chodu: po korekcie pion miednicy nadal 25–60 mm (geometria wymusza opad ok. 48 mm przy kroku 0,66 m)', { kolysanie_mm: +kol.toFixed(1) });
+      // KULAWIZNA. Pion miednicy ma w cyklu DWA szczyty, po jednym na krok, i powinny być równe. Prawa podeszwa
+      // siedzi w retargecie 4,3 mm wyżej niż lewa, więc pion prowadzony raz jedną, raz drugą stopą modulował się
+      // z częstotliwością kroku: rozrzut szczytów rósł z 15,2 mm (sam mocap) do 27,3 mm. Po wyrównaniu stóp 17,3.
+      const okres = N - 1, gm = x => mied[((x % okres) + okres) % okres];
+      const szczyty = [];
+      for (let x = 0; x < okres; x++) if (gm(x) > gm(x - 1) && gm(x) >= gm(x + 1)) szczyty.push(gm(x));
+      const rozrzut = szczyty.length > 1 ? Math.max(...szczyty) - Math.min(...szczyty) : 0;
+      sprawdz(szczyty.length === 2, 'cykl chodu: pion miednicy ma dokładnie dwa szczyty, po jednym na krok', { szczytow: szczyty.length });
+      sprawdz(rozrzut < 20, 'cykl chodu: postać nie utyka (rozrzut szczytów pionu < 20 mm; bez wyrównania stóp wychodziło 27,3, sam mocap ma 15,2)', { rozrzut_mm: +rozrzut.toFixed(1) });
+    }
+  }
 }
 
 console.log(`\n${bledy === 0 ? 'OK' : 'FAIL'} — błędów: ${bledy}, uwag: ${ostrzezenia}`);

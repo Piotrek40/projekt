@@ -4,10 +4,11 @@
 // przeniesienie jest poprawne — nie mówią, czy chód wygląda jak chód.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { przygotuj, przenies, przyziem, wydzielRuchKorzenia, MAPA_ACCAD_MPFB } from '../engine/src/retarget.js';
+import { przygotuj, przenies, przyziem, zapetlij, zablokujStopy, odsunRece, wydzielRuchKorzenia, MAPA_ACCAD_MPFB } from '../engine/src/retarget.js';
 
 const el = id => document.getElementById(id);
 const KLIPY = ['walk_cycle', 'idle_sway', 'idle_lookaround', 'idle_arms', 'stand_to_walk', 'walk_to_stand'];
+const PETLOWE = new Set(['walk_cycle', 'idle_sway', 'idle_lookaround', 'idle_arms']);
 
 const scena = new THREE.Scene();
 scena.background = new THREE.Color(0x1b1a17);
@@ -32,7 +33,9 @@ siatka.position.y = 0.002; scena.add(siatka);
 
 const kamera = new THREE.PerspectiveCamera(40, 1, 0.05, 60);
 let yaw = 1.35, obracaj = false, wMiejscu = true, aktualny = 'walk_cycle';
+let kamR = 3.6, kamY = 1.05, kamCel = 0.92;   // ustawiane też z harnessu renderu — do oglądania samych stóp
 let mieszacz = null, akcje = {}, klipy = {}, ruchy = {}, npc = null, pelvis = null;
+const diagStopy = {}, diagRece = {};
 
 const renderer = new THREE.WebGLRenderer({ canvas: el('c'), antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -61,7 +64,11 @@ const wczytaj = url => new Promise((res, rej) => loader.load(url, res, undefined
   for (let i = 0; i < KLIPY.length; i++) {
     const k = przenies({ zrodloRoot: zrodla[i].scene, klip: zrodla[i].animations[0], pary: przyg.pary, celRoot: cialo.scene, skala: przyg.skala, fps: 30 });
     k.name = KLIPY[i];
+    // Klipy grane w pętli muszą się domykać — mocap ACCAD skacze na szwie o 3,5–11,75°.
+    if (PETLOWE.has(KLIPY[i])) zapetlij(k, { korzen: KLIPY[i] === 'walk_cycle' ? 'pion' : 'pelna' });
     przyziem(k, skin, pelvis, { fps: 30 });   // najniższy wierzchołek stopy na wysokość podłogi
+    diagStopy[KLIPY[i]] = zablokujStopy(k, skin, pelvis);   // pion miednicy per klatka + IK blokujące poślizg
+    diagRece[KLIPY[i]] = odsunRece(k, skin, pelvis);        // ramię odchylone tak, by dłoń wyszła z biodra
     ruchy[KLIPY[i]] = wydzielRuchKorzenia(k, pelvis);
     klipy[KLIPY[i]] = k;
   }
@@ -75,10 +82,16 @@ const wczytaj = url => new Promise((res, rej) => loader.load(url, res, undefined
   }
   akcje[aktualny].play();
 
-  const odch = Math.max(...przyg.diag.odchylkaPo.map(x => x[1]));
+  // Odchyłkę liczymy TYLKO na kościach faktycznie dopasowywanych (ręce). Maksimum po wszystkich kościach
+  // to 24,7° i wygląda jak wada, a jest zamierzone: reszta szkieletu ma ZACHOWAĆ własną geometrię.
+  const dopasowane = new Set(przyg.diag.dopasowane);
+  const odch = Math.max(...przyg.diag.odchylkaPo.filter(x => dopasowane.has(x[0])).map(x => x[1]));
   const v = ruchy.walk_cycle.droga / klipy.walk_cycle.duration;
+  const ds = diagStopy.walk_cycle, dr = diagRece.walk_cycle;
   el('info').innerHTML = `${przyg.pary.length} par kości · dopasowanie ${odch.toFixed(3)}° · skala ${przyg.skala.toFixed(3)}`
-    + `<br><small>cykl chodu ${klipy.walk_cycle.duration.toFixed(3)} s · krok ${ruchy.walk_cycle.droga.toFixed(3)} m · <b>${v.toFixed(3)} m/s</b></small>`;
+    + `<br><small>cykl chodu ${klipy.walk_cycle.duration.toFixed(3)} s · krok ${ruchy.walk_cycle.droga.toFixed(3)} m · <b>${v.toFixed(3)} m/s</b></small>`
+    + `<br><small>stopy: podparcie ${ds.fazy.map(f => f.noga + ' ' + f.klatek).join(' / ')} kl. z ${ds.klatek} · korekta pionu do ${ds.korektaPionu[1]} mm`
+    + ` · ręce odsunięte o ${dr.maxKat.map(k => k.toFixed(1) + '°').join(' / ')}</small>`;
   renderer.compile(scena, kamera);
 })().catch(e => { el('info').textContent = 'BŁĄD ładowania: ' + e.message; });
 
@@ -118,8 +131,8 @@ function petla(now) {
   const w = el('c').clientWidth, h = el('c').clientHeight;
   if (el('c').width !== Math.round(w * renderer.getPixelRatio())) { renderer.setSize(w, h, false); kamera.aspect = w / h; kamera.updateProjectionMatrix(); }
   const cel = npc ? npc.position : new THREE.Vector3();
-  kamera.position.set(cel.x + Math.sin(yaw) * 3.6, 1.05, cel.z + Math.cos(yaw) * 3.6);
-  kamera.lookAt(cel.x, 0.92, cel.z);
+  kamera.position.set(cel.x + Math.sin(yaw) * kamR, kamY, cel.z + Math.cos(yaw) * kamR);
+  kamera.lookAt(cel.x, kamCel, cel.z);
   renderer.render(scena, kamera);
 
   klatki++; acc += dt; czasy.push(dt * 1000);
@@ -140,3 +153,4 @@ window.__klip = n => { if (!mieszacz) return; akcje[aktualny].stop(); akcje[n].r
 window.__czas = t => { if (mieszacz) mieszacz.setTime(t); };
 window.__yaw = v => { yaw = v; obracaj = false; };
 window.__wMiejscu = v => { wMiejscu = v; npc.position.set(0, 0, 0); };
+window.__kamera = (r, y, cel) => { kamR = r; kamY = y; kamCel = cel; };
