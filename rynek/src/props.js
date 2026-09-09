@@ -182,15 +182,29 @@ export function buildCart(W) {
       const wheel = new THREE.TorusGeometry(0.62, 0.06, 8, 20); wheel.rotateY(Math.PI / 2);
       B.add('timber', wheel, L(0.3, 0.62, sz * 0.72));
       for (let k = 0; k < 6; k++) B.add('timber', box(0.05, 1.2, 0.05, T.timber.mpt), L(0.3, 0.62, sz * 0.72, 0, k * Math.PI / 6, 0)); // rot: rx=k·π/6 → szprycha (0,1,0) obraca się w płaszczyźnie y-z koła: k=1 → (0, 0.866, 0.5)
-      B.add('timber', box(0.14, 0.14, 1.6, T.timber.mpt), L(0.3, 0.62, 0));
     }
+    B.add('timber', box(0.14, 0.14, 1.6, T.timber.mpt), L(0.3, 0.62, 0));   // oś: JEDNA, poza pętlą po kołach (wcześniej ta sama bryła lądowała w batchu dwa razy w tym samym miejscu)
     for (const sz of [-1, 1]) B.add('timber', box(2.2, 0.1, 0.1, T.timber.mpt), L(-2.2, 0.75, sz * 0.4, 0, 0, 0.08)); // rot: rz=+0.08 → koniec +x (przy wozie) w GÓRĘ: (1,0,0)→(0.997,0.08,0); końce w świecie y 0.662 (czubek) / 0.838 (przy wozie)
     ctx.addCircle(x, z, Ct.collideR);
     const shaft = new THREE.Vector3().setFromMatrixPosition(L(Ct.shaft.lx, 0, 0));   // koło pod dyszlem (§3.4 B6: czubek 2,24 m od koła wozu r 1,5 — gracz wchodził w dyszel)
     ctx.addCircle(shaft.x, shaft.z, Ct.shaft.r); W.dbgCircle?.(shaft.x, shaft.z, Ct.shaft.r);
     for (const sz of [-1, 1]) checkCollisionCovers('dyszel wozu', bboxOf(box(2.2, 0.1, 0.1), L(-2.2, 0.75, sz * 0.4, 0, 0, 0.08)), { x: shaft.x, z: shaft.z, r: Ct.shaft.r }); // rot: rz=+0.08 jak belka wyżej (ta sama macierz)
-    put('wooden_crate_01', x + 0.2, 0.94, z, ry, 0.8, { collide: false });
-    put('wicker_basket_01', x - 0.7, 0.94, z + 0.2, ry + 1, 0.9, { collide: false });
+    // Rekwizyty w skrzyni liczone przez MACIERZ WOZU (§3.1), nie przesunięciami w metrach świata. Przy ry = 0,9 + π
+    // światowe (−0,7; +0,2) dawały lokalne (0,592; 0,424), a wnętrze burty kończy się na |lz| = 0,54 — kosz przechodził
+    // deskę burty na wylot i był widoczny na jej ZEWNĘTRZNEJ stronie (zrzut z telefonu).
+    for (const [nazwa, lx, lz, dry, sc] of [['wooden_crate_01', 0.5, -0.2, 0, 0.8], ['wicker_basket_01', -0.6, 0.25, 1, 0.9]]) {
+      const q = new THREE.Vector3().setFromMatrixPosition(L(lx, 0, lz));
+      const bb = W.bounds.get(nazwa);
+      // Obrys po obrocie o dry wokół y: półzasięgi rzutują się na siebie przez |cos| i |sin| (nie max z boków — to zawyżało).
+      const hx = (bb.max.x - bb.min.x) / 2 * sc, hz = (bb.max.z - bb.min.z) / 2 * sc;
+      const c = Math.abs(Math.cos(dry)), si = Math.abs(Math.sin(dry));
+      const rx = c * hx + si * hz, rz = si * hx + c * hz;
+      // Test offline nie ładuje modeli i podstawia jednostkową bryłę (0,0,0)–(1,1,1) — wtedy asercja mierzyłaby zaślepkę,
+      // więc jej nie liczymy. W przeglądarce bryły są prawdziwe i asercja działa; to tam widać było kosz przez burtę.
+      const zaslepka = bb.min.x === 0 && bb.min.y === 0 && bb.min.z === 0 && bb.max.x === 1 && bb.max.y === 1 && bb.max.z === 1;
+      if (!zaslepka) check(Math.abs(lz) + rz <= 0.52 && Math.abs(lx) + rx <= 1.12, `wóz: ${nazwa} wystaje poza wnętrze skrzyni (burta na |lz| = 0,54)`, { lx, lz, rx, rz });
+      put(nazwa, q.x, 0.94, q.z, ry + dry, sc, { collide: false });
+    }
     if (!ctx.flags.nocart2) checkCartPlacement(W, { x, z, ry }, L);
   }
   // drewno na pierwszym planie startu (beczka przy latarni, kosz obok) — put() sam dodaje koła kolizji (r > 0,3 → 0,9·r; kosz mniejszy bez koła)
@@ -238,7 +252,10 @@ export function buildBanners(W) {
     const tilt = new THREE.Matrix4().makeRotationX(0.35);
     B.add('iron', cylinder(0.03, 0.03, 1.6, 6, 1), base.clone().multiply(tilt).multiply(new THREE.Matrix4().makeTranslation(0, 0.8, 0)));
     const top = new THREE.Vector3(0, 1.6, 0).applyMatrix4(base.clone().multiply(tilt));
-    B.add('banner' + (i % bannerMats.length), plane(0.9, 1.6, 1), M4(top.x, top.y - 0.85, top.z, t.ry));
+    // PlaneGeometry, NIE plane(): plane() skaluje UV przez rozmiar/mpt, więc przy mpt 1 wychodziło UV 0..0,90 × 0..1,60,
+    // a tekstura herbu jest ClampToEdge — prawdziwy obraz dostawało 62 % płótna, GÓRNE 38 % było zaciśniętym górnym wierszem
+    // canvasu, a 10 % szerokości herbu nie pokazywało się nigdy. To ta sama pułapka, która zrobiła białą płytę pod kramem.
+    B.add('banner' + (i % bannerMats.length), new THREE.PlaneGeometry(0.9, 1.6), M4(top.x, top.y - 0.85, top.z, t.ry));
   }
   if (!W.ctx.flags.nosign) { buildSigns(W); return; }
   // ?nosign=1: szyld karczmy z HEAD (pierwszy dom po prawej od ulicy południowej) — jedna macierz na obiekt zamiast łańcucha multiply (K3; wynik identyczny:

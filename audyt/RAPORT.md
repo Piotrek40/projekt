@@ -311,6 +311,20 @@ namalowane na ścianie. Test B5 tego nie łapał, bo wymaga styku z „jakimkolw
 
 `houseDetail.timber.braceLen` = 0,95 (zakres dopuszczalny 0,89–0,98). Po zmianie: **0 zastrzałów bez styku**. Koszt: 0 draw calls, 0 trójkątów.
 
+### Druga tura napraw z rundy krytyki: chorągwie, wóz, asercja UV na całą scenę
+
+| co | dowód | naprawa |
+|---|---|---|
+| **Chorągwie i flagi gubiły część herbu** — 38 % wysokości chorągwi i 17 % szerokości flagi iglicy to był rozciągnięty brzeg mapy | `plane(0.9, 1.6, 1)` daje UV 0…0,90 × 0…1,60, a tekstura herbu (`CanvasTexture`) ma domyślne ClampToEdge | goła `PlaneGeometry` (UV 0…1 natywnie) w `props.js` i dwóch miejscach `tower.js` |
+| **Kosz przechodził burtę wozu na wylot** i był widoczny na jej ZEWNĘTRZNEJ stronie | `put('wicker_basket_01', x − 0.7, …, z + 0.2, …)` — przesunięcia w metrach ŚWIATA, nie przez `L()` wozu. Przy `cart.ry = 0,9 + π` dawało to lokalne (0,592; 0,424), a wnętrze burty kończy się na \|lz\| = 0,54 | pozycje liczone macierzą wozu + asercja: `\|lz\| + rz ≤ 0,52` i `\|lx\| + rx ≤ 1,12`, z obrysem rzutowanym przez \|cos\|/\|sin\| kąta obrotu rekwizytu |
+| **Zdublowana oś wozu** — ta sama bryła trafiała do batcha dwa razy w identycznym miejscu | `box(0.14, 0.14, 1.6)` stało WEWNĄTRZ pętli `for (const sz of [-1, 1])` | linia wyjęta przed pętlę (−12 trójkątów) |
+
+**Asercja klasowa zamiast trzech łatek.** Ta sama pomyłka (`plane()` skaluje UV przez rozmiar/mpt, a tekstura jest ClampToEdge)
+dała już trzy różne wady: białą płytę pod kramem, chorągwie i flagi. Zamiast poprawiać kolejne miejsca po jednym, `world.js`
+sprawdza teraz **przed `B.build`** każdy klucz Batcha: jeśli materiał ma teksturę zaciskaną do krawędzi, UV geometrii nie może
+wychodzić poza 0…1. **Kalibracja:** po cofnięciu jednej chorągwi do starego kodu asercja zgłasza 4 klucze z UV 1,60 —
+po naprawie `errors: []`. Asercja, której się nie widziało oblewającej, jest bezwartościowa, więc ta została sprawdzona w obie strony.
+
 ### Świadome ograniczenia
 
 - **Wariant inline (Artifact) nie dostaje modelu.** Strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model z mapą AO to ok. 0,5 MB. Tam zostaje kram proceduralny; Pages i wersja lokalna mają model.

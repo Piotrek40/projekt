@@ -31,7 +31,7 @@ function buildSquareTower(W) {
     { const uv = roofG.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * tw * 2 / T.roof.mpt, uv.getY(i) * rh / T.roof.mpt); }
     B.place('roofTower', roofG, tx, th + rh / 2, tz);
     B.place('iron', cylinder(0.05, 0.05, 2.2, 6, 1), tx, th + rh + 1.0, tz);
-    B.place('banner2', plane(1.4, 0.9, 1), tx + 0.7, th + rh + 1.6, tz);
+    B.place('banner2', new THREE.PlaneGeometry(1.4, 0.9), tx + 0.7, th + rh + 1.6, tz);   // PlaneGeometry: UV 0..1 (plane() dawało 0..1,4 i tekstura ClampToEdge gubiła 29 % herbu)
     // zadaszone wejście
     B.place('blocks', box(2.2, 0.4, 1.4, T.blocks.mpt), tx, 3.0, tz + tw / 2 + 0.6);
     B.place('door', box(1.6, 2.8, 0.1, 1.6), tx, 1.4, tz + tw / 2 + 0.03);
@@ -139,7 +139,7 @@ export function buildTower(W) {
   const spireTopY = apexY + t.spireH;
   B.place('iron', cylinder(0.04, 0.08, t.spireH, 6, 1), tx, apexY + t.spireH / 2, tz);   // pręt 8 → 4 cm
   B.place('iron', new THREE.SphereGeometry(t.ballR, 8, 6), tx, apexY + t.ballR, tz);
-  B.place('banner2', plane(t.flag.w, t.flag.h, 1), tx + t.flag.w / 2 + 0.05, spireTopY - t.flag.h / 2 - 0.1, tz);   // płótno od pręta w +x, 0,1 m pod szczytem
+  B.place('banner2', new THREE.PlaneGeometry(t.flag.w, t.flag.h), tx + t.flag.w / 2 + 0.05, spireTopY - t.flag.h / 2 - 0.1, tz);   // PlaneGeometry: UV 0..1 (plane() dawało 0..1,2 × 0..0,8 — prawe 17 % flagi to zaciśnięta krawędź)   // płótno od pręta w +x, 0,1 m pod szczytem
   check(Math.abs(spireTopY - 36) < 0.01, 'szczyt iglicy nie na 36 m', { spireTopY });   // 24 + 9 + 3 (słownik skali §3.7)
   // portal S: oprawa łukowa (łuk nad drzwiami odsłania mur), drzwi 1,6 × 2,8 przodem 7 cm przed licem
   {

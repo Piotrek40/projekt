@@ -17,7 +17,7 @@ import { buildTrees } from './trees.js';
 import { buildGreenery } from './greenery.js';
 import { buildSkyline } from './skyline.js';
 import { initUI } from './ui.js';
-import { checksEnabled, checkNoCoplanar } from '../../engine/src/check.js';
+import { checksEnabled, checkNoCoplanar, check } from '../../engine/src/check.js';
 import { initDebug } from './debug.js';
 import { buildLineup } from './lineup.js';
 
@@ -64,6 +64,19 @@ export async function buildWorld(ctx) {
   // bez `wet` (scalenie torów A/B): mokry bruk (fountain.js) to dysk r 4,6 + pierścień 4,6–5,2 na tym samym y — powierzchnie się NIE nakładają,
   // ale checkNoCoplanar porównuje AABB (pierścień ma AABB pokrywające dysk) → fałszywy FAIL; nachodzenie pilnuje check „rFull poza (schodek, r)" w fountain.js
   for (const [key, geos] of W.B.groups) if (/^(cloth|banner|glass|sign|clock|bunting|jet)/.test(key)) checkNoCoplanar(key, geos);
+  // UV poza zakresem 0..1 na materiale z teksturą ZACISKANĄ DO KRAWĘDZI (ClampToEdge) = cała powierzchnia poza pierwszym
+  // kafelkiem dostaje rozciągnięty brzeg mapy zamiast obrazu. Ta jedna pomyłka dała już: białą płytę pod kramem (decal
+  // `contact` — 97 % powierzchni z brzegu mapy) oraz chorągwie i flagi, w których 38 % / 17 % płótna to zaciśnięty pasek.
+  // Źródło pomyłki jest zawsze to samo: plane(w, h, mpt) skaluje UV przez rozmiar/mpt, a te płótna mają pokazać JEDEN obraz,
+  // nie kafelkować — czyli potrzebują gołej PlaneGeometry. Asercja pilnuje tego dla każdego klucza w Batchu.
+  for (const [key, geos] of W.B.groups) {
+    const m = W.mat[key]; if (!m) continue;
+    const tex = m.map ?? m.alphaMap; if (!tex || tex.wrapS !== THREE.ClampToEdgeWrapping || tex.wrapT !== THREE.ClampToEdgeWrapping) continue;
+    let umax = 0, vmax = 0;
+    for (const g of geos) { const uv = g.attributes?.uv; if (!uv) continue;
+      for (let i = 0; i < uv.count; i++) { umax = Math.max(umax, uv.getX(i)); vmax = Math.max(vmax, uv.getY(i)); } }
+    check(umax <= 1 + 1e-6 && vmax <= 1 + 1e-6, `${key}: UV sięga ${umax.toFixed(2)} × ${vmax.toFixed(2)} przy teksturze ClampToEdge — poza 0..1 widać rozciągnięty brzeg mapy, nie obraz`, { umax, vmax });
+  }
   W.B.build(W.mat, W.scene, { noShadow: new RegExp(CONFIG.noShadowKeys), renderOrder: CONFIG.renderOrderKeys }); // klucze bez cienia (§8 #17): CONFIG.noShadowKeys; kolejność przezroczystych (motyw #8): CONFIG.renderOrderKeys
   buildSmoke(W);
   initUI(W);          // UI po zbudowaniu świata (podpisy miejsc czytają W)
