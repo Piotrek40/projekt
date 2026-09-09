@@ -548,59 +548,93 @@ MW = np.array(obj.matrix_world.to_4x4())
 VW = VCO @ MW[:3, :3].T + MW[:3, 3]
 
 
-def axis_centering(bn, nsamp=5):
+# wierzcholki nalezace do konkretnej kosci: waga > 0.5 w jej grupie.
+# Bez tego ograniczenia plaster prostopadly do kosci lapie druga noge i tulow,
+# co dawalo bezsensowny "promien uda" 150 mm i offset 330 mm.
+VG_BY_NAME = {vg.name: vg.index for vg in obj.vertex_groups}
+OWNED = {}
+for _v in obj.data.vertices:
+    for _g in _v.groups:
+        if _g.weight > 0.5 and _g.group in DEFORM_IDX:
+            OWNED.setdefault(_g.group, []).append(_v.index)
+            break
+
+
+def axis_centering_shift(bn, shift, nsamp=5):
     b = arm.data.bones[bn]
-    h = np.array(mw_arm @ b.head_local)
-    tl = np.array(mw_arm @ b.tail_local)
+    gi = VG_BY_NAME.get(bn)
+    if gi is None or gi not in OWNED:
+        return None
+    P = VW[np.array(OWNED[gi])]
+    h = np.array(mw_arm @ b.head_local) + shift
+    tl = np.array(mw_arm @ b.tail_local) + shift
     ax = tl - h
     L = np.linalg.norm(ax)
-    if L < 1e-9:
-        return None
     ax = ax / L
-    slab = max(0.010, L * 0.10)
+    slab = max(0.008, L * 0.09)
     out = []
-    for f in np.linspace(0.15, 0.85, nsamp):
+    for f in np.linspace(0.25, 0.75, nsamp):
         p = h + ax * (L * f)
-        d = VW - p
+        d = P - p
         t = d @ ax
         sel = np.abs(t) < slab
         if sel.sum() < 12:
             continue
         perp = d[sel] - np.outer(t[sel], ax)
-        r = np.linalg.norm(perp, axis=1)
-        # tylko wierzcholki blizsze niz 2.2x mediana promienia: odcina tulow,
-        # gdy plaster kosci ramienia lapie zebra
-        keep = r < 2.2 * np.median(r)
-        if keep.sum() < 12:
+        c = perp.mean(axis=0)
+        rad = np.linalg.norm(perp - c, axis=1).mean()
+        if rad < 1e-6:
             continue
-        pc = perp[keep]
-        c = pc.mean(axis=0)
-        rad = np.linalg.norm(pc - c, axis=1).mean()
-        out.append((np.linalg.norm(c), rad))
+        out.append((np.linalg.norm(c), rad, int(sel.sum())))
     if not out:
         return None
     off = np.array([o[0] for o in out])
     rad = np.array([o[1] for o in out])
-    return off.max() * 1000.0, rad.mean() * 1000.0, (off / rad).max()
+    return off.max() * 1000.0, rad.mean() * 1000.0, (off / rad).max(), min(o[2] for o in out)
+
+
+def axis_centering(bn, nsamp=5):
+    return axis_centering_shift(bn, np.zeros(3), nsamp)
 
 
 log("\ncentrowanie osi kosci w konczynie (offset od srodka przekroju / promien):")
-log("%-12s %12s %12s %10s" % ("kosc", "max_off_mm", "sr_prom_mm", "off/prom"))
-CENTER_LIMBS = ["thigh_l", "calf_l", "upperarm_l", "lowerarm_l",
-                "thigh_r", "calf_r", "upperarm_r", "lowerarm_r", "neck_01"]
-CENTER_MAX = 0.40
+log("%-12s %12s %12s %10s %8s" % ("kosc", "max_off_mm", "sr_prom_mm", "off/prom", "n_min"))
+# Metryka zaklada, ze kosc siedzi w RURZE. To prawda dla segmentow konczyn.
+# Nie jest prawda dla spine_03 (wlasciciel calej klatki piersiowej, jej srodek
+# masy lezy daleko od linii kregoslupa -> 1.33), head (czaszka, 1.42) ani
+# neck_01 (pierscien z 16 wierzcholkow siegajacy podbrodka -> 2.12). Te trzy
+# kosci sa wylaczone z asercji SWIADOMIE, nie dlatego, ze "oblewaja".
+#
+# PROG 0.65 wyznaczony pomiarem, nie na oko (cal4_centering.py):
+#   rig rzeczywisty, 6 segmentow konczyn + stopa + dlon: 0.233 .. 0.544
+#   ta sama kosc przesunieta o 30 mm w bok lub w przod:  0.688 .. 0.912
+#   przesunieta o 20 mm:                                 0.229 .. 0.674  <- za malo
+# Czulosc testu: lapie przesuniecie kosci >= 30 mm, nie lapie <= 20 mm.
+# "Kosc uda konczaca sie 5 cm od kolana" (50 mm) daje 0.84..1.09 - zlapane.
+CENTER_LIMBS = ["thigh_l", "calf_l", "upperarm_l", "lowerarm_l", "foot_l", "hand_l",
+                "thigh_r", "calf_r", "upperarm_r", "lowerarm_r", "foot_r", "hand_r"]
+CENTER_INFO_ONLY = ["neck_01", "spine_03", "head"]
+CENTER_MAX = 0.65
 bad_center = []
+center_res = {}
 for bn in CENTER_LIMBS:
     r = axis_centering(bn)
     if r is None:
         log("%-12s  (za malo wierzcholkow w plastrze)" % bn)
         continue
-    log("%-12s %12.1f %12.1f %10.3f" % (bn, r[0], r[1], r[2]))
+    center_res[bn] = r
+    log("%-12s %12.1f %12.1f %10.3f %8d" % (bn, r[0], r[1], r[2], r[3]))
     if r[2] > CENTER_MAX:
         bad_center.append((bn, round(r[2], 3)))
 log("kosci biegnace poza srodkiem (off/prom > %.2f): %s" % (CENTER_MAX, bad_center or "brak"))
 assert not bad_center, "kosci nie biegna srodkiem konczyny: %s" % bad_center
 log("OK: wszystkie %d kosci konczyn biegna srodkiem konczyny" % len(CENTER_LIMBS))
+log("(poza asercja, zalozenie 'rury' nie obowiazuje):")
+for bn in CENTER_INFO_ONLY:
+    r = axis_centering(bn)
+    if r:
+        log("   %-10s off/prom=%.3f  off=%.1f mm  prom=%.1f mm  n=%d"
+            % (bn, r[2], r[0], r[1], r[3]))
 
 # ---- proporcje antropometryczne (Drillis & Contini, ulamki wzrostu H) -----
 log("\nproporcje wzgledem wzrostu %.4f m (odniesienie: Drillis & Contini 1966)" % H_POST)
@@ -624,6 +658,107 @@ for label, (bn, end, ref) in ZREF.items():
     p = mw_arm @ (b.head_local if end == "head" else b.tail_local)
     frac = (p.z - mn_post[2]) / H_POST
     log("%-26s %7.4f  wzorzec %7.4f  delta %+7.4f" % (label, frac, ref, frac - ref))
+
+# ===========================================================================
+# 9d. SAMOKALIBRACJA ASERCJI
+#
+# Asercja, ktorej nigdy nie widzialem oblewajacej, nic nie znaczy. Kazda
+# asercja z sekcji 5/8/9 jest tu puszczana na DANYCH ZLYCH i MUSI oblac.
+# Uruchamia sie przy kazdym buildzie, wiec test nie moze zgnic.
+# ===========================================================================
+hdr("9d. samokalibracja: kazda asercja na zlych danych MUSI oblac")
+
+CAL = []
+
+
+def must_fail(name, fn, expect_hint):
+    try:
+        fn()
+    except AssertionError as e:
+        CAL.append((name, "OBLALA (dobrze)", str(e)[:110]))
+        log("  [PASS] %-38s oblala na: %s" % (name, expect_hint))
+        return
+    CAL.append((name, "PRZESZLA NA ZLYCH DANYCH", expect_hint))
+    raise AssertionError("ASERCJA-TAUTOLOGIA: '%s' nie oblala na %s" % (name, expect_hint))
+
+
+# --- (1) wzrost: figura neutralna (domyslne makro) musi oblac ---------------
+_neutral = HumanService.create_human()      # macro_detail_dict=None -> same 0.5
+_nb = evaluated_body_bbox(_neutral)
+H_NEUTRAL = _nb[2][2] - _nb[1][2]
+log("  figura neutralna (wszystkie makra 0.5): wzrost %.4f m" % H_NEUTRAL)
+must_fail("wzrost == 1,80 m +/- 0,02",
+          lambda: (_ for _ in ()).throw(AssertionError("neutral %.4f" % H_NEUTRAL))
+          if abs(H_NEUTRAL - TARGET_HEIGHT_M) >= HEIGHT_TOL_M else None,
+          "figurze neutralnej %.4f m" % H_NEUTRAL)
+bpy.data.objects.remove(_neutral, do_unlink=True)
+
+# --- (2) glebokosc stawu: kosc wypchnieta 120 mm w bok musi oblac -----------
+_b = arm.data.bones["thigh_l"]
+_shifted = mw_arm @ _b.head_local + mathutils.Vector((0.120, 0, 0))
+_d, _ = depth_mm(_shifted)
+log("  thigh_l.head przesunieta o 120 mm w bok: glebokosc %+.1f mm" % _d)
+must_fail("staw >= 5 mm pod skora",
+          lambda: (_ for _ in ()).throw(AssertionError("%.1f mm" % _d))
+          if _d > -JOINT_MIN_DEPTH_MM else None,
+          "kosci wypchnietej 120 mm w bok (%.1f mm)" % _d)
+
+# --- (3) centrowanie: kosc przesunieta o 30 mm musi oblac -------------------
+_bad = {}
+for _bn in ["thigh_l", "calf_l", "upperarm_l", "lowerarm_l"]:
+    _sh = axis_centering_shift(_bn, np.array([0.030, 0.0, 0.0]))
+    _bad[_bn] = round(_sh[2], 3)
+log("  off/prom po przesunieciu kosci o 30 mm w bok: %s" % _bad)
+log("  off/prom rig rzeczywisty:                     %s"
+    % {k: round(center_res[k][2], 3) for k in _bad})
+must_fail("off/prom <= %.2f" % CENTER_MAX,
+          lambda: (_ for _ in ()).throw(AssertionError(str(_bad)))
+          if max(_bad.values()) > CENTER_MAX else None,
+          "rigu z kosciami przesunietymi o 30 mm (max %.3f)" % max(_bad.values()))
+
+# --- (4) material: doubleSided/BLEND/alphaClip musi oblac ------------------
+_m2 = bpy.data.materials.new("cal_bad_skin")
+_m2.use_nodes = True
+_m2.use_backface_culling = False
+if hasattr(_m2, "blend_method"):
+    try:
+        _m2.blend_method = 'BLEND'
+    except Exception:
+        pass
+_obj2 = obj.copy()
+_obj2.data = obj.data.copy()
+_obj2.data.materials.clear()
+_obj2.data.materials.append(_m2)
+bpy.context.scene.collection.objects.link(_obj2)
+for _o in bpy.context.scene.objects:
+    _o.select_set(False)
+_obj2.select_set(True)
+bpy.context.view_layer.objects.active = _obj2
+_badglb = os.path.join(WORK, "cal_bad_material.glb")
+bpy.ops.export_scene.gltf(filepath=_badglb, export_format='GLB', use_selection=True,
+                          export_skins=False, export_morph=False, export_yup=True,
+                          export_apply=False, export_materials='EXPORT',
+                          export_animations=False, export_texcoords=False)
+_GB, _, _ = glb_json(_badglb)
+_MB = _GB["materials"][0]
+log("  material kontrolny w GLB: %s" % json.dumps(_MB, sort_keys=True))
+must_fail("material OPAQUE + doubleSided=false",
+          lambda: (_ for _ in ()).throw(AssertionError(json.dumps(_MB)))
+          if (_MB.get("doubleSided", False) or _MB.get("alphaMode", "OPAQUE") != "OPAQUE")
+          else None,
+          "materiale doubleSided/BLEND (doubleSided=%s alphaMode=%s)"
+          % (_MB.get("doubleSided", False), _MB.get("alphaMode", "OPAQUE")))
+bpy.data.objects.remove(_obj2, do_unlink=True)
+
+# --- (5) liczba jointow: eksport bez skinow musi oblac ---------------------
+log("  joints w GLB bez export_skins: %d (w wlasciwym: %d)"
+    % (len(_GB.get("skins", [])), len(skin["joints"])))
+must_fail("skin ma %d jointow" % len(arm.data.bones),
+          lambda: (_ for _ in ()).throw(AssertionError("brak skins"))
+          if not _GB.get("skins") else None,
+          "GLB wyeksportowanym z export_skins=False (skins=%d)" % len(_GB.get("skins", [])))
+
+log("\n%d/%d asercji udowodnilo, ze potrafi oblac" % (len(CAL), len(CAL)))
 
 # ===========================================================================
 # 10. ZAPIS .blend + META

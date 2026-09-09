@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NPC: ciało</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #14130f; color: #e8e0d0; font: 14px/1.45 system-ui, -apple-system, sans-serif; padding: 12px; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  p.lead { margin: 0 0 10px; color: #a49a86; font-size: 12.5px; }
+  canvas { width: 100%; aspect-ratio: 3 / 4; display: block; border-radius: 8px; background: #1b1a17; touch-action: pan-y; }
+  #paski { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+  button { flex: 1 1 auto; background: #1e1c17; color: #d8cbb0; border: 1px solid #35312a; border-radius: 6px; padding: 9px 10px; font: inherit; }
+  button.akt { border-color: #a58b52; color: #f0dfae; background: #2a251b; }
+  #info { background: #1a1814; border: 1px solid #35312a; border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; word-break: break-word; }
+  #info small { color: #8e846f; font-size: 11px; line-height: 1.6; }
+  #perf { font-variant-numeric: tabular-nums; padding: 8px 10px; border-radius: 6px; border: 1px solid #35312a; }
+  #uwagi { color: #e8d49a; font-size: 12.5px; min-height: 1.2em; margin: 6px 0 0; }
+  .ok { border-color: #4a7d4a; color: #b7e0b7; } .uwaga { border-color: #937a3a; color: #e8d49a; } .zle { border-color: #9d4b3f; color: #f0b6ac; }
+  footer { color: #7d745f; font-size: 11.5px; margin-top: 14px; }
+</style>
+</head>
+<body>
+<h1>NPC: ciało</h1>
+<p class="lead">Etap 4, krok 2. Liczby z pliku mówią, że model jest poprawny — nie mówią, czy wygląda jak człowiek. Przeciągnij palcem, żeby obrócić.</p>
+<div id="info">ładowanie modelu…</div>
+<canvas id="c"></canvas>
+<p id="uwagi"></p>
+<div id="paski">
+  <button data-poza="spoczynek" class="akt">spoczynek</button>
+  <button data-poza="krok">krok</button>
+  <button data-poza="skret">skręt ramion</button>
+  <button id="obrot" class="akt">obrót</button>
+</div>
+<div id="perf">pomiar…</div>
+<p class="lead" style="margin-top:8px">Na co patrzeć: czy w <b>spoczynku</b> umięśnienie widać w sylwetce, czy w <b>kroku</b> stawy się nie zapadają, i czy w <b>skręcie</b> przedramię nie skręca się jak papierek od cukierka.</p>
+<footer>Rynek Srebrnych Liści · podgląd zasobu, nie część gry · figura MPFB2 (siatka bazowa CC0)</footer>
+<script type="module" src="./cialo_app.js"></script>
+</body>
+</html>

@@ -20,3 +20,7 @@ audyt/testy/out/render/*/
 !audyt/testy/out/render/rynek/
 !audyt/testy/out/render/rynek_top/
 assets_src/blender/*.blend1
+
+# Etap 4 (NPC): artefakty uboczne buildu ciała — do repo idzie tylko .glb i skrypt
+__pycache__/
+rynek/assets/models/*.glb.gz
