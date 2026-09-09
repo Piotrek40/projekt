@@ -76,12 +76,16 @@ export function buildStalls(W) {
       W.dbgCircle?.(x, z, CONFIG.stalls.collideR); W.dbgAxes?.(x, 0.05, z, ry, 1.2);
       continue;
     }
-    B.add('planks', box(cw, 0.08, cd, T.planks.mpt), L(0, ch, 0));
     // Czoło lady sięga SPODU blatu. Wcześniej miało wysokość ch − 0,1 = 0,85, a spód blatu jest na 0,91 —
     // przez całą długość 2,6 m widać było przez tę 6-centymetrową szparę bruk i lada wyglądała, jakby wisiała.
     const frontH = ch - 0.04;   // blat: box 0,08 o środku na ch → spód ch − 0,04
-    B.add('planks', box(cw, frontH, 0.06, T.planks.mpt), L(0, frontH / 2, cd / 2 - 0.03));
-    check(Math.abs(frontH - (ch - 0.04)) < 1e-9, 'czoło lady nie sięga spodu blatu', { frontH, spodBlatu: ch - 0.04 });
+    const gBlat = box(cw, 0.08, cd, T.planks.mpt), mBlat = L(0, ch, 0);
+    const gCzolo = box(cw, frontH, 0.06, T.planks.mpt), mCzolo = L(0, frontH / 2, cd / 2 - 0.03);
+    B.add('planks', gBlat, mBlat); B.add('planks', gCzolo, mCzolo);
+    // Asercja liczona z GEOMETRII, nie z tego samego wyrażenia co wymiar — inaczej byłaby tautologią, która nie może oblać.
+    const aabb = (g, m) => { g.computeBoundingBox(); return g.boundingBox.clone().applyMatrix4(m); };
+    const bBlat = aabb(gBlat, mBlat), bCzolo = aabb(gCzolo, mCzolo);
+    check(bCzolo.max.y >= bBlat.min.y - 1e-6, `kram ${p.kind}: szpara ${(bBlat.min.y - bCzolo.max.y).toFixed(3)} m między czołem lady a spodem blatu`, { czolo: bCzolo.max.y, blat: bBlat.min.y });
     const F = CONFIG.stalls.frame, Vl = CONFIG.stalls.valance, postZ = cd / 2 + 0.6, postX = cw / 2 - 0.1;
     // Słupy: TYLNE wyższe o backRise, bo to na nich ma spoczywać belka tylna. Dotąd wszystkie miały ph = 2,30,
     // a belka tylna siedziała na 2,65 — wisiała 30 cm nad nimi w powietrzu (zrzut z telefonu, „niedokończone belki").
@@ -108,7 +112,15 @@ export function buildStalls(W) {
       B.add('timber', box(F.braceT, F.brace * Math.SQRT2, F.braceT, T.timber.mpt),
             L(sx * postX - sx * F.brace / 2, yBeam - F.brace / 2, sz * postZ, 0, 0, sx * Math.PI / 4));   // rot: rz=sx·π/4 → górny koniec zastrzału ku środkowi kramu (sx=+1: (0,+1,0)→(−0.707,0.707,0)) — policzone
     }
-    B.add(cloth, plane(cw + 0.5, slope + 2 * F.overhang, 1), L(0, ph + rise / 2, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth)));   // + overhang z każdej strony: płótno wystaje poza belki tyle, co one poza słupy   // płótno LEŻY na wierzchach belek (ph i ph+backRise), więc jego środek jest na ich połowie   // rot: rx=−1.406 → normalna (0,0,1)→(0, 0.986, 0.164) licem w górę, góra płótna (0,1,0)→(0, 0.164, −0.986): tył wyżej, płótno opada ku +z (front) — policzone
+    const mCloth = L(0, ph + rise / 2, 0, 0, -Math.PI / 2 + Math.atan2(rise, depth));
+    B.add(cloth, plane(cw + 0.5, slope + 2 * F.overhang, 1), mCloth);
+    // Asercja: płótno faktycznie LEŻY na wierzchach obu belek. Sondujemy dwa punkty płaszczyzny w jej układzie lokalnym
+    // (0, ±slope/2, 0) — po obrocie mają wypaść na (0, ph+rise, −postZ) i (0, ph, +postZ), czyli dokładnie na wierzchach.
+    // Przez cały poprzedni commit komentarz twierdził to samo i był FAŁSZYWY, bo nie było przy nim żadnego sprawdzenia.
+    for (const [sy, yGoal, zGoal] of [[1, ph + rise, -postZ], [-1, ph, postZ]]) {
+      const q = new THREE.Vector3(0, sy * slope / 2, 0).applyMatrix4(mCloth), t = new THREE.Vector3(0, yGoal, zGoal).applyMatrix4(M4(x, 0, z, ry));
+      check(q.distanceTo(t) < 0.02, `kram ${p.kind}: płótno nie leży na wierzchu belki ${sy > 0 ? 'tylnej' : 'przedniej'} (${q.distanceTo(t).toFixed(3)} m od niej)`, { q: q.toArray(), t: t.toArray() });
+    }   // + overhang z każdej strony: płótno wystaje poza belki tyle, co one poza słupy   // płótno LEŻY na wierzchach belek (ph i ph+backRise), więc jego środek jest na ich połowie   // rot: rx=−1.406 → normalna (0,0,1)→(0, 0.986, 0.164) licem w górę, góra płótna (0,1,0)→(0, 0.164, −0.986): tył wyżej, płótno opada ku +z (front) — policzone
     B.add(cloth, plane(cw + 0.5, Vl.h, 1), L(0, ph - Vl.drop, cd / 2 + 0.62));   // zwis DŁUŻSZY: szyld kramu (0,32 m) ma się na nim zmieścić, a nie wystawać pod spód
     // krokwie pod płótnem (poprawka po zrzutach z telefonu: spód baldachimu z bliska był płaską plamą koloru):
     // ta sama macierz co połać płótna, 5 cm niżej (normalna połaci (0, 0.986, 0.164) — przesunięcie w y wystarcza)

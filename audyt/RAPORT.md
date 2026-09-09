@@ -290,6 +290,27 @@ kosz przebijający burtę wozu (pozycja liczona w układzie świata zamiast wozu
 i fladze iglicy (38 % płótna to zaciśnięty pasek), promień medalionu czytający się jak naklejona kartka (4× mniejszy lokalny kontrast
 niż bruk: σL 0,027–0,034 vs 0,115–0,118), butelki winiarza jaśniejsze od tynku fasady.
 
+### Runda krytyki znalazła trzy błędy w kodzie naprawionym godzinę wcześniej
+
+Synteza rundy (17 agentów, 12 znalezisk, wszystkie obroniły się przed sceptykami) przejrzała także moje ŚWIEŻE poprawki i wytknęła trzy rzeczy. Wszystkie słuszne:
+
+| co | dowód krytyka | naprawa |
+|---|---|---|
+| **Mapa splotu obcinała 35,3 % pikseli na czystą biel** — komentarz „średnia w liniowym wynosi dokładnie 1,0" był FAŁSZYWY (rzeczywista 0,936) | `tools/fabric_weave.mjs` liczyło `v = 1 + k·(lin/mean − 1)`, a `toSrgb` klamrowało `v` do 1,0 | generator skaluje teraz tak, żeby MAKSIMUM wypadło na 1,0 (zero obcięć), a materiał kompensuje zmierzoną średnią mnożnikiem koloru w przestrzeni liniowej (`paletteOKLCH.fabricWeaveMean`). Zmierzone: σL płótna **0,0067 → 0,0105 (obcinana) → 0,0139 = 2,09×**, średnia L 0,5068 → 0,5100 |
+| **`check()` przy ladzie był tautologią** — `check(Math.abs(frontH − (ch − 0.04)) < 1e-9)` dwie linie po `const frontH = ch − 0.04`; nie mógł oblać | — | asercja liczona z AABB **zbudowanej geometrii** blatu i czoła, nie z tego samego wyrażenia co wymiar |
+| **Płótno baldachimu nie miało żadnej asercji**, a komentarz twierdził, że leży na wierzchach belek (przez cały poprzedni commit było to nieprawdą) | §3.3.4: bez asercji cecha nie istnieje | dwie sondy punktów płaszczyzny w jej układzie lokalnym muszą wypaść na wierzchach obu belek z dokładnością 2 cm |
+
+Do tego bonus, którego nie szukałem: **`lineup.js MAT_KEYS` było nieaktualne** (brakowało `rope`, `contact`, `jet`, `ripple`, `splash`, `wet`, `bunting`, `paperLit`), więc asercja `MAT_KEYS ≠ Object.keys(W.mat)` **oblewała przy każdym renderze `?lineup=1`** i blokowała całą procedurę doboru koloru z §4.3.3. Lista odczytana z `window.__lineup` prawdziwego renderu (40 kluczy), asercja przechodzi.
+
+### Zastrzały szachulcowe: 94 z 95 nie dotykały niczego
+
+Najwyżej oceniona naprawa rundy. `buildings.js` liczyło długość zastrzału jako **0,7** przekątnej pola, przez co jego koniec zawisał
+0,21–0,30 m pod oczepem i 0,08–0,16 m od słupka. Sceptyk zweryfikował to pomiarem na prawdziwych modułach sceny: **94 z 95 zastrzałów
+w 26 z 28 domów nie miało styku (AABB + 5 cm) z żadną belką poziomą ani słupkiem** — trzymały się wyłącznie tynku i czytały jak patyki
+namalowane na ścianie. Test B5 tego nie łapał, bo wymaga styku z „jakimkolwiek elementem tego samego domu", a bryła tynku przecina wszystko.
+
+`houseDetail.timber.braceLen` = 0,95 (zakres dopuszczalny 0,89–0,98). Po zmianie: **0 zastrzałów bez styku**. Koszt: 0 draw calls, 0 trójkątów.
+
 ### Świadome ograniczenia
 
 - **Wariant inline (Artifact) nie dostaje modelu.** Strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model z mapą AO to ok. 0,5 MB. Tam zostaje kram proceduralny; Pages i wersja lokalna mają model.

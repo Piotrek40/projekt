@@ -173,6 +173,12 @@ export const CONFIG = {
       iron:      [0.30, 0.005, 250, 'none'],     // żelazo (= #2c2e30 ≈ HEAD 0x2b2b2e)
       rope:      [0.58, 0.040, 78,  'none'],     // konopna lina girland i sznurki lampionów; do motywu #14 szły na materiale iron (metalness 0,9, L 0,30) — na tle nieba czytały się jak czarne kable
     },
+    // Średnia LINIOWA mapy splotu sukna (rynek/assets/textures/fabric_pattern_07_diff.jpg, generator tools/fabric_weave.mjs).
+    // Mapa jest skalowana tak, żeby jej maksimum wypadło na 1,0 (zero obciętych pikseli), więc jej średnia jest MNIEJSZA od 1
+    // i sama by przyciemniła całe sukno. Materiał mnoży kolor przez 1/tę wartość, dzięki czemu tint × mapa ma tę samą
+    // jasność średnią co sam tint i kalibracja palety zostaje w mocy. Przy każdej zmianie kontrastu splotu generator
+    // wypisuje nową liczbę — trzeba ją tu przepisać, inaczej sukno pociemnieje o ok. 25 %.
+    fabricWeaveMean: 0.75304,
     params: { roofTower: { roughness: 0.55, metalness: 0.2 } },   // miedź: lekko metaliczna, matowa patyna (jak po motywie #2)
     // emisja (wprost do AgX, §4.1.6): płomień = nasycony pomarańcz × 1,6 (pred. ekran #e9a878 C 0,10; #ffc070 ×1 dawało beż #d2b691); okna świecące bez zmian
     emit: { flame: { color: [0.72, 0.185, 49], intensity: 1.6 }, glassLit: { color: [0.30, 0.042, 74], emissive: [0.82, 0.139, 68], intensity: 1.6 } }, // = #fd7a1b (≈ #ff7a1a z §4.4, który jest 0,002 poza gamutem), #3a2a14, #ffb257
@@ -202,7 +208,11 @@ export const CONFIG = {
     step: { share: 0.6, steps: [4, 6], parapet: 0.35, t: 0.4, out: 0.02, slabIn: 0.1, side: 0.04, cap: 0.12, capOut: 0.04 },   // cap/capOut: kamienna nakrywa stopnia (trzon w tynku domu — poprawka po zrzutach z telefonu) // policzone dla seed 7: 3 z 6 domów szczytowych, +192 tri; side (poprawka r1 K9): mur schodków side m za ścianą boczną (HEAD: ov 0,55 → narożnik w powietrzu), płyta kończy się out m w murze
     // poprawki r1 (buildings.js): timber — zastrzał TYLKO w polu nieparzystym z udziałem braceShare (parzyste = okna; §5.2 „przęsła co 1,6 m: parzyste okno, nieparzyste X"),
     // okno w każdym polu bez zastrzału (parzyste zawsze, nieparzyste z udziałem windowShare); na HEAD 148/316 okien pięter miało zastrzał przez szkło. Asercja B8 w teście: AABB zastrzału ∩ AABB okna = ∅.
-    timber: { braceShare: 0.5, windowShare: 0.75 },   // policzone: okna ≈ 50 % (parzyste) + 50 %·50 %·75 % = 69 % pól (HEAD 75 %), zastrzały 25 % pól (HEAD 50 %)
+    // braceLen: długość zastrzału jako ułamek przekątnej pola. Do Etapu 3 było 0,7 i zastrzał NIE DOTYKAŁ NICZEGO —
+    // zmierzone na prawdziwych modułach sceny: 94 z 95 zastrzałów bez styku (AABB + 5 cm) z podwaliną, oczepem ani słupkiem.
+    // Czytało się to jak patyk namalowany na tynku. 0,95 wsuwa koniec ok. 9 cm w belkę poziomą i 4 cm w słupek,
+    // a róg obróconego pudełka zostaje wewnątrz kondygnacji. Zakres dopuszczalny 0,89–0,98 (0,7 i 1,0 są poza nim).
+    timber: { braceShare: 0.5, windowShare: 0.75, braceLen: 0.95 },   // policzone: okna ≈ 50 % (parzyste) + 50 %·50 %·75 % = 69 % pól (HEAD 75 %), zastrzały 25 % pól (HEAD 50 %)
     // komin NA kalenicy (?nochimridge=1 = HEAD: z −1,5 od okapu, wierzch y + 2,2 → 26/28 kominów pod/w połaci): bok w, wierzch above nad wierzchem kalenicy, ≥ endGap od końca kalenicy
     // (naczółek/szczyt), asercja B7: wierzch − wierzch płyty pod kominem ≥ minAbove (na kalenicy 0,9)
     chimney: { w: 0.9, above: 0.9, endGap: 1.0, minAbove: 0.6 },   // m; słownik skali §3.7: komin 0,9 × 0,9; above 0,9 nad kalenicą (HEAD: 2,2 nad okapem = pod połacią)

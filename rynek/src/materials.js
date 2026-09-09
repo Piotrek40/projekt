@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { rng } from '../../engine/src/geometry.js';
 import { oklch } from './color.js';
+import { check } from '../../engine/src/check.js';
 
 export async function buildMaterials(W) {
   const { ctx, loaders, P, T, CONFIG } = W;
@@ -31,7 +32,13 @@ export async function buildMaterials(W) {
   try { fabricDiff = await loaders.loadTexture('fabric_pattern_07', 'diff'); } catch (e) { console.error('CHECK: brak mapy splotu sukna', e); }
   for (const t of [fabricNor, fabricArm, fabricDiff]) { if (!t) continue; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); t.anisotropy = ctx.aniso(); }
   const clothHex = P.cloth.map((c, i) => hexOf('cloth' + i));
-  clothHex.forEach((c, i) => { mat['cloth' + i] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.88, metalness: 0, map: fabricDiff, normalMap: fabricNor, roughnessMap: fabricArm, side: THREE.DoubleSide }); });
+  const weaveMean = fabricDiff ? (PK?.fabricWeaveMean ?? 1) : 1;   // 1 bez mapy: nie ma czego kompensować
+  clothHex.forEach((c, i) => {
+    const m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.88, metalness: 0, map: fabricDiff, normalMap: fabricNor, roughnessMap: fabricArm, side: THREE.DoubleSide });
+    m.color.multiplyScalar(1 / weaveMean);   // kompensacja średniej mapy splotu — w przestrzeni LINIOWEJ (three.js trzyma material.color liniowo)
+    check(Math.max(m.color.r, m.color.g, m.color.b) <= 1.0, `cloth${i}: kompensacja splotu wypycha kolor poza gamut`, { rgb: [m.color.r, m.color.g, m.color.b], weaveMean });
+    mat['cloth' + i] = m;
+  });
   // szyby: kwatery z ołowianym podziałem (poprawka po zrzutach z telefonu — okna były jednolitymi prostokątami, w zbliżeniu jak papierowe wycinanki).
   // UV pudełka są w METRACH / mpt (geometry.js box, mpt 2), więc wzór musi być OKRESOWY: repeat dobrane tak, by kwatera miała ok. 0.37 m w świecie.
   const paneRep = CONFIG.houseDetail.panes.repeat, paneTex = () => { const t = windowPane(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(paneRep, paneRep); return t; };

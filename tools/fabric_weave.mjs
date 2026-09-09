@@ -16,9 +16,22 @@ const lin = new Float32Array(data.length);
 let sum = 0;
 for (let i = 0; i < data.length; i++) { lin[i] = toLin(data[i]); sum += lin[i]; }
 const mean = sum / data.length;
+// Bez skalowania część wartości wychodzi POWYŻEJ 1,0 i toSrgb je klamruje — zmierzone przy k = 0,85:
+// 35,3 % pikseli lądowało na czystej bieli, czyli jedna trzecia splotu nie niosła żadnej informacji,
+// a rzeczywista średnia liniowa zapisanej mapy wynosiła 0,936, nie 1,0 (komentarz w materials.js był fałszywy).
+// Skalujemy więc tak, żeby MAKSIMUM wypadło dokładnie na 1,0 — nic się nie obcina — i zwracamy zmierzoną
+// średnią, którą materiał kompensuje mnożnikiem koloru (CONFIG.paletteOKLCH.fabricWeaveMean).
+const vals = new Float32Array(data.length);
+let vmax = 0;
+for (let i = 0; i < data.length; i++) { const v = 1 + k * (lin[i] / mean - 1); vals[i] = v; if (v > vmax) vmax = v; }
+const scale = 1 / vmax;
 const outBuf = Buffer.allocUnsafe(data.length);
-let sum2 = 0;
-for (let i = 0; i < data.length; i++) { const v = 1 + k * (lin[i] / mean - 1); sum2 += v; outBuf[i] = toSrgb(v); }
+let sum2 = 0, clipped = 0;
+for (let i = 0; i < data.length; i++) { const v = vals[i] * scale; sum2 += v; if (v >= 0.9999) clipped++; outBuf[i] = toSrgb(v); }
 await sharp(outBuf, { raw: { width: info.width, height: info.height, channels: 1 } })
   .toColorspace('b-w').jpeg({ quality: 88, chromaSubsampling: '4:4:4' }).toFile(out);
-console.log(`splot: ${info.width}×${info.height}, srednia AO ${mean.toFixed(3)} -> srednia mapy ${(sum2 / data.length).toFixed(4)} (kontrast ${k}), zapisane ${out}`);
+const meanOut = sum2 / data.length;
+console.log(`splot: ${info.width}×${info.height}, kontrast ${k}, srednia AO ${mean.toFixed(3)}`);
+console.log(`  maksimum przed skalowaniem ${vmax.toFixed(4)} -> po skalowaniu 1,0; obcietych pikseli ${(100 * clipped / data.length).toFixed(2)} %`);
+console.log(`  SREDNIA LINIOWA MAPY = ${meanOut.toFixed(5)}  -> wpisz CONFIG.paletteOKLCH.fabricWeaveMean = ${meanOut.toFixed(5)}`);
+console.log(`  zapisane ${out}`);

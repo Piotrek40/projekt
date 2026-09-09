@@ -19,7 +19,9 @@ function labelTexture(text) {
 
 // Stałe układu — z nich audyt/testy/tools/lineup_rects.mjs liczy prostokąty pomiaru (bez renderu), więc zmiana tutaj = przeliczenie rects.
 export const LINEUP = { cols: 7, step: 1.5, row: 8.0, z0: -2, r: 0.5, ySphere: 0.5, cube: 0.7, yCube: 1.55, yLabel: 2.25, camDist: 6, camPitch: -0.08, floorPad: 20 }; // camDist/camPitch: kamera widoku rzędu; floorPad: zapas podłogi za ostatnim rzędem i przed pierwszym (m)
-export const MAT_KEYS = ['cobble', 'stone', 'blocks', 'slates', 'timber', 'planks', 'door', 'plaster0', 'plaster1', 'plaster2', 'plaster3', 'plaster4', 'roof0', 'roof1', 'roof2', 'roofTower', 'paint0', 'paint1', 'paint2', 'cloth0', 'cloth1', 'cloth2', 'cloth3', 'glass', 'glassLit', 'iron', 'water', 'flame', 'banner0', 'banner1', 'banner2', 'banner3']; // = Object.keys(W.mat) po buildMaterials
+export const MAT_KEYS = ['cobble', 'stone', 'blocks', 'slates', 'timber', 'planks', 'door', 'plaster0', 'plaster1', 'plaster2', 'plaster3', 'plaster4', 'roof0', 'roof1', 'roof2', 'roofTower', 'paint0', 'paint1', 'paint2', 'cloth0', 'cloth1', 'cloth2', 'cloth3', 'glass', 'glassLit', 'iron', 'rope', 'contact', 'water', 'jet', 'ripple', 'splash', 'wet', 'flame', 'bunting', 'paperLit', 'banner0', 'banner1', 'banner2', 'banner3'];   // = Object.keys(W.mat) po buildMaterials — odczytane z window.__lineup prawdziwego renderu, nie z pamięci.
+// Lista rośnie razem z materiałami sceny. Etap 3 dołożył: rope (liny girland), contact (cień pod kramem) — bez ich wpisania
+// asercja niżej oblewała, czyli KAŻDY render ?lineup=1 miał errors ≠ [] i procedura doboru koloru z §4.3.3 była zablokowana.
 export const lineupRows = n => Math.ceil(n / LINEUP.cols);
 export const lineupView = k => ({ name: 'row' + k, x: 0, z: LINEUP.z0 - k * LINEUP.row + LINEUP.camDist, yaw: 0, pitch: LINEUP.camPitch }); // kamera camDist m przed rzędem k
 export function buildLineup(W, filter = '1') {

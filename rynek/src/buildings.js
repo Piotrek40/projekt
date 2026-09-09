@@ -74,7 +74,7 @@ export function buildHouses(W) {
         if (i >= nz) continue;
         const zc = z + field / 2;
         if (i % 2 === 1) { // pole nieparzyste: zastrzał (w płaszczyźnie yz — obrót rx)
-          if (Rw() < Sw.braceShare) { const sgn = Rw() < 0.5 ? 1 : -1; B.add('timber', box(bt * 0.8, Math.hypot(field, fh) * 0.7, bt * 0.8, T.timber.mpt), L(xf, y + fh / 2, zc, 0, Math.atan2(field, fh) * sgn)); } // rot: rx=+atan2(field, fh) → góra zastrzału (0,1,0) ku +z: rx=+0.540 → (0, 0.857, 0.514) (policzone); znak losowy = kierunek
+          if (Rw() < Sw.braceShare) { const sgn = Rw() < 0.5 ? 1 : -1; B.add('timber', box(bt * 0.8, Math.hypot(field, fh) * Tb.braceLen, bt * 0.8, T.timber.mpt), L(xf, y + fh / 2, zc, 0, Math.atan2(field, fh) * sgn)); } // rot: rx=+atan2(field, fh) → góra zastrzału (0,1,0) ku +z: rx=+0.540 → (0, 0.857, 0.514) (policzone); znak losowy = kierunek
         } else if (Rw() < Sw.windowShare) { // pole parzyste: okno (ry = sx·π/2: lokalne +z okna → ±x domu — policzone (0,0,1) → (±1,0,0))
           const [ww, wh] = Sw.win, wy = y + fh * 0.55, ry = sx * Math.PI / 2; // 0.55: wysokość środka jak okna fasady
           B.add(Rw() < Sw.litShare ? 'glassLit' : 'glass', box(ww, wh, 0.04), L(xf, wy, zc, ry)); // szkło 0,04 jak okna fasady, 1 cm przed licem
@@ -139,8 +139,8 @@ export function buildHouses(W) {
         if (!hidden(x, 0.2)) B.add('timber', box(bt, fh, bt, T.timber.mpt), L(x, y + fh / 2, zf)); // 0.2: pół słupka 0,08 + luz — słupek fasady nie zlewa się ze słupkiem narożnym wykusza (na ±1,11)
         if (i < n) { // zastrzał w polu — poprawka r1 (geometria): TYLKO pola nieparzyste (parzyste = okna; §5.2 „przęsła: parzyste okno, nieparzyste X"); na HEAD zastrzał i okno w środku TEGO SAMEGO pola: 148/316 okien pięter z belką przez szkło
           const draw = r() < Tb.braceShare; braced[i] = draw && i % 2 === 1; // to samo wywołanie r() co na HEAD (r() < 0.5) — kolejność losowań domu bez zmian; próg z CONFIG
-          const len = Math.hypot(fw / n, fh) * 0.7, sgn = draw ? (r() < 0.5 ? 1 : -1) : 1; // HEAD: zastrzał 0,7 przekątnej pola, znak losowy pół na pół (r() znaku przy każdym losowaniu jak na HEAD)
-          if (braced[i] && !hidden(x + fw / n / 2, 0.7 * fw / n / 2 + 0.1)) B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * sgn)); // rot: rz=±atan2(fw/n, fh) → góra zastrzału (0,1,0) ku ∓x: rz=+0.5 → (−0.479, 0.878, 0) (policzone); znak losowy = kierunek zastrzału; zasięg zastrzału w x = 0,7·pół pola + luz 0,1
+          const len = Math.hypot(fw / n, fh) * Tb.braceLen, sgn = draw ? (r() < 0.5 ? 1 : -1) : 1; // HEAD: zastrzał 0,7 przekątnej pola, znak losowy pół na pół (r() znaku przy każdym losowaniu jak na HEAD)
+          if (braced[i] && !hidden(x + fw / n / 2, Tb.braceLen * fw / n / 2 + 0.1)) B.add('timber', box(bt * 0.8, len, bt * 0.8, T.timber.mpt), L(x + fw / n / 2, y + fh / 2, zf, 0, 0, Math.atan2(fw / n, fh) * sgn)); // rot: rz=±atan2(fw/n, fh) → góra zastrzału (0,1,0) ku ∓x: rz=+0.5 → (−0.479, 0.878, 0) (policzone); znak losowy = kierunek zastrzału; zasięg zastrzału w x = 0,7·pół pola + luz 0,1
         }
       }
       // belki stropowe wystające pod jetty (nie w zasięgu wykusza: pod nim kroksztyny, nad nim daszek)
