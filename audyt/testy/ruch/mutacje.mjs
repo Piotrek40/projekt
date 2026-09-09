@@ -102,3 +102,25 @@ export function pionMiednicyJedenCykl(scena, klip, kosc, { T, A = 0.02 } = {}) {
   for (let i = 0; i < t.times.length; i++) t.values[3 * i + 1] = sr + (A / s) * Math.sin(2 * Math.PI * t.times[i] / T);
   k.name = klip.name + '+pion1cykl'; return k;
 }
+
+// 9) Skrócenie WYMACHU NÓG przy nietkniętym ruchu korzenia: kwaterniony ud (i opcjonalnie goleni) ściągnięte
+//    w stronę pozy średniej o współczynnik `k`. To jest klasyczny „animacja nie nadąża za prędkością postaci":
+//    korzeń jedzie tyle samo, kroki są krótsze. K1 (v × T vs długość kroku ze stóp) MA to złapać.
+//    UWAGA: samo przeskalowanie/dryf KORZENIA tego nie robi — stopy są dziećmi korzenia, więc rosną razem z nim
+//    i v × T oraz długość kroku skalują się tak samo (zmierzone: błąd K1 zostaje 1,5 % przy skali 1,3).
+export function skrocKroki(scena, klip, mapa, k = 0.6, role = ['biodroL', 'biodroP', 'kolanoL', 'kolanoP']) {
+  const kl = klonKlipu(klip);
+  const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), qm = new THREE.Quaternion();
+  for (const r of role) {
+    const b = mapa.role[r]; if (!b) continue;
+    const t = sciezka(kl, b, 'quaternion'); if (!t) continue;
+    const n = t.times.length;
+    qm.set(t.values[0], t.values[1], t.values[2], t.values[3]);         // odniesienie = pierwsza klatka
+    for (let i = 0; i < n; i++) {
+      qb.set(t.values[4 * i], t.values[4 * i + 1], t.values[4 * i + 2], t.values[4 * i + 3]);
+      qa.copy(qm).slerp(qb, k);
+      t.values[4 * i] = qa.x; t.values[4 * i + 1] = qa.y; t.values[4 * i + 2] = qa.z; t.values[4 * i + 3] = qa.w;
+    }
+  }
+  kl.name = klip.name + `+krotkie_kroki${k}`; return kl;
+}

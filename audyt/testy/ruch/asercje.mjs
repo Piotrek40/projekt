@@ -48,17 +48,41 @@ export function sprawdzHarmonogram(h, n) {
 
 // --- K1 -------------------------------------------------------------------------------------------------------
 // v_korzenia: średnia z chwilowej |dp/dt| miednicy (długość toru / czas).
-// T: średni odstęp IC→IC tej samej stopy (tylko czasy zdarzeń).
+// T: średni odstęp IC→IC tej samej stopy (tylko czasy zdarzeń z harmonogramu).
 // krok podwójny: średni odstęp kolejnych ŚRODKÓW PODPARCIA tej samej stopy (tylko rozstawienie stóp).
-// Trzy niezależne źródła — dlatego to nie jest tautologia.
+//
+// CZEGO K1 NA KLIPIE Z WPIECZONYM RUCHEM KORZENIA NIE WYKRYJE — zmierzone, nie domyślane:
+//   • dryf korzenia +0,35 m/s  → błąd K1 1,46 % (bez zmian), bo stopy są dziećmi korzenia i jadą razem z nim;
+//   • korzeń × 1,30 / × 0,70 drogi → błąd 1,54 % / 1,84 % (bez zmian), z tego samego powodu;
+//   • skrócenie wymachu ud i kolan ×0,6 przy nietkniętym korzeniu → 1,50 % (bez zmian), bo stopa wraca do tego
+//     samego położenia względem miednicy co cykl, więc odstęp środków podparcia = droga miednicy na cykl.
+//   • harmonogram z co drugim zdarzeniem IC → błąd 2,90 % (nadal w tolerancji), bo razem z T ×2 rośnie ×2
+//     także odstęp środków podparcia.
+// Dla KAŻDEGO ruchu okresowego z wpieczonym korzeniem droga miednicy na cykl RÓWNA SIĘ długości kroku — K1 na
+// samym klipie jest więc niemal tożsamością. JEDYNE, co na klipie realnie sprawdza, to zgodność CZASU cyklu
+// z GEOMETRIĄ kroku: przy znacznikach IC rozciągniętych ×1,2 przy nietkniętych przedziałach kontaktu oblewa.
+// Poślizg wykrywa K2, nie K1.
+// PRAWDZIWE miejsce K1 to SILNIK — funkcja K1zSilnika niżej: prędkość, którą kontroler przesuwa postać, NIE
+// pochodzi z klipu, więc porównanie v_komendy × T z długością kroku klipu tautologią nie jest.
 export function K1(s, h) {
   const v = C.predkoscKorzenia(s).srednia;
   const T = S.srednia([...C.czasyCykli(h, 'L'), ...C.czasyCykli(h, 'P')]);
   const krok = C.dlugoscKrokuPodwojnego(s, h).srednia;
   const wyliczony = v * T, blad = Math.abs(wyliczony - krok) / krok;
+  if (!Number.isFinite(blad)) return w('K1', 'fail', false, `nie da się policzyć: v ${f3(v)} m/s, T ${f3(T)} s, krok ${f3(krok)} m (harmonogram nie daje pełnych cykli)`, { v, T, krok });
   return w('K1', 'fail', blad <= PROGI.K1_tolerancja,
     `v_korzenia ${f3(v)} m/s × T ${f3(T)} s = ${f3(wyliczony)} m vs krok podwójny ze stóp ${f3(krok)} m → błąd ${(blad * 100).toFixed(2)} % (próg ${PROGI.K1_tolerancja * 100} %)`,
     { v, T, krok, wyliczony, blad });
+}
+
+// K1 w wersji SILNIKOWEJ: v_komendy (z kodu gry / logu odtwarzania) × T_odtwarzania vs długość kroku klipu.
+// Tu żadna z trzech liczb nie wynika z pozostałych: prędkość ustawia kontroler, T zależy od tempa odtwarzania,
+// długość kroku jest stałą zmierzoną raz na assecie (K1(...).liczby.krok).
+export function K1zSilnika({ vKomendy, tempoOdtwarzania = 1, tKlipu, krokKlipu }) {
+  const T = tKlipu / tempoOdtwarzania, wyliczony = vKomendy * T, blad = Math.abs(wyliczony - krokKlipu) / krokKlipu;
+  return w('K1-silnik', 'fail', blad <= PROGI.K1_tolerancja,
+    `v_komendy ${f3(vKomendy)} m/s × T ${f3(T)} s (klip ${f3(tKlipu)} s / tempo ${f2(tempoOdtwarzania)}) = ${f3(wyliczony)} m vs krok podwójny klipu ${f3(krokKlipu)} m → błąd ${(blad * 100).toFixed(2)} % (próg ${PROGI.K1_tolerancja * 100} %); przy błędzie ${(blad * 100).toFixed(1)} % stopa jedzie ${(Math.abs(wyliczony - krokKlipu) * 100).toFixed(1)} cm na krok podwójny`,
+    { vKomendy, T, krokKlipu, blad });
 }
 
 // --- K2 -------------------------------------------------------------------------------------------------------
@@ -66,6 +90,7 @@ export function K2(s, h) {
   const p = C.poslizg(s, h);
   const zle = [];
   for (const [r, x] of Object.entries(p)) {
+    if (!Number.isFinite(x.mediana)) { zle.push(`${r}: ZERO klatek kontaktu w harmonogramie — nie ma czego mierzyć`); continue; }
     if (x.mediana > PROGI.K2_mediana_ms) zle.push(`${r}: mediana ${(x.mediana * 100).toFixed(1)} cm/s > ${PROGI.K2_mediana_ms * 100}`);
     if (x.szczyt > PROGI.K2_szczyt_ms) zle.push(`${r}: szczyt ${(x.szczyt * 100).toFixed(1)} cm/s > ${PROGI.K2_szczyt_ms * 100}`);
     if (x.dryfMax > PROGI.K2_dryf_m) zle.push(`${r}: dryf ${(x.dryfMax * 100).toFixed(1)} cm > ${PROGI.K2_dryf_m * 100}`);
@@ -96,16 +121,29 @@ export function K3(s, h) {
 export function K4(s, h, k) {
   const v = C.predkoscKorzenia(s).srednia;
   const sz = C.szerokoscKroku(s, h, k).srednia;
-  const m = C.mtc(s, h);
+  const m = C.mtc(s, h, 'czubek');
+  const mStaw = C.mtc(s, h, 'palec');
   const mtcWartosci = [...m.L.lista, ...m.P.lista];
   const mtcMin = mtcWartosci.length ? Math.min(...mtcWartosci) : NaN, mtcSr = S.srednia(mtcWartosci);
   const zle = [];
   if (!wZakr(v, PROGI.K4_predkosc)) zle.push(`prędkość ${f3(v)} m/s poza [${PROGI.K4_predkosc}]`);
   if (!wZakr(sz, PROGI.K4_szerokosc)) zle.push(`szerokość kroku ${(sz * 100).toFixed(1)} cm poza [${PROGI.K4_szerokosc.map(x => x * 100)}]`);
-  if (!wZakr(mtcSr, PROGI.K4_mtc)) zle.push(`MTC średnie ${(mtcSr * 1000).toFixed(1)} mm poza [${PROGI.K4_mtc.map(x => x * 1000)}]`);
   return w('K4', 'fail', zle.length === 0,
-    `v ${f3(v)} m/s, szerokość kroku ${(sz * 100).toFixed(1)} cm, MTC śr ${(mtcSr * 1000).toFixed(1)} mm (min ${(mtcMin * 1000).toFixed(1)}, n=${mtcWartosci.length})` + (zle.length ? ' → ' + zle.join('; ') : ''),
-    { v, szerokosc: sz, mtcSr, mtcMin, mtc: m });
+    `v ${f3(v)} m/s, szerokość kroku ${(sz * 100).toFixed(1)} cm, MTC śr ${(mtcSr * 1000).toFixed(1)} mm na CZUBKU BUTA (min ${(mtcMin * 1000).toFixed(1)}, n=${mtcWartosci.length}); dla porównania na stawie ToeBase ${(S.srednia([...mStaw.L.lista, ...mStaw.P.lista]) * 1000).toFixed(1)} mm` + (zle.length ? ' → ' + zle.join('; ') : ''),
+    { v, szerokosc: sz, mtcSr, mtcMin, mtc: m, mtcStaw: mStaw });
+}
+// MTC osobno i jako OSTRZEŻENIE: liczba zależy od tego, GDZIE na stopie leży mierzony punkt. Literaturowe
+// 15,0 ± 4,0 mm (n=121) dotyczy markera na przodzie buta; rig ma tylko staw ToeBase kilka cm nad podeszwą
+// (daje 32,0 mm na zdrowym chodzie ACCAD), a czubek buta jest KONSTRUOWANY ze stałą C_CZUBEK, na którą wynik
+// jest czuły (0,25 → 30 mm, 0,5 → 21 mm, 0,75 → 0 mm). Twardy FAIL na takiej liczbie byłby fikcją.
+export function K4mtc(s, h) {
+  const m = C.mtc(s, h, 'czubek'), mStaw = C.mtc(s, h, 'palec');
+  const lista = [...m.L.lista, ...m.P.lista], sr = S.srednia(lista), mn = lista.length ? Math.min(...lista) : NaN;
+  const srStaw = S.srednia([...mStaw.L.lista, ...mStaw.P.lista]);
+  if (!Number.isFinite(sr)) return w('K4-MTC', 'info', true, `MTC nie do policzenia: harmonogram nie daje ani jednej pary podpora→wymach→podpora`, {});
+  return w('K4-MTC', 'ostrzezenie', wZakr(sr, PROGI.K4_mtc),
+    `MTC na CZUBKU BUTA (punkt konstruowany, C_CZUBEK): śr ${(sr * 1000).toFixed(1)} mm, min ${(mn * 1000).toFixed(1)} mm, n=${lista.length}; na stawie ToeBase ${(srStaw * 1000).toFixed(1)} mm; zakres celu [${PROGI.K4_mtc.map(x => x * 1000)}] mm (źródło 15,0 ± 4,0 mm, n=121, marker na przodzie buta)`,
+    { sr, mn, srStaw, lista });
 }
 
 // --- K5 (OSTRZEŻENIA) -----------------------------------------------------------------------------------------
@@ -113,7 +151,8 @@ export function K5(s, h, k) {
   const a = C.katy(s, h, k);
   const uw = [];
   for (const st of ['L', 'P']) {
-    if (!wZakr(a[st].kolanoWymachMax, PROGI.K5_kolano_wymach)) uw.push(`kolano ${st} w wymachu ${f2(a[st].kolanoWymachMax)}° poza [${PROGI.K5_kolano_wymach}]`);
+    if (!Number.isFinite(a[st].kolanoWymachMax)) uw.push(`kolano ${st}: brak wymachów w harmonogramie`);
+    else if (!wZakr(a[st].kolanoWymachMax, PROGI.K5_kolano_wymach)) uw.push(`kolano ${st} w wymachu ${f2(a[st].kolanoWymachMax)}° poza [${PROGI.K5_kolano_wymach}]`);
     if (a[st].biodroZakres[1] > PROGI.K5_biodro_max) uw.push(`biodro ${st} max ${f2(a[st].biodroZakres[1])}° > ${PROGI.K5_biodro_max}`);
     if (a[st].kostkaZakres[1] > PROGI.K5_kostka_dorsi) uw.push(`kostka ${st} dorsiflexion ${f2(a[st].kostkaZakres[1])}° > ${PROGI.K5_kostka_dorsi}`);
   }
@@ -140,11 +179,21 @@ export function K6(s, k, T) {
 }
 
 // --- K7 -------------------------------------------------------------------------------------------------------
+// PARA W PRZECIWFAZIE TO RAMIĘ I UDO TEJ SAMEJ STRONY, nie przeciwnej. Lewa ręka wychodzi do przodu RAZEM
+// z prawą nogą, więc przy jednej konwencji kąta (dodatnie = segment do przodu, w płaszczyźnie strzałkowej)
+// korelacja ramię_L ↔ udo_P jest DODATNIA, a ramię_L ↔ udo_L UJEMNA.
+// Zmierzone na ACCAD Male1_B3_Walk (zdrowy chód 1,29 m/s): ta sama strona −0,909 / −0,897, przeciwna +0,921 / +0,926.
+// Dlatego próg ≤ −0,80 nakładamy na parę Z TEJ SAMEJ STRONY (to jest para „ramię przeciwne do nogi", o którą
+// chodzi w K7), a parę przeciwstronną sprawdzamy symetrycznie: ≥ +0,80. Test w obie strony, bez dowolności znaku.
 export function K7(s, k) {
   const r = C.korelacjaRamieUdo(s, k);
-  const najgorsza = Math.max(r.L_vs_udoP, r.P_vs_udoL);
-  return w('K7', 'fail', najgorsza <= PROGI.K7_korelacja_max,
-    `korelacja ramię↔przeciwne udo: L↔udoP ${f3(r.L_vs_udoP)}, P↔udoL ${f3(r.P_vs_udoL)} (próg ≤ ${PROGI.K7_korelacja_max}); zgodnostronne dla porównania L↔udoL ${f3(r.L_vs_udoL)}, P↔udoP ${f3(r.P_vs_udoP)}; ROM ramion ${f2(r.zakresRamieL)}° / ${f2(r.zakresRamieP)}°`,
+  const przeciwfaza = Math.max(r.L_vs_udoL, r.P_vs_udoP);      // ma być ≤ −0,80
+  const wfazie = Math.min(r.L_vs_udoP, r.P_vs_udoL);           // ma być ≥ +0,80
+  const zle = [];
+  if (!(przeciwfaza <= PROGI.K7_korelacja_max)) zle.push(`ramię↔udo TEJ SAMEJ strony ${f3(przeciwfaza)} > ${PROGI.K7_korelacja_max} — ręce nie chodzą w przeciwfazie z nogą`);
+  if (!(wfazie >= -PROGI.K7_korelacja_max)) zle.push(`ramię↔udo strony PRZECIWNEJ ${f3(wfazie)} < ${-PROGI.K7_korelacja_max} — ręka nie idzie w parze z przeciwną nogą`);
+  return w('K7', 'fail', zle.length === 0,
+    `ta sama strona L↔udoL ${f3(r.L_vs_udoL)}, P↔udoP ${f3(r.P_vs_udoP)} (ma być ≤ ${PROGI.K7_korelacja_max}); przeciwna L↔udoP ${f3(r.L_vs_udoP)}, P↔udoL ${f3(r.P_vs_udoL)} (ma być ≥ ${-PROGI.K7_korelacja_max}); ROM ramion ${f2(r.zakresRamieL)}° / ${f2(r.zakresRamieP)}°` + (zle.length ? ' → ' + zle.join('; ') : ''),
     r);
 }
 
@@ -152,7 +201,7 @@ export function K7(s, k) {
 export function K8(s, h) {
   const r = C.skokiPredkosci(s, h, { okno: PROGI.K8_okno_s });
   return w('K8', 'fail', r.maxPozaOdbiciem < PROGI.K8_delta_v,
-    `|Δv poziome| w oknie ${PROGI.K8_okno_s * 1000} ms: poza odbiciem ${f3(r.maxPozaOdbiciem)} m/s (klatka ${r.klatka}), łącznie z odbiciem ${f3(r.maxWszedzie)} m/s (próg ${PROGI.K8_delta_v})`,
+    `|Δv poziome| w oknie ${PROGI.K8_okno_s * 1000} ms na RESZCIE po odjęciu profilu cyklu: poza odbiciem ${f3(r.maxPozaOdbiciem)} m/s (klatka ${r.klatka}), z odbiciem ${f3(r.maxWszedzie)} m/s w zakresie klatek [${r.zakres}] (próg ${PROGI.K8_delta_v}); SUROWA miednica ${f3(r.surowaMiednicaMax)} m/s — na surowym sygnale próg 0,10 oblewa każdy zdrowy chód${r.resztaCykliczna ? '' : ' [UWAGA: za mało cykli na profil, mierzone na surowej miednicy]'}`,
     r);
 }
 
@@ -174,7 +223,7 @@ export function K9naKlipie(h) {
   const t = [...C.czasyCykli(h, 'L'), ...C.czasyCykli(h, 'P')];
   const cv = S.wspolczynnikZmiennosci(Float64Array.from(t));
   return w('K9-klip', 'info', true,
-    `CV czasu cyklu WEWNĄTRZ klipu ${(cv * 100).toFixed(2)} % (n=${t.length}) — wartość bliska 0 jest OCZEKIWANA (klip jest zapętlony), K9 rozstrzyga się na logu silnika`,
+    `CV czasu cyklu WEWNĄTRZ klipu ${(cv * 100).toFixed(2)} % (n=${t.length}); dla klipu ZAPĘTLONEGO wartość ~0 jest OCZEKIWANA i NIE jest błędem (K9 rozstrzyga się na logu silnika), tu klip to surowe mocap, więc CV odbija zmienność aktora`,
     { cv, n: t.length, czasy: t });
 }
 
@@ -199,18 +248,26 @@ export function K10(s) {
     `idle: RMS poziomy głowy w oknie 3 s med ${(rmsMed * 1000).toFixed(1)} mm (min ${(rmsMin * 1000).toFixed(1)}, max ${(rmsMax * 1000).toFixed(1)}, okien ${rmsy.length}), v_głowy med ${(vMed * 100).toFixed(2)} cm/s` + (zle.length ? ' → ' + zle.join('; ') : ''),
     { rmsMed, rmsMin, rmsMax, vMed });
 }
+// Idle w grze jest ZAPĘTLONY, więc jeśli klip jest krótszy niż K11_min_okresow okresów najwolniejszego oddechu,
+// analizujemy sygnał POWIELONY tyle razy, ile trzeba — dokładnie to widzi gracz. Powielenie klipu, który nie
+// domyka się w pętli, wprowadza skok na szwie; dlatego raportujemy też nieciągłość szwu.
 export function K11(s, { rola = 'klatka' } = {}) {
-  const okresow = s.czas * PROGI.K11_pasmo[0];
-  const y = new Float64Array(s.n); for (let i = 0; i < s.n; i++) y[i] = s.p[rola][3 * i + 1];
+  const potrzeba = PROGI.K11_min_okresow / PROGI.K11_pasmo[0];
+  const powtorzen = Math.max(1, Math.ceil(potrzeba / s.czas));
+  const y0 = new Float64Array(s.n); for (let i = 0; i < s.n; i++) y0[i] = s.p[rola][3 * i + 1];
+  const szew = Math.abs(y0[s.n - 1] - y0[0]);
+  const y = new Float64Array(s.n * powtorzen);
+  for (let r = 0; r < powtorzen; r++) y.set(y0, r * s.n);
+  const okresow = s.czas * powtorzen * PROGI.K11_pasmo[0];
   const wPasmie = S.skanPasma(y, s.dt, PROGI.K11_pasmo[0], PROGI.K11_pasmo[1], 0.002);
   const poza = S.skanPasma(y, s.dt, 0.60, 2.00, 0.02);
-  if (okresow < PROGI.K11_min_okresow) return w('K11', 'fail', false,
-    `klip ${f2(s.czas)} s = ${f2(okresow)} okresu przy ${PROGI.K11_pasmo[0]} Hz (potrzeba ≥ ${PROGI.K11_min_okresow}) — składowej oddechowej NIE DA SIĘ zmierzyć na tym klipie`,
-    { okresow, wPasmie });
+  if (powtorzen > 1 && szew > 0.005) return w('K11', 'fail', false,
+    `klip ${f2(s.czas)} s trzeba powielić ×${powtorzen}, żeby zmierzyć ${PROGI.K11_pasmo[0]} Hz, ale szew pętli ma ${(szew * 1000).toFixed(1)} mm skoku pionu (${rola}) — powielony sygnał to artefakt, nie oddech`,
+    { okresow, szew, powtorzen, wPasmie });
   const ok = wZakr(wPasmie.A, PROGI.K11_amplituda);
   return w('K11', 'fail', ok,
-    `oddech (${rola}, pion): A ${(wPasmie.A * 1000).toFixed(2)} mm przy ${f3(wPasmie.f)} Hz, zakres [${PROGI.K11_amplituda.map(x => x * 1000)}] mm w paśmie ${PROGI.K11_pasmo} Hz; poza pasmem (0,6–2 Hz) A ${(poza.A * 1000).toFixed(2)} mm`,
-    { wPasmie, poza, okresow });
+    `oddech (${rola}, pion, sygnał ×${powtorzen} = ${f2(s.czas * powtorzen)} s): A ${(wPasmie.A * 1000).toFixed(2)} mm przy ${f3(wPasmie.f)} Hz, zakres [${PROGI.K11_amplituda.map(x => x * 1000)}] mm w paśmie ${PROGI.K11_pasmo} Hz; poza pasmem (0,6–2 Hz) A ${(poza.A * 1000).toFixed(2)} mm; UWAGA: ta metoda NIE odróżnia oddechu od powolnego kołysania postawy o tej samej częstotliwości — na ACCAD Female1_A02_Sway daje 7,07 mm przy 0,232 Hz, a to kołysanie, nie oddech`,
+    { wPasmie, poza, okresow, powtorzen, szew });
 }
 
 // --- K12 ------------------------------------------------------------------------------------------------------

@@ -28,6 +28,11 @@ import { mapujRig } from './rig.mjs';
 import * as S from './sygnal.mjs';
 
 export const C_PIETA = 0.5;          // pięta za kostką o pół poziomej długości stopy
+// Czubek buta przed stawem palca o cCzubek × poziomą długość stopy (kostka→palec ≈ 11 cm na ACCAD).
+// WYNIK MTC JEST NA TĘ STAŁĄ CZUŁY — zmierzone na ACCAD Male1_B3_Walk: 0,25 → 30,1 mm; 0,4 → 26,1;
+// 0,5 → 20,7; 0,75 → −0,3; 1,0 → −23,4 (przy 0,75+ czubek wchodzi pod podłogę zaraz po odbiciu, bo stopa
+// zgina się podeszwowo). Dlatego MTC jest raportowane jako OSTRZEŻENIE, nie twardy FAIL.
+export const C_CZUBEK = 0.5;
 export const TOL_PODLOGA = 0.015;    // m — kontakt, gdy punkt jest nie wyżej niż 1,5 cm nad podłogą
 export const MIN_KONTAKT_S = 0.10;   // krótsze przebiegi maski to szum, nie kontakt
 export const MAX_VY = 0.15;          // m/s — punkt, który jeszcze opada/wznosi się szybciej, NIE stoi na ziemi
@@ -52,8 +57,10 @@ export function przebiegi(maska, minLen) {
   return out;
 }
 
-// Konstrukcja offsetu pięty (offset w jednostkach LOKALNYCH kości kostki) — 2 przebiegi próbkowania.
-export function offsetPiety(scena, klip, { fps = 60, c = C_PIETA } = {}) {
+// Konstrukcja offsetów PIĘTY (na kości kostki) i CZUBKA BUTA (na kości palca) — offsety w jednostkach LOKALNYCH
+// tych kości. Czubek jest potrzebny do MTC (K4): literaturowe 15 ± 4 mm dotyczy markera na przodzie buta, a nie
+// stawu ToeBase, który siedzi kilka cm nad podeszwą — na samym stawie ToeBase wychodzi ok. 32 mm (zmierzone).
+export function offsetPiety(scena, klip, { fps = 60, c = C_PIETA, cCzubek = C_CZUBEK } = {}) {
   const s0 = probkuj(scena, klip, { fps });
   const mapa = mapujRig(scena);
   const mixer = new THREE.AnimationMixer(scena); mixer.clipAction(klip).play();
@@ -69,6 +76,9 @@ export function offsetPiety(scena, klip, { fps = 60, c = C_PIETA } = {}) {
     const fx = t.x - a.x, fz = t.z - a.z;
     const swiat = new THREE.Vector3(a.x - c * fx, podloga, a.z - c * fz);
     const loc = kost.worldToLocal(swiat.clone());
+    // czubek buta: przed stawem palca o cCzubek × poziomą długość stopy, na wysokości podłogi
+    const czubW = new THREE.Vector3(t.x + cCzubek * fx, podloga, t.z + cCzubek * fz);
+    const czubLoc = pal.worldToLocal(czubW.clone());
     // korekta pionu: minimum wysokości pięty w klipie ma wynieść dokładnie `podloga`
     const s1 = probkuj(scena, klip, { fps, punkty: { pieta: { kosc: 'kostka' + b, offset: loc.toArray() } } });
     let hmin = Infinity; for (let i = 0; i < s1.n; i++) hmin = Math.min(hmin, s1.p.pieta[3 * i + 1]);
@@ -77,14 +87,15 @@ export function offsetPiety(scena, klip, { fps = 60, c = C_PIETA } = {}) {
     const w2 = kost.localToWorld(loc.clone()); w2.y += (podloga - hmin);
     const loc2 = kost.worldToLocal(w2);
     out['pieta' + b] = { kosc: 'kostka' + b, offset: [loc2.x, loc2.y, loc2.z], podloga, klatkaRef: ref, korektaPionu: podloga - hmin };
+    out['czubek' + b] = { kosc: 'palec' + b, offset: [czubLoc.x, czubLoc.y, czubLoc.z], podloga, klatkaRef: ref };
   }
   mixer.stopAllAction();
   return out;
 }
 
 // Wyznaczenie harmonogramu — OFFLINE. Zwraca obiekt do zapisania w JSON.
-export function wyznaczHarmonogram(scena, klip, { fps = 60, tol = TOL_PODLOGA, c = C_PIETA, nazwa } = {}) {
-  const punkty = offsetPiety(scena, klip, { fps, c });
+export function wyznaczHarmonogram(scena, klip, { fps = 60, tol = TOL_PODLOGA, c = C_PIETA, cCzubek = C_CZUBEK, nazwa } = {}) {
+  const punkty = offsetPiety(scena, klip, { fps, c, cCzubek });
   const s = probkuj(scena, klip, { fps, punkty: { pietaL: punkty.pietaL, pietaP: punkty.pietaP } });
   const minLen = Math.max(2, Math.round(MIN_KONTAKT_S * fps));
   const stopy = {};
@@ -120,7 +131,7 @@ export function wyznaczHarmonogram(scena, klip, { fps = 60, tol = TOL_PODLOGA, c
   return {
     klip: nazwa ?? klip.name, fps, tol_podlogi_m: tol, max_vy_ms: MAX_VY, c_piety: c, min_kontakt_s: MIN_KONTAKT_S,
     kryterium: 'wysokosc <= podloga_biegnaca(+-okno) + tol ORAZ |dy/dt| <= max_vy; oba warunki PIONOWE, niezalezne od poziomego dryfu mierzonego przez K2',
-    punkty: { pietaL: punkty.pietaL, pietaP: punkty.pietaP },
+    punkty: { pietaL: punkty.pietaL, pietaP: punkty.pietaP, czubekL: punkty.czubekL, czubekP: punkty.czubekP },
     stopy,
   };
 }

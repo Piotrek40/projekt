@@ -101,11 +101,13 @@ export function fazy(h, n, T) {
   };
 }
 
-// MTC — minimalny prześwit palców w WYMACHU, względem wysokości TEGO SAMEGO palca w JEGO podporach.
-export function mtc(s, h) {
+// MTC — minimalny prześwit w WYMACHU, względem wysokości TEGO SAMEGO punktu w JEGO podporach.
+// Punkt: 'czubek' (czubek buta, jeśli harmonogram go ma) — literaturowe 15 ± 4 mm dotyczy markera na przodzie
+// buta. Fallback 'palec' = staw ToeBase, który leży kilka cm nad podeszwą i daje wartości zawyżone.
+export function mtc(s, h, punkt = 'czubek') {
   const out = {};
   for (const st of ['L', 'P']) {
-    const r = 'palec' + st, kroki = h.stopy[st];
+    const r = (s.p[punkt + st] ? punkt : 'palec') + st, kroki = h.stopy[st];
     const wart = [];
     for (let i = 0; i < kroki.length - 1; i++) {
       const a = kroki[i].to, b = kroki[i + 1].ic;
@@ -188,21 +190,43 @@ export function korelacjaRamieUdo(s, k) {
     zakresRamieL: S.ptp(rL), zakresRamieP: S.ptp(rP) };
 }
 
-// K8: największa zmiana WEKTORA prędkości poziomej miednicy w oknie 100 ms, z pominięciem okien odbicia
-// (odbicie = okolica toe-off z harmonogramu).
+// K8: największa zmiana WEKTORA prędkości poziomej miednicy w oknie 100 ms.
+// UWAGA — mierzymy RESZTĘ po odjęciu uśrednionego po cyklach profilu prędkości, nie surową miednicę.
+// Powód (zmierzone na ACCAD Male1_B3_Walk): miednica w zdrowym chodzie zmienia prędkość wzdłuż marszu
+// od 1,055 do 1,471 m/s w obrębie jednego kroku, a |Δv| w oknie 100 ms sięga 0,234 m/s przy medianie 0,064.
+// Próg 0,10 m/s nałożony na surowy sygnał oblewa KAŻDY prawdziwy chód i nie mierzy tego, co widzi widz —
+// widz widzi SZARPNIĘCIE, czyli odstępstwo od tego, co ten sam chód robi w każdym innym cyklu.
+// Profil cykliczny: średnia prędkość w funkcji fazy cyklu (fazę bierzemy z IC lewej stopy z harmonogramu).
 export function skokiPredkosci(s, h, { okno = 0.1, przedOdbiciem = 0.10, poOdbiciu = 0.05 } = {}) {
-  const { vx, vz } = S.wektorPredkosci(s.p.miednica, s.n, s.dt);
+  const sur = S.wektorPredkosci(s.p.miednica, s.n, s.dt);
+  const ic = h.stopy.L.map(p => p.ic);
+  let vx = sur.vx, vz = sur.vz, surMax = 0;
+  { const kO0 = Math.round(okno / s.dt); for (let i = 0; i + kO0 < s.n; i++) surMax = Math.max(surMax, Math.hypot(sur.vx[i + kO0] - sur.vx[i], sur.vz[i + kO0] - sur.vz[i])); }
+  if (ic.length >= 3) {
+    const T = (ic[ic.length - 1] - ic[0]) / (ic.length - 1);
+    const kubelki = Math.max(8, Math.round(T));
+    const sx = new Float64Array(kubelki), sz = new Float64Array(kubelki), cnt = new Float64Array(kubelki);
+    const faza = i => { const u = ((i - ic[0]) % T + T) % T; return Math.min(kubelki - 1, Math.floor(u / T * kubelki)); };
+    for (let i = ic[0]; i < Math.min(s.n, ic[ic.length - 1]); i++) { const b = faza(i); sx[b] += sur.vx[i]; sz[b] += sur.vz[i]; cnt[b]++; }
+    for (let b = 0; b < kubelki; b++) if (cnt[b]) { sx[b] /= cnt[b]; sz[b] /= cnt[b]; }
+    vx = new Float64Array(s.n); vz = new Float64Array(s.n);
+    for (let i = 0; i < s.n; i++) { const b = faza(i); vx[i] = sur.vx[i] - sx[b]; vz[i] = sur.vz[i] - sz[b]; }
+  }
   const kO = Math.round(okno / s.dt);
+  // Skanujemy TYLKO zakres, w którym profil cyklu jest zdefiniowany (od pierwszego do ostatniego IC lewej stopy).
+  // Poza nim faza jest ekstrapolowana, a surowy klip mocap ma na brzegach transjent: zmierzone na ACCAD
+  // Male1_B3_Walk największe reszty to klatki 7–11 (0,17–0,235 m/s), wszystkie PRZED pierwszym IC = 27.
+  const i0 = ic.length >= 3 ? ic[0] : 0, i1 = ic.length >= 3 ? Math.min(s.n - 1, ic[ic.length - 1]) : s.n - 1;
   const maskaOdbicia = new Uint8Array(s.n);
   for (const st of ['L', 'P']) for (const p of h.stopy[st]) {
     const a = Math.max(0, p.to - Math.round(przedOdbiciem / s.dt)), b = Math.min(s.n - 1, p.to + Math.round(poOdbiciu / s.dt));
     for (let i = a; i <= b; i++) maskaOdbicia[i] = 1;
   }
   let maxAll = 0, maxPoza = 0, gdzie = -1;
-  for (let i = 0; i + kO < s.n; i++) {
+  for (let i = i0; i + kO <= i1; i++) {
     const d = Math.hypot(vx[i + kO] - vx[i], vz[i + kO] - vz[i]);
     if (d > maxAll) maxAll = d;
     if (!maskaOdbicia[i] && !maskaOdbicia[i + kO] && d > maxPoza) { maxPoza = d; gdzie = i; }
   }
-  return { maxWszedzie: maxAll, maxPozaOdbiciem: maxPoza, klatka: gdzie, oknoKlatek: kO };
+  return { maxWszedzie: maxAll, maxPozaOdbiciem: maxPoza, klatka: gdzie, oknoKlatek: kO, surowaMiednicaMax: surMax, resztaCykliczna: ic.length >= 3, zakres: [i0, i1] };
 }

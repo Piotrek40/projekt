@@ -1,0 +1,112 @@
+{
+ "zrodlo": "ACCAD Motion Capture (CC-BY 3.0), BVH -> GLB przez three r185 (przygotuj.mjs), skala 0,01",
+ "chod": [
+  {
+   "nazwa": "chod_M1",
+   "glb": "chod_M1.glb",
+   "kontakt": "chod_M1.kontakt.json",
+   "opis": "ACCAD Male1_B3_Walk, 6,07 s, 30 Hz zrodlo",
+   "oczekiwaneFail": {
+    "K2": "prawa pieta w tym klipie ACCAD ma szczyt 33 cm/s w 3 z 6 podpor (stala C_PIETA 0,25-0,7 nie zmienia wyniku: 27-34 cm/s) - to realny poslizg w zrodle, klip wymaga blokady stopy/IK",
+    "K3": "podpora 57,2 % (L 55,3 / P 59,1) i suma DS 15,9 % - okno [59,60] jest wezsze niz roznica miedzy nogami tego samego aktora (3,7 pkt proc.)"
+   }
+  }
+ ],
+ "chod_negatywne": [
+  {
+   "nazwa": "chod_M2",
+   "glb": "chod_M2.glb",
+   "kontakt": "chod_M2.kontakt.json",
+   "opis": "ACCAD Male2_B3_Walk — szybszy chod",
+   "oczekiwaneFail": {
+    "K2": "szybszy chod, poslizg pieta L mediana 6,4 cm/s i szczyty 30-76 cm/s",
+    "K3": "podpora 55,0 %, faza lotu 1,5 % (chod ma miec 0)",
+    "K4": "predkosc 1,648 m/s > 1,55 i szerokosc kroku 18,0 cm > 15"
+   }
+  },
+  {
+   "nazwa": "bieg_M2",
+   "glb": "bieg_M2.glb",
+   "kontakt": "bieg_M2.kontakt.json",
+   "opis": "ACCAD Male2_C3_Run — bieg, ma miec faze lotu",
+   "oczekiwaneFail": {
+    "H": "bieg: wyznaczanie harmonogramu (kryterium wysokosciowe + bramka pionowa, okno podlogi 0,5 s) nie znajduje ani jednej podpory",
+    "K1": "bez podpor nie ma ani T, ani dlugosci kroku",
+    "K2": "zero klatek kontaktu w harmonogramie",
+    "K3": "faza lotu 100 % (bieg)",
+    "K4": "predkosc 3,73 m/s",
+    "K6": "bez T nie ma harmonicznych",
+    "K8": "bieg 1,29 m/s skoku predkosci w oknie 100 ms"
+   }
+  }
+ ],
+ "idle": [
+  {
+   "nazwa": "stanie_F1",
+   "glb": "stanie_F1.glb",
+   "opis": "ACCAD Female1_A01_Stand, 3,0 s",
+   "oczekiwaneFail": {
+    "K11": "mocap ACCAD nie zawiera skladowej oddechowej (A 0,09 mm w pasmie 0,20-0,33 Hz) - oddech w NPC bedzie dokladany proceduralnie, kalibracja K11 jest na wstrzyknietej sinusoidzie (--kalibracja)"
+   }
+  }
+ ],
+ "idle_negatywne": [
+  {
+   "nazwa": "kolysanie_F1",
+   "glb": "kolysanie_F1.glb",
+   "opis": "ACCAD Female1_A02_Sway — kolysanie za duze na idle",
+   "oczekiwaneFail": {
+    "K10": "kolysanie: RMS glowy 58,8 mm i predkosc 5,19 cm/s powyzej zakresu idle"
+   },
+   "uwaga": "K11 PRZECHODZI na tym klipie (7,07 mm przy 0,232 Hz), ale to kolysanie postawy, nie oddech - metoda czestotliwosciowa ich nie odroznia"
+  },
+  {
+   "nazwa": "stanie_M1",
+   "glb": "stanie_M1.glb",
+   "opis": "ACCAD Male1_A1_Stand — aktor przestepuje",
+   "oczekiwaneFail": {
+    "K10": "aktor przestepuje: RMS glowy do 190 mm",
+    "K11": "brak oddechu w zrodle"
+   }
+  }
+ ],
+ "logi": [
+  {
+   "nazwa": "dobry",
+   "plik": "log_silnika_dobry.json",
+   "opis": "CV 2 % — cel"
+  },
+  {
+   "nazwa": "metronom",
+   "plik": "log_silnika_metronom.json",
+   "opis": "CV 0,2 % — za regularnie, MA OBLAC",
+   "oczekiwaneFail": {
+    "K9": "CV 0,20 % - metronom, ponizej dolnego progu 1 %"
+   }
+  },
+  {
+   "nazwa": "rozjazd",
+   "plik": "log_silnika_rozjazd.json",
+   "opis": "CV 9 % — za nierowno, MA OBLAC",
+   "oczekiwaneFail": {
+    "K9": "CV 7,73 % - powyzej gornego progu 3 %"
+   }
+  }
+ ],
+ "mrugniecia": [
+  {
+   "nazwa": "dobre",
+   "plik": "mrugniecia_dobre.json",
+   "opis": "3,5 s +- losowo, 8-12 klatek"
+  },
+  {
+   "nazwa": "metronom",
+   "plik": "mrugniecia_metronom.json",
+   "opis": "co 3,5 s co do klatki — MA OBLAC",
+   "oczekiwaneFail": {
+    "K12": "odstepy co do klatki, CV 0 %"
+   }
+  }
+ ],
+ "_": "WZORZEC manifestu dla test_ruch.mjs. Kopiuj do katalogu z klipami jako manifest.json. oczekiwaneFail = ZNANE ODSTEPSTWA (jak KNOWN_B6 w test_geometria.mjs): klucz = id asercji, wartosc = powod. Rozjazd w OBIE strony jest bledem testu: nieoczekiwany FAIL = wada klipu, brak oczekiwanego FAIL = asercja przestala wykrywac znana wade. Liczby w powodach pochodza z pomiaru, nie z zalozenia."
+}
