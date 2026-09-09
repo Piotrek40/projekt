@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import fs from 'fs';
-import { przygotuj, przenies, MAPA_ACCAD_MPFB } from '../../../engine/src/retarget.js';
+import { przygotuj, przenies, wydzielRuchKorzenia, MAPA_ACCAD_MPFB } from '../../../engine/src/retarget.js';
 
 const CIALO = '/home/user/projekt/rynek/assets/models/npc_body.glb';
 const ANIM = '/home/user/projekt/rynek/assets/anim/';
@@ -64,6 +64,30 @@ console.log('\n=== B. Przeniesienie rotacji (bez normalizacji korzenia) ===');
   }
   sprawdz(max < 0.5, 'kości celu wskazują tam, gdzie kości źródła, przez cały klip (próg 0,5°)', { maxRoznica: +max.toFixed(3), gdzie });
   sprawdz(klip.tracks.length === P.pary.length + 1, 'klip ma po jednej ścieżce rotacji na kość plus pozycję korzenia', { sciezek: klip.tracks.length });
+}
+
+console.log('\n=== B2. Przygotowanie na JEDNYM klipie, przeniesienie INNEGO ===');
+{
+  // Regresja na realnym błędzie: przygotuj() zapamiętuje REFERENCJE do kości tej hierarchii, na której liczyło
+  // dopasowanie. W npc.js przygotowanie idzie raz, na pierwszym klipie, a przenoszonych jest sześć — bez
+  // przewiązania kości po nazwie zastosuj() czytałoby cały czas pierwszy, NIERUCHOMY szkielet i wynikowy klip
+  // byłby zamrożony. Objawem było `vChodu: 0`. Ten test używa dwóch RÓŻNYCH plików, więc łapie to wprost.
+  const cialo = await wczytaj(CIALO);
+  const idle = await wczytaj(ANIM + 'idle_sway.glb');      // na tym liczymy dopasowanie
+  const chod = await wczytaj(ANIM + 'walk_cycle.glb');     // ten przenosimy
+  const P = przygotuj(idle.scene, cialo.scene, MAPA_ACCAD_MPFB);
+  const k = przenies({ zrodloRoot: chod.scene, klip: chod.animations[0], pary: P.pary, celRoot: cialo.scene, skala: P.skala, fps: 30 });
+  const pelvis = P.pary.find(w => w.cs === 'pelvis').c;
+  const rk = wydzielRuchKorzenia(k, pelvis);
+  const v = rk.droga / k.duration;
+  sprawdz(rk.droga > 1.0, 'klip przeniesiony z INNEJ hierarchii niż przygotowanie naprawdę się rusza (bez przewiązania kości wychodziło 0,000 m)', { droga_m: +rk.droga.toFixed(3) });
+  sprawdz(v >= 1.10 && v <= 1.55, 'i ma tę samą prędkość co przy przygotowaniu na własnym klipie', { v: +v.toFixed(3) });
+  // Pion miednicy MUSI zostać w klipie — wydzielamy tylko poziom. Pierwsza wersja zakładała, że pionem jest
+  // lokalne +y, a w tym rigu jest nim lokalne +z (kość Root obrócona o −90°), więc wycinała dokładnie ten pion.
+  const mix = new THREE.AnimationMixer(cialo.scene); mix.clipAction(k).play();
+  let ymin = Infinity, ymax = -Infinity;
+  for (let i = 0; i <= 60; i++) { mix.setTime((i / 60) * (k.duration - 1e-4)); cialo.scene.updateMatrixWorld(true); const y = poz(pelvis).y; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
+  sprawdz((ymax - ymin) * 1000 > 20, 'po wydzieleniu poziomu w klipie ZOSTAJE pion miednicy (inaczej chód jest sunięciem)', { pion_mm: +((ymax - ymin) * 1000).toFixed(1) });
 }
 
 console.log('\n=== C. Normalizacja korzenia — wszystkie klipy startują tak samo ===');

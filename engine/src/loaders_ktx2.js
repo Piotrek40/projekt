@@ -35,6 +35,9 @@ export function createLoaders(manager, renderer) {
       ? (name, map) => p(tex, `${ASSETS}textures/${name}_${map}.jpg`)
       : (name, map) => p(ktx2, `${ASSETS}textures/${name}_${map}.ktx2`),
     loadModel: name => p(gltf, `${ASSETS}${mode === 'jpg' ? 'models_jpg' : 'models'}/${name}.glb`),
+    // loadAsset: GLB spod ścieżki względem assets/, POZA rozróżnieniem ktx2/jpg. Dla zasobów bez tekstur
+    // (ciało NPC, klipy animacji na samej armaturze) oba warianty byłyby bajt w bajt takie same.
+    loadAsset: rel => p(gltf, `${ASSETS}${rel}`),
     loadSky: (file = 'sky_1k.hdr') => p(hdr, `${ASSETS}hdri/${file}`),
     mode, info,
   };

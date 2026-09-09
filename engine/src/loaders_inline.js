@@ -51,6 +51,7 @@ export function createLoaders(manager) {
       const t = new THREE.Texture(img); t.flipY = false; t.needsUpdate = true; return t;
     },
     loadModel: name => p(gltf, `models/${name}.glb`),
+    loadAsset: rel => p(gltf, rel),   // klucz w window.__ASSETS jest już ścieżką względem assets/
     loadSky: () => p(hdr, 'hdri/sky.hdr'), // wariant inline ma jedno niebo
     mode: 'inline', info: { mode: 'inline' },
   };

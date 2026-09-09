@@ -16,6 +16,7 @@ import { buildBunting } from './bunting.js';
 import { buildTrees } from './trees.js';
 import { buildGreenery } from './greenery.js';
 import { buildSkyline } from './skyline.js';
+import { buildNPC } from './npc.js';
 import { initUI } from './ui.js';
 import { checksEnabled, checkNoCoplanar, check } from '../../engine/src/check.js';
 import { initDebug } from './debug.js';
@@ -57,6 +58,7 @@ export async function buildWorld(ctx) {
   buildTrees(W);      // lipy (W.B)
   buildGreenery(W);   // zieleń z modeli (W.put) — po initProps, przed flushInstances
   buildSkyline(W);    // panorama za pierzejami (W.B)
+  await buildNPC(W);  // NPC (?nonpc=1, ?noskin=1) — własna ścieżka ładowania: SkinnedMesh nie przechodzi ani przez put(), ani przez Batch
 
   W.flushInstances();
   // PRZED B.build (po scaleniu nie ma osobnych brył): koplanarne płaszczyzny tego samego materiału = z-fighting. Tylko klucze z cienkimi

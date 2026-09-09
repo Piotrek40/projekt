@@ -164,6 +164,16 @@ export function zastosuj(pary, celRoot) {
  * @param {boolean} opts.normalizujKorzen odjąć pozycję XZ i kurs z chwili 0
  */
 export function przenies({ zrodloRoot, klip, pary, celRoot, korzen = 'pelvis', skala = 1, fps = 30, normalizujKorzen = true }) {
+  // Pary z przygotuj() trzymają REFERENCJE do kości tej hierarchii źródła, na której liczono dopasowanie.
+  // Każdy kolejny klip to osobny plik i osobna hierarchia, więc kości trzeba przewiązać po nazwie — inaczej
+  // zastosuj() czytałoby cały czas pierwszy, nieruchomy szkielet, a wynikowy klip byłby zamrożony.
+  // Objawem był `vChodu: 0` z asercji w npc.js: postać stała, choć klip „się odtwarzał".
+  const zrodloPoNazwie = new Map();
+  zrodloRoot.traverse(o => { if (o.name) zrodloPoNazwie.set(o.name, o); });
+  const brakujace = pary.filter(w => !zrodloPoNazwie.has(w.zs)).map(w => w.zs);
+  if (brakujace.length) throw new Error(`przenies: hierarchia klipu "${klip.name}" nie ma kości ${brakujace.join(', ')}`);
+  pary = pary.map(w => ({ ...w, z: zrodloPoNazwie.get(w.zs) }));
+
   const mieszacz = new THREE.AnimationMixer(zrodloRoot);
   const akcja = mieszacz.clipAction(klip);
   akcja.play();
@@ -227,4 +237,61 @@ export function przenies({ zrodloRoot, klip, pary, celRoot, korzen = 'pelvis', s
   const wynik = new THREE.AnimationClip(klip.name, klip.duration, sciezki);
   akcja.stop(); mieszacz.uncacheClip(klip);
   return wynik;
+}
+
+/**
+ * Wydziela POZIOMY ruch korzenia z klipu. Po tym zabiegu klip animuje postać „w miejscu", a przemieszczenie
+ * dostaje kontroler, który przesuwa cały obiekt NPC — dzięki temu da się skręcać i zatrzymywać, nie psując
+ * tempa kroku. PION miednicy zostaje w klipie: bez niego chód wygląda jak sunięcie (zmierzone: 37,0 mm
+ * peak-to-peak przy 1,29 m/s, norma 25–50 mm).
+ *
+ * Kierunku pionu NIE WOLNO zgadywać z osi lokalnych. Kość Root tego rigu jest obrócona o −90° wokół X
+ * (konwersja Z-up Blendera na Y-up glTF), więc pionem jest tam lokalne +z, a nie +y; pierwsza wersja tej
+ * funkcji zakładała +y i wycinała z klipu dokładnie ten pion, który miała zachować. Dlatego rozkład liczymy
+ * względem światowego „w górę" przeniesionego do układu RODZICA kości korzenia.
+ *
+ * NIE WOLNO robić obu naraz: albo klip niesie ruch, albo kontroler. Jednocześnie — podwojona prędkość
+ * i poślizg stóp, którego żaden foot-lock nie naprawi.
+ *
+ * @param {THREE.AnimationClip} klip klip po przeniesieniu
+ * @param {THREE.Object3D} korzenObj kość korzenia CELU (potrzebna dla rotacji jej rodzica)
+ * @returns {{czasy: Float32Array, xz: Float32Array, droga: number}} przemieszczenie w ŚWIECIE, względem chwili 0
+ */
+export function wydzielRuchKorzenia(klip, korzenObj) {
+  const i = klip.tracks.findIndex(t => t.name === `${korzenObj.name}.position`);
+  if (i < 0) throw new Error(`wydzielRuchKorzenia: klip "${klip.name}" nie ma ścieżki ${korzenObj.name}.position`);
+  const tr = klip.tracks[i], czasy = tr.times, v = tr.values, n = czasy.length;
+
+  const qRodzic = korzenObj.parent ? korzenObj.parent.getWorldQuaternion(new THREE.Quaternion()) : new THREE.Quaternion();
+  const gora = new THREE.Vector3(0, 1, 0).applyQuaternion(qRodzic.clone().invert()).normalize();
+  const p0 = new THREE.Vector3(v[0], v[1], v[2]);
+  const p = new THREE.Vector3(), poziom = new THREE.Vector3(), swiat = new THREE.Vector3();
+
+  const xz = new Float32Array(n * 2), bezXZ = new Float32Array(n * 3);
+  let droga = 0;
+  for (let k = 0; k < n; k++) {
+    p.set(v[k * 3], v[k * 3 + 1], v[k * 3 + 2]).sub(p0);
+    const wysokosc = p.dot(gora);
+    poziom.copy(p).addScaledVector(gora, -wysokosc);
+    swiat.copy(poziom).applyQuaternion(qRodzic);
+    xz[k * 2] = swiat.x; xz[k * 2 + 1] = swiat.z;
+    // W klipie zostaje wyłącznie składowa pionowa (plus pozycja spoczynkowa) — reszta poszła do kontrolera.
+    bezXZ[k * 3] = p0.x + gora.x * wysokosc;
+    bezXZ[k * 3 + 1] = p0.y + gora.y * wysokosc;
+    bezXZ[k * 3 + 2] = p0.z + gora.z * wysokosc;
+    if (k) droga += Math.hypot(xz[k * 2] - xz[(k - 1) * 2], xz[k * 2 + 1] - xz[(k - 1) * 2 + 1]);
+  }
+  klip.tracks[i] = new THREE.VectorKeyframeTrack(tr.name, czasy, bezXZ);
+  return { czasy, xz, droga };
+}
+
+/** Odczyt przemieszczenia korzenia w chwili t (interpolacja liniowa między klatkami). */
+export function ruchKorzeniaW(rk, t, out) {
+  const { czasy, xz } = rk, n = czasy.length;
+  if (t <= czasy[0]) return out.set(xz[0], 0, xz[1]);
+  if (t >= czasy[n - 1]) return out.set(xz[(n - 1) * 2], 0, xz[(n - 1) * 2 + 1]);
+  let a = 0, b = n - 1;
+  while (b - a > 1) { const m = (a + b) >> 1; if (czasy[m] <= t) a = m; else b = m; }
+  const u = (t - czasy[a]) / (czasy[b] - czasy[a]);
+  return out.set(xz[a * 2] + (xz[b * 2] - xz[a * 2]) * u, 0, xz[a * 2 + 1] + (xz[b * 2 + 1] - xz[a * 2 + 1]) * u);
 }

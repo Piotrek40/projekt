@@ -457,4 +457,28 @@ export const CONFIG = {
     slates:  { name: 'castle_wall_slates',   mpt: 2.0 },
     tiles:   { name: 'stone_tiles_02',       mpt: 2.0 },   // motyw #9: neutralna baza (lin. [0.198, 0.196, 0.171], H 106, AO 0,93) pod roof2 (łupek) i roofTower (miedź z patyną) — §4.4; 2 m/kafel jak roof/slates
   },
+
+  // ── NPC (etap 4) ───────────────────────────────────────────────────────────────────────────────────
+  // Trasa i czasy dobrane pod plac 44×44 m: NPC krąży po wschodniej stronie, między kramem sukiennika
+  // a fontanną, w polu widzenia ze startu gracza (4.5, 19.5, yaw 0.20). Punkty trasy trzymają się z dala
+  // od kół kolizji kramów (r 1,6) i cembrowiny fontanny (r 3,15).
+  npc: {
+    start: { x: 3.2, z: 9.0, ry: Math.PI },   // rot: ry=π → NPC startuje twarzą do gracza stojącego na południu placu
+    trasa: [{ x: 6.8, z: 4.0 }, { x: 6.2, z: -3.5 }, { x: 1.5, z: -6.0 }, { x: 3.2, z: 9.0 }],
+    klipyIdle: ['idle_sway', 'idle_lookaround', 'idle_arms'],
+    fps: 30,                 // próbkowanie przeniesionych klipów; źródło ACCAD też jest 30 fps, więc to 1:1
+    przenikanie: 0.18,       // s — zmierzony szew na złączach to średnio 4,37° i 5,03°, 0,1–0,2 s wystarcza
+    postojS: 6.0,            // ile stoi w idle, zanim ruszy dalej
+    skretRadS: 1.2,          // rad/s — ograniczenie prędkości obrotu w marszu; człowiek nie obraca się skokowo
+    dystansZainteresowania: 6.0,   // m — od tej odległości NPC patrzy na gracza i nie odchodzi
+    dystansZatrzymania: 2.2,       // m — podejście bliżej przerywa marsz
+    kolizjaR: 0.45,
+    zapasKuli: 1.35,         // mnożnik promienia kuli obcinania: rekompensuje to, że Skeleton liczy ją raz, w pozie spoczynkowej
+    maxPrzyrostM: 0.25,      // m/klatkę — powyżej tego przyrost korzenia jest artefaktem przenikania, nie krokiem
+    limitSpojrzeniaRad: 1.05,      // 60° łącznie na szyję i głowę
+    udzialSzyi: 0.45,        // ile z tego obrotu bierze szyja, resztę głowa
+    spojrzenieNarostS: 0.45, // s — czas narastania wagi spojrzenia (wejście gracza w promień)
+    spojrzenieOpadS: 0.9,    // s — opadanie jest wolniejsze: wzrok odprowadza odchodzącego
+    maxKrokowPrzewijania: 6000,   // 100 s symulacji przy kroku 1/60 s — bezpiecznik przewijania w harnessie renderu
+  },
 };
