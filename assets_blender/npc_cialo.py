@@ -51,8 +51,14 @@ os.makedirs(WORK, exist_ok=True)
 MACRO = {
     "gender":      1.0,    # mezczyzna
     "age":         0.5,    # ~25-45 lat
-    "muscle":      0.78,   # zmierzone: RMS 3,53 mm, max 21,8 mm vs muscle=0.50.
-                           # muscle=1.00 dawalo max 39,8 mm (kulturysta) - odrzucone.
+    "muscle":      0.90,   # WYBRANE POMIAREM (cal11_region.py). Przejscie 0.50 -> 0.90
+                           # dokłada, RMS / max w mm: klatka+grzbiet 13,1/31,1;
+                           # posladki 11,9/19,3; udo 9,4/18,4; ramie 7,7/14,5;
+                           # lydka 6,0/14,0 - a NIE rusza: glowa 0,06; stopa 0,07;
+                           # dlon 0,79. Czyli przybywa miesnia dokladnie tam, gdzie
+                           # miesien jest, i nigdzie indziej. Kontrola: to samo makro
+                           # dwa razy -> 0,000000 mm.
+                           # 1.00 odrzucone: max 39,8 mm, sylwetka silowni, nie placu.
     "weight":      0.48,   # nieco ponizej srodka: mieszczanin, nie otylly
     "height":      0.550,  # zmierzone 1,8023 m (sweep: 0.50->1.7473, 0.60->1.8711)
     "proportions": 0.5,    # klucz nazywa sie "proportions", NIE "bodyproportions"
@@ -796,11 +802,15 @@ if os.environ.get("NPC_RENDER") == "1":
     sc.render.resolution_y = 600
     sc.render.resolution_percentage = 100
     sc.render.film_transparent = False
+    # Standard, nie AgX: to render KONTROLNY, ma pokazac geometrie, nie grading.
+    sc.view_settings.view_transform = 'Standard'
+    sc.view_settings.look = 'None'
+    sc.view_settings.exposure = 0.0
 
     w = bpy.data.worlds.new("w")
     sc.world = w
     w.use_nodes = True
-    w.node_tree.nodes["Background"].inputs[0].default_value = (0.05, 0.055, 0.07, 1)
+    w.node_tree.nodes["Background"].inputs[0].default_value = (0.02, 0.022, 0.028, 1)
     w.node_tree.nodes["Background"].inputs[1].default_value = 1.0
 
     def area(name, loc, rot, size, energy):
@@ -813,12 +823,15 @@ if os.environ.get("NPC_RENDER") == "1":
         sc.collection.objects.link(o)
         return o
 
-    area("key",  (2.6, -2.6, 2.7), (math.radians(58), 0, math.radians(45)), 2.0, 900)
-    area("fill", (-2.8, -1.6, 1.4), (math.radians(80), 0, math.radians(-60)), 2.5, 220)
-    area("rim",  (-1.2, 3.0, 2.4), (math.radians(120), 0, math.radians(200)), 2.0, 700)
+    # SWIATLO MUSKAJACE. Klucz z gory-przodu splaszcza wszystko (pierwsza wersja
+    # tych renderow dala manekina bez cienia jednego miesnia). Klucz nisko z boku,
+    # prawie stycznie do skory, rysuje brzusce miesni cieniem wlasnym.
+    area("key",  (2.55, -1.05, 1.35), (math.radians(82), 0, math.radians(68)), 0.9, 260)
+    area("fill", (-2.2, -1.9, 1.5), (math.radians(78), 0, math.radians(-50)), 2.2, 45)
+    area("rim",  (-1.5, 2.2, 2.3), (math.radians(128), 0, math.radians(215)), 1.4, 320)
 
     cd = bpy.data.cameras.new("cam")
-    cd.lens = 70
+    cd.lens = 60
     cam = bpy.data.objects.new("cam", cd)
     sc.collection.objects.link(cam)
     sc.camera = cam
