@@ -56,7 +56,20 @@ function kierunek(obj, dziecko) {
  * @param {Object} mapa nazwa źródła -> nazwa celu
  * @returns {{pary: Array, wzrostZrodla: number, wzrostCelu: number, skala: number, diag: Object}}
  */
-export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB) {
+export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB, opcje = {}) {
+  // POZA ODNIESIENIA. Nie wolno dopasowywać do pozy spoczynkowej BVH — w plikach ACCAD jest ona ŚMIECIEM.
+  // Zmierzone na walk_cycle.glb: w pozie spoczynkowej Spine→Spine1 idzie (+0,199; +0,039) czyli W BOK,
+  // Neck→Head (+0,095; +0,002) też w bok, a ramię (+0,286; +0,012) w bok. W pierwszej klatce klipu te same
+  // kości idą odpowiednio (+0,028; +0,201) w górę, (+0,038; +0,081) w górę i (−0,085; −0,275) w dół — czyli
+  // normalnie. Blender buduje armaturę z OFFSET-ów BVH, a w tych plikach cała orientacja siedzi w klatkach,
+  // nie w hierarchii. Dopasowanie do pozy spoczynkowej dawało 87° obrotu na kręgosłupie i zwinięty tułów
+  // (widoczne na zrzucie z telefonu; test tego NIE złapał, bo mierzył tylko kierunki kości).
+  let mieszaczOdn = null;
+  if (opcje.klipOdniesienia) {
+    mieszaczOdn = new THREE.AnimationMixer(zrodloRoot);
+    mieszaczOdn.clipAction(opcje.klipOdniesienia).play();
+    mieszaczOdn.setTime(opcje.czasOdniesienia ?? 0);
+  }
   zrodloRoot.updateMatrixWorld(true); celRoot.updateMatrixWorld(true);
 
   // Pary w kolejności hierarchicznej celu (rodzic przed dzieckiem) — inaczej rotacja lokalna dziecka
@@ -96,7 +109,19 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB) {
     return jawne || dzieckoZmapowane(o, { has: n => maC.get(n) === true });
   };
 
-  // ---- KROK 1: dopasowanie pozy spoczynkowej celu do pozy źródła ----
+  // ---- KROK 1: dopasowanie pozy celu do POZY ODNIESIENIA źródła ----
+  // Nie wystarczy zrównać KIERUNKÓW kości: kierunek ma 2 stopnie swobody, rotacja 3, a setFromUnitVectors
+  // daje obrót minimalny, czyli o niekontrolowanym SKRĘCIE wokół osi kości. Ten skręt wchodził potem do
+  // poprawki C i wykręcał tułów — przy zgodności kierunków 0,000°, więc test tego nie widział.
+  // Dlatego budujemy dla każdej kości pełną ramkę ortonormalną: oś kości + oś odniesienia wzięta ze ŚWIATA
+  // (ta sama po obu stronach), więc skręt przestaje być dowolny.
+  const ramka = (d, ref) => {
+    const u = ref.clone().addScaledVector(d, -ref.dot(d));
+    if (u.lengthSq() < 1e-8) return null;
+    u.normalize();
+    return new THREE.Matrix4().makeBasis(d, u, new THREE.Vector3().crossVectors(d, u));
+  };
+  const OS_GORA = new THREE.Vector3(0, 1, 0), OS_PRZOD = new THREE.Vector3(0, 0, 1);
   const diag = { dopasowane: [], odchylkaPrzed: [], odchylkaPo: [] };
   for (const w of wpisy) {
     const dz = kierunek(w.z, dzZ(w.z));
@@ -105,9 +130,17 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB) {
     const dc = kierunek(w.c, dzC(w.c));
     if (!dc) continue;
     diag.odchylkaPrzed.push([w.cs, Math.acos(Math.max(-1, Math.min(1, dc.dot(dz)))) * 180 / Math.PI]);
-    // Obrót świata, który sprowadza kierunek celu na kierunek źródła; nakładamy go na rotację światową kości.
-    const R = qTmp.setFromUnitVectors(dc, dz);
-    const nowySwiat = R.clone().multiply(swiatQ(w.c));
+    // Oś odniesienia wybrana po ŹRÓDLE i użyta po obu stronach: dla kości pionowych (nogi, zwisające ręce,
+    // kręgosłup) rzut światowego „w górę" degeneruje się do zera, więc bierzemy wtedy „w przód".
+    const ref = Math.abs(dz.dot(OS_GORA)) > 0.9 ? OS_PRZOD : OS_GORA;
+    const Fz = ramka(dz, ref), Fc = ramka(dc, ref);
+    let nowySwiat;
+    if (Fz && Fc) {
+      const qz = new THREE.Quaternion().setFromRotationMatrix(Fz), qc = new THREE.Quaternion().setFromRotationMatrix(Fc);
+      nowySwiat = qz.multiply(qc.invert()).multiply(swiatQ(w.c));   // obrót świata: ramka celu -> ramka źródła
+    } else {
+      nowySwiat = qTmp.setFromUnitVectors(dc, dz).clone().multiply(swiatQ(w.c));   // awaryjnie: sam kierunek
+    }
     const rodzicSwiat = w.c.parent ? swiatQ(w.c.parent) : new THREE.Quaternion();
     w.c.quaternion.copy(rodzicSwiat.invert().multiply(nowySwiat));
     w.c.updateMatrixWorld(true);
@@ -132,6 +165,7 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB) {
   const wzrostCelu = swiatP(wpisy.find(w => w.cs === 'pelvis')?.c || celRoot).y;
   const skala = wzrostCelu / wzrostZrodla;
 
+  if (mieszaczOdn) { mieszaczOdn.stopAllAction(); mieszaczOdn.uncacheRoot(zrodloRoot); }
   return { pary: wpisy, wzrostZrodla, wzrostCelu, skala, diag };
 }
 

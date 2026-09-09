@@ -55,7 +55,10 @@ export async function buildNPC(W) {
   // Przeniesienie liczone RAZ, na pierwszym klipie: pary kości i poprawki zależą tylko od pary szkieletów,
   // nie od klipu. Sześć klipów × ok. 480 klatek × 21 kości to kilkadziesiąt tysięcy operacji na kwaternionach —
   // pojedyncze milisekundy przy ładowaniu, a w pętli gry zero przeliczania.
-  const przyg = przygotuj(klipyGltf[0].scene, cialoGltf.scene, MAPA_ACCAD_MPFB);
+  // Poza odniesienia: PIERWSZA KLATKA klipu stojącego, nie poza spoczynkowa BVH — ta w plikach ACCAD jest
+  // śmieciem (wszystko powyżej bioder wskazuje w bok). Szczegóły i liczby w engine/src/retarget.js.
+  const przyg = przygotuj(klipyGltf[0].scene, cialoGltf.scene, MAPA_ACCAD_MPFB,
+    { klipOdniesienia: klipyGltf[0].animations[0], czasOdniesienia: 0 });
   check(przyg.pary.length >= 20, 'npc: za mało zmapowanych kości między mocapem a rigiem ciała', { par: przyg.pary.length });
   const maxOdchylka = Math.max(...przyg.diag.odchylkaPo.map(x => x[1]));
   check(maxOdchylka < 0.5, 'npc: dopasowanie póz spoczynkowych nie zeszło poniżej 0,5°', { maxOdchylka });

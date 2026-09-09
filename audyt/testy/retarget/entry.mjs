@@ -137,5 +137,54 @@ console.log('\n=== C. Normalizacja korzenia — wszystkie klipy startują tak sa
   }
 }
 
+console.log('\n=== D. Miary FUNKCJONALNE — to, czego zgodność kierunków NIE widzi ===');
+{
+  // Zgodność kierunków kości może wynosić 0,000°, a poza i tak być rozjechana: kierunek ma 2 stopnie
+  // swobody, rotacja 3. Zły SKRĘT kości obraca pozycje wszystkich jej dzieci, nie zmieniając jej kierunku.
+  // Tak właśnie przeszła wada widoczna gołym okiem na telefonie (zwinięty tułów, głowa wyrzucona w przód).
+  // Te miary są odporne na różnicę długości kości i łapią skręt: zakres wymachu w płaszczyźnie marszu
+  // oraz korelacja ramienia z udem TEJ SAMEJ strony (przeciwfaza — zmierzone −0,927).
+  const cialo = await wczytaj(CIALO);
+  const idle = await wczytaj(ANIM + 'idle_sway.glb');
+  const chod = await wczytaj(ANIM + 'walk_cycle.glb');
+  const P = przygotuj(idle.scene, cialo.scene, MAPA_ACCAD_MPFB, { klipOdniesienia: idle.animations[0], czasOdniesienia: 0 });
+  const k = przenies({ zrodloRoot: chod.scene, klip: chod.animations[0], pary: P.pary, celRoot: cialo.scene, skala: P.skala, fps: 30 });
+
+  const serie = (root, mix, klip, pary, korzen) => {
+    const N = 60, out = {}, px = [], pz = [], zapis = [];
+    for (let i = 0; i < N; i++) {
+      mix.setTime((i / N) * (klip.duration - 1e-4)); root.updateMatrixWorld(true);
+      const p = poz(root.getObjectByName(korzen)); px.push(p.x); pz.push(p.z);
+      zapis.push(pary.map(([, a, b]) => poz(root.getObjectByName(b)).sub(poz(root.getObjectByName(a)))));
+    }
+    const marsz = new THREE.Vector3(px[N - 1] - px[0], 0, pz[N - 1] - pz[0]).normalize();
+    pary.forEach(([n], j) => { out[n] = zapis.map(r => Math.atan2(r[j].dot(marsz), -r[j].y) * 180 / Math.PI); });
+    return out;
+  };
+  const kor = (a, b) => {
+    const ma = a.reduce((x, y) => x + y, 0) / a.length, mb = b.reduce((x, y) => x + y, 0) / b.length;
+    let s = 0, sa = 0, sb = 0;
+    for (let i = 0; i < a.length; i++) { const u = a[i] - ma, v = b[i] - mb; s += u * v; sa += u * u; sb += v * v; }
+    return s / Math.sqrt(sa * sb);
+  };
+  const zakres = a => Math.max(...a) - Math.min(...a);
+
+  const mixC = new THREE.AnimationMixer(cialo.scene); mixC.clipAction(k).play();
+  const C = serie(cialo.scene, mixC, k, [['udoL', 'thigh_l', 'calf_l'], ['udoP', 'thigh_r', 'calf_r'],
+    ['ramieL', 'upperarm_l', 'lowerarm_l'], ['ramieP', 'upperarm_r', 'lowerarm_r']], 'pelvis');
+  const chod2 = await wczytaj(ANIM + 'walk_cycle.glb');
+  const mixZ = new THREE.AnimationMixer(chod2.scene); mixZ.clipAction(chod2.animations[0]).play();
+  const Z = serie(chod2.scene, mixZ, chod2.animations[0], [['udoL', 'LeftUpLeg', 'LeftLeg'],
+    ['ramieL', 'LeftArm', 'LeftForeArm'], ['ramieP', 'RightArm', 'RightForeArm']], 'Hips');
+
+  for (const n of ['udoL', 'ramieL', 'ramieP']) {
+    const zc = zakres(C[n]), zz = zakres(Z[n]);
+    sprawdz(Math.abs(zc - zz) < 1.5, `zakres wymachu "${n}" przeniesiony bez strat (próg 1,5°)`, { cel: +zc.toFixed(1), zrodlo: +zz.toFixed(1) });
+  }
+  const kL = kor(C.ramieL, C.udoL), kP = kor(C.ramieP, C.udoP);
+  sprawdz(kL <= -0.80 && kP <= -0.80, 'ramię i udo TEJ SAMEJ strony w przeciwfazie (K7, próg −0,80)', { lewa: +kL.toFixed(3), prawa: +kP.toFixed(3) });
+  sprawdz(zakres(C.ramieL) > 10 && zakres(C.ramieP) > 10, 'ręce naprawdę machają (próg 10°; asymetria 33/16° jest w SAMYM mocapie, nie jest wadą)', { L: +zakres(C.ramieL).toFixed(1), P: +zakres(C.ramieP).toFixed(1) });
+}
+
 console.log(`\n${bledy === 0 ? 'OK' : 'FAIL'} — błędów: ${bledy}, uwag: ${ostrzezenia}`);
 process.exit(bledy === 0 ? 0 : 1);
