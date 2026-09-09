@@ -193,7 +193,7 @@ export function buildCart(W) {
     const eW = ext(bboxOf(wheelG)), eA = ext(bboxOf(axleG));
     const cienkaOsKola = eW.indexOf(Math.min(...eW)), dlugaOsWozu = eA.indexOf(Math.max(...eA));
     check(cienkaOsKola === dlugaOsWozu, 'wóz: tarcza koła nie jest prostopadła do osi wozu (koła w poprzek)', { eW, eA, cienkaOsKola, dlugaOsWozu });
-    const eS = ext(bboxOf(box(0.05, 1.2, 0.05), M4(0, 0, 0, 0, 0, Math.PI / 6)));   // szprycha k=1: ma się rozejść w x-y, a zostać cienka po z
+    const eS = ext(bboxOf(box(0.05, 1.2, 0.05), M4(0, 0, 0, 0, 0, Math.PI / 6)));   // rot: rz=+π/6 → szprycha (0,1,0) → (−0.5, 0.866, 0); AABB 0.643 × 1.064 × 0.050 — rozeszła się w x-y, cienka po z
     check(eS[2] < 0.06 && eS[0] > 0.5, 'wóz: szprychy nie rozchodzą się w tarczy koła', { eS });
     check(Math.abs(wheelY - eW[1] / 2) < 0.005, 'wóz: obręcz nie dotyka bruku', { wheelY, dolKola: wheelY - eW[1] / 2 });
     for (const sz of [-1, 1]) B.add('timber', box(2.2, 0.1, 0.1, T.timber.mpt), L(-2.2, 0.75, sz * 0.4, 0, 0, 0.08)); // rot: rz=+0.08 → koniec +x (przy wozie) w GÓRĘ: (1,0,0)→(0.997,0.08,0); końce w świecie y 0.662 (czubek) / 0.838 (przy wozie)
