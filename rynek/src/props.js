@@ -178,12 +178,24 @@ export function buildCart(W) {
     for (const sx of [-1, 1]) B.add('planks', box(0.06, 0.5, 1.2, T.planks.mpt), L(sx * 1.17, 1.19, 0));
     for (const sz of [-1, 1]) B.add('planks', box(2.4, 0.5, 0.06, T.planks.mpt), L(0, 1.19, sz * 0.57));
     B.add('timber', box(2.6, 0.12, 0.12, T.timber.mpt), L(0, 0.8, 0));
+    // WÓZ TOCZY SIĘ PO LOKALNYM +x, więc tarcza koła leży w płaszczyźnie x-y, a jego oś obrotu biegnie po +z — tak samo jak
+    // oś wozu box(0.14, 0.14, 1.6) rozciągnięta po z. TorusGeometry leży domyślnie w x-y, więc NIE wolno go obracać:
+    // dawne wheel.rotateY(π/2) przestawiało tarczę do y-z, czyli koła stały W POPRZEK wozu, prostopadle do własnej osi (zrzut z telefonu).
+    // Promień zewnętrzny 0.62 + 0.06 = 0.68, więc środek koła i oś muszą stać na y = 0.68, inaczej obręcz wchodzi w bruk.
+    const wheelY = 0.68, wheelG = new THREE.TorusGeometry(0.62, 0.06, 8, 20), axleG = box(0.14, 0.14, 1.6, T.timber.mpt);
     for (const sz of [-1, 1]) {
-      const wheel = new THREE.TorusGeometry(0.62, 0.06, 8, 20); wheel.rotateY(Math.PI / 2);
-      B.add('timber', wheel, L(0.3, 0.62, sz * 0.72));
-      for (let k = 0; k < 6; k++) B.add('timber', box(0.05, 1.2, 0.05, T.timber.mpt), L(0.3, 0.62, sz * 0.72, 0, k * Math.PI / 6, 0)); // rot: rx=k·π/6 → szprycha (0,1,0) obraca się w płaszczyźnie y-z koła: k=1 → (0, 0.866, 0.5)
+      B.add('timber', wheelG, L(0.3, wheelY, sz * 0.72));   // Batch.add klonuje geometrię, więc wheelG zostaje nietknięte dla asercji niżej
+      for (let k = 0; k < 6; k++) B.add('timber', box(0.05, 1.2, 0.05, T.timber.mpt), L(0.3, wheelY, sz * 0.72, 0, 0, k * Math.PI / 6)); // rot: rz=k·π/6 → szprycha (0,1,0) obraca się w płaszczyźnie x-y, czyli W TARCZY koła: k=1 → (−0.5, 0.866, 0)
     }
-    B.add('timber', box(0.14, 0.14, 1.6, T.timber.mpt), L(0.3, 0.62, 0));   // oś: JEDNA, poza pętlą po kołach (wcześniej ta sama bryła lądowała w batchu dwa razy w tym samym miejscu)
+    B.add('timber', axleG, L(0.3, wheelY, 0));   // oś: JEDNA, poza pętlą po kołach (wcześniej ta sama bryła lądowała w batchu dwa razy w tym samym miejscu)
+    // Asercje na zbudowanej geometrii w układzie wozu (bez L — obrót ry wozu obraca koło i oś tak samo, więc nie zmienia ich wzajemnego ułożenia).
+    const ext = b => [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z];
+    const eW = ext(bboxOf(wheelG)), eA = ext(bboxOf(axleG));
+    const cienkaOsKola = eW.indexOf(Math.min(...eW)), dlugaOsWozu = eA.indexOf(Math.max(...eA));
+    check(cienkaOsKola === dlugaOsWozu, 'wóz: tarcza koła nie jest prostopadła do osi wozu (koła w poprzek)', { eW, eA, cienkaOsKola, dlugaOsWozu });
+    const eS = ext(bboxOf(box(0.05, 1.2, 0.05), M4(0, 0, 0, 0, 0, Math.PI / 6)));   // szprycha k=1: ma się rozejść w x-y, a zostać cienka po z
+    check(eS[2] < 0.06 && eS[0] > 0.5, 'wóz: szprychy nie rozchodzą się w tarczy koła', { eS });
+    check(Math.abs(wheelY - eW[1] / 2) < 0.005, 'wóz: obręcz nie dotyka bruku', { wheelY, dolKola: wheelY - eW[1] / 2 });
     for (const sz of [-1, 1]) B.add('timber', box(2.2, 0.1, 0.1, T.timber.mpt), L(-2.2, 0.75, sz * 0.4, 0, 0, 0.08)); // rot: rz=+0.08 → koniec +x (przy wozie) w GÓRĘ: (1,0,0)→(0.997,0.08,0); końce w świecie y 0.662 (czubek) / 0.838 (przy wozie)
     ctx.addCircle(x, z, Ct.collideR);
     const shaft = new THREE.Vector3().setFromMatrixPosition(L(Ct.shaft.lx, 0, 0));   // koło pod dyszlem (§3.4 B6: czubek 2,24 m od koła wozu r 1,5 — gracz wchodził w dyszel)

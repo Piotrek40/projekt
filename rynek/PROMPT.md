@@ -299,6 +299,8 @@ bash audyt/testy/geo_test.sh
 # bundle TYLKO rynku (demo/build.sh przebudowuje też demo/app.js i demo_artifact/*_inline.js — nie idą do commita); alias MUSI być ścieżką ./ albo bezwzględną
 # (esbuild: „aliases are resolved in the current working directory" — bez ./ → „Could not resolve"; sprawdzone: 146 ms, wynik identyczny z rynek/app.js po demo/build.sh)
 TOOLS=/home/user/projekt/tools/node_modules; "$TOOLS/.bin/esbuild" rynek/src/main.js --bundle --minify --format=esm --alias:three="$TOOLS/three" --alias:three/addons="$TOOLS/three/examples/jsm" --alias:scene-loaders=./engine/src/loaders_ktx2.js --outfile=rynek/app.js   # NIE wykrywa niezdefiniowanych zmiennych — błędy wychodzą w results.errors
+# UWAGA (zdarzyło się 2026-09-09): pominięcie tego bundla daje render STAREJ sceny bez żadnego błędu — serwer renderu podaje katalog `rynek/`,
+# a `index.html` ładuje `./app.js`, nie `src/`. Objaw: „po" identyczne z „przed" (diff tylko w girlandach = szum animacji). Po każdej zmianie w `rynek/src/` bundluj PRZED renderem.
 # 4. render własnych widoków + kontrolny start_plac + top (+ elewacja, §3.6); z flagą i bez, ten sam rozmiar i URL; rendery pomiarowe ZAWSZE z noui=1&nosmoke=1&nosway=1&nowater=1
 # REGUŁA RENDEROWANIA (twarda): każdy render uruchamiasz W PIERWSZYM PLANIE (zwykłe wywołanie Bash z timeout 600000 ms, komenda z `timeout 580`), NIGDY w tle
 # (bez run_in_background, bez Monitor, bez `&`/nohup, bez skryptów-łańcuchów w tle). Jedno wywołanie = maks. 3 widoki (przy 2 równoległych worktree

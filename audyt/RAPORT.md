@@ -325,6 +325,28 @@ sprawdza teraz **przed `B.build`** każdy klucz Batcha: jeśli materiał ma teks
 wychodzić poza 0…1. **Kalibracja:** po cofnięciu jednej chorągwi do starego kodu asercja zgłasza 4 klucze z UV 1,60 —
 po naprawie `errors: []`. Asercja, której się nie widziało oblewającej, jest bezwartościowa, więc ta została sprawdzona w obie strony.
 
+### Koła wozu stały w poprzek wozu (zgłoszenie Piotra ze zrzutu)
+
+| co | dowód | naprawa |
+|---|---|---|
+| **Tarcza koła prostopadła do osi jazdy** — koła zamontowane bokiem, jak płetwy | `TorusGeometry` leży domyślnie w płaszczyźnie x-y (AABB 1,360 × 1,360 × 0,120 — cienka oś to z). `wheel.rotateY(π/2)` przestawiał AABB na 0,120 × 1,360 × 1,360, czyli cienka oś przechodziła na **x**, a oś wozu `box(0.14, 0.14, 1.6)` biegnie po **z** (AABB 0,140 × 0,140 × 1,600). Koło i jego własna oś były prostopadłe | usunięty `rotateY(π/2)`; szprychy przeniesione z obrotu `rx` na `rz` (`M4` bierze `ry` jako 4. argument, `rx` jako 5., `rz` jako 6.), żeby rozchodziły się w tarczy koła: AABB szprychy dla k=1 z 0,050 × 1,064 × 0,643 na 0,643 × 1,064 × 0,050 |
+| **Obręcz wchodziła 6 cm w bruk** (widoczne dopiero po ustawieniu koła w płaszczyźnie jazdy) | promień zewnętrzny 0,62 + 0,06 = 0,68, a środek koła stał na y = 0,62 → spód na **−0,060 m** | `wheelY = 0.68` dla kół i osi → spód **0,000 m**; przy okazji górna krawędź osi (0,75) styka się ze spodem ramy podłużnicy (0,74) zamiast wisieć 5 cm niżej |
+
+**Trzy asercje, każda skalibrowana w obie strony** (`props.js`, na zbudowanej geometrii, nie na wartościach z konfiguracji):
+najcieńsza oś AABB koła musi być tą samą osią co najdłuższa oś AABB osi wozu (stary kod: 0 ≠ 2 → oblewa);
+szprycha obrócona o 30° ma się rozejść w x i zostać cienka po z (stary kod: odwrotnie → oblewa);
+spód obręczy ma leżeć na y = 0 z tolerancją 5 mm (stary kod: −60 mm → oblewa).
+
+**Czego to nie wyłapało wcześniej.** Kamera z poprzedniej rundy patrzyła prawie **wzdłuż** wozu, więc koło ustawione bokiem
+było widoczne jako pełne koło ze szprychami — wyglądało poprawnie. Dopiero widok z boku (`x 8.92, z 15.61, yaw 0.900`)
+pokazuje różnicę: przed naprawą koło jest ciemnym paskiem wciśniętym w bruk, po naprawie stoi jako obręcz ze szprychami.
+To domyka wniosek z syntezy krytyki: 10 z 11 wad przegapiono z powodu **doboru punktów widzenia**, nie różnic GPU.
+
+**Pomyłka procesu przy tej naprawie.** Pierwszy render „po" był identyczny z „przed" (3 056 zmienionych pikseli, wszystkie
+w girlandach u góry kadru — czysty szum animacji). Powód: `rynek/app.js` to **zbundlowany** plik, a serwer renderu podaje
+katalog `rynek/`, nie `rynek/src/`. Bez `esbuild` render pokazuje starą wersję kodu i wygląda jak potwierdzenie.
+Dowód, że naprawa faktycznie weszła, to dopiero drugi diff: 35 689 pikseli w zakresie y 199–1049, czyli w obszarze wozu.
+
 ### Świadome ograniczenia
 
 - **Wariant inline (Artifact) nie dostaje modelu.** Strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model z mapą AO to ok. 0,5 MB. Tam zostaje kram proceduralny; Pages i wersja lokalna mają model.
