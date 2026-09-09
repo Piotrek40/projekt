@@ -51,8 +51,9 @@
 
 ## 6. Stan bieżący
 
-- **Etap:** 2 — rynek dopracowany jako pierwsza scena gry; pomiar z telefonu jest, trwa runda 3 krytyki wizualnej.
-- **Ostatnio powstało:** Etap 2 rynku (wieża, paleta, fontanna, zieleń, girlandy, panorama, role kramów, UI) — https://piotrek40.github.io/projekt/rynek/ i Artifact (15,4 MB z limitu 16 MB); narzędzia weryfikacji (`engine/src/check.js`, `?top/?side/?boxes/?lineup/?roles`, `audyt/testy/geo_test.sh`, `audyt/testy/tools/*`), 17 nowych zasobów CC0 (`audyt/research/zasoby_etap2.md`), `rynek/PROMPT.md`.
+- **Etap:** 3 — realizm jednego fragmentu (kram sukiennika z modelu Blendera + poprawki zgłaszane ze zrzutów z telefonu). Elewacja i bruk z zadania jeszcze nie ruszone.
+- **Ostatnio powstało (etap 3):** model `kram_sukiennik.glb` z Blendera (symulacja tkaniny wypieczona w geometrię + AO 2048², `assets_blender/kram_sukiennik.py`), przebudowana ciesiołka kramów (belki, zastrzały, lada bez szpary), cień kontaktowy pod każdym kramem, splot sukna z mapy AO, chorągwie z pełnym herbem, koła wozu w płaszczyźnie jazdy.
+- **Ostatnio powstało (etap 2):** Etap 2 rynku (wieża, paleta, fontanna, zieleń, girlandy, panorama, role kramów, UI) — https://piotrek40.github.io/projekt/rynek/ i Artifact (15,4 MB z limitu 16 MB); narzędzia weryfikacji (`engine/src/check.js`, `?top/?side/?boxes/?lineup/?roles`, `audyt/testy/geo_test.sh`, `audyt/testy/tools/*`), 17 nowych zasobów CC0 (`audyt/research/zasoby_etap2.md`), `rynek/PROMPT.md`.
 - **Pomiar (SwiftShader, 824×1830, high):** start_plac 117 draw / 578 k tri w HUD (limit 250 / 700 k), errors [] we wszystkich widokach. FPS z SwiftShader nie jest miarą telefonu.
 - **Pomiar z telefonu (2026-09-08, Galaxy S24, Samsung Xclipse 940, Vulkan 1.3.279, OpenGL ES 3.2, Chrome, GitHub Pages):**
   | jakość | DPR | rozdzielczość | fps | p95 | draw | tri (HUD) | kadr |
@@ -60,9 +61,10 @@
   | high | 2.00 | 720×1282 | 58 | **20,5 ms** | 151 | 347 k | korona lipy wypełnia kadr |
   | high | 2.00 | 720×1282 | 59 | 17,1 ms | 115 | 275 k | wieża i kram, lipy poza kadrem |
   | medium | 1.50 | 540×961 | 58 | 17,1 ms | 158 | 361 k | kadr zbliżony do startowego |
+  | high (2026-09-09, po etapie 3) | 2.00 | 720×1282 | **60** | **16,8 ms** | 117 | 276 k | wóz i kram na pierwszym planie, bez lipy |
   Odczyt: 58–59 fps to sufit odświeżania 60 Hz, więc miarą jest p95 (16,7 ms = pełne 60 fps). Jakość medium ma p95 na poziomie sufitu mimo WIĘKSZEJ
   geometrii niż high, a jedyny kadr z p95 ponad sufitem to ten z lipą — telefon jest bliżej limitu wypełniania pikseli niż geometrii.
-- **Następny krok:** runda 3 krytyki wizualnej z uwzględnieniem zmierzonego budżetu (geometria tania, koszt na piksel drogi), potem poprawki. Dopiero po nich decyzja, co dalej: wnętrza i interakcja, NPC, dźwięk, czy wypalone światło (Blender).
+- **Następny krok:** do wyboru Piotra — dokończyć resztki z rundy krytyki (szyby okienne, mozaika bruku czytana jak naklejony papier, węgarki okien), albo wrócić do zadania etapu 3 i wziąć elewację i bruk. Dopiero po nich decyzja, co dalej: wnętrza i interakcja, NPC, dźwięk, czy wypalone światło (Blender).
 - **Odłożone świadomie:** drzewa ze skanów (za ciężkie), generowanie zasobów AI (token HF), WebGPU, lightmapy (najpierw pomiar).
 
 ## 7. Zmiany decyzji
