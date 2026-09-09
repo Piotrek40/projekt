@@ -179,11 +179,21 @@ export async function createApp(opts) {
   // ---------- pętla i pomiar ----------
   const hud = document.getElementById('hud');
   let frames = 0, acc = 0, last = performance.now(), t0 = performance.now();
+  // Zegar SCENY, nie zegar ścienny. W pętli rośnie o dt, a w trybie testowym ustawia go __setTime(t) —
+  // dzięki temu zrzut w chwili t jest powtarzalny co do piksela. Bez tego faza każdej animacji w zrzucie
+  // zależy od tego, jak długo trwało ładowanie, i porównanie „przed/po" mierzy szum, nie zmianę.
+  let czasSceny = 0;
   const frameTimes = [];
   function loop(now) {
+    // Straż na WEJŚCIU, nie na wyjściu. __pause() ustawia flagę, ale klatka zakolejkowana wcześniej przez
+    // requestAnimationFrame i tak by się wykonała — już PO __renderOnce() — i nadpisała zrzut własnym
+    // renderem z dt > 0. Zmierzone: bez tej linii pierwsza klatka każdego widoku jest skażona (maxDiff 84
+    // przy identycznej pozie kości), z nią maxDiff 0. Warunek na końcu pętli zostaje: on kończy pętlę.
+    if (window.__paused) return;
     const dt = Math.min((now - last) / 1000, 0.1); last = now;
+    czasSceny += dt;
     updatePlayer(dt);
-    for (const u of ctx.updaters) { try { u(dt, (now - t0) / 1000, state); } catch (e) { console.error('updater', e); } }
+    for (const u of ctx.updaters) { try { u(dt, czasSceny, state); } catch (e) { console.error('updater', e); } }
     renderer.render(scene, renderCam);
     frames++; acc += dt; frameTimes.push(dt * 1000);
     if (acc >= 1) {
@@ -201,7 +211,11 @@ export async function createApp(opts) {
   window.__setView = v => { state.x = v.x; state.z = v.z; state.yaw = v.yaw; state.pitch = v.pitch ?? 0; renderCam = v.ortho ? orthoCam(v.ortho) : camera; };
   window.__pause = () => { window.__paused = true; };
   window.__resume = () => { if (window.__paused) { window.__paused = false; last = performance.now(); requestAnimationFrame(loop); } };
-  window.__renderOnce = () => { updatePlayer(0); for (const u of ctx.updaters) u(0, (performance.now() - t0) / 1000, state); renderer.render(scene, renderCam); };
+  window.__renderOnce = () => { updatePlayer(0); for (const u of ctx.updaters) u(0, czasSceny, state); renderer.render(scene, renderCam); };
+  // __setTime(t): ustawia zegar sceny na t sekund. Kontrakt dla updaterów animacji — dt === 0 znaczy
+  // „przewiń na czas bezwzględny t", dt > 0 znaczy „posuń o dt". Sam __setTime nie rysuje; po nim woła się
+  // __renderOnce(). Działa tylko przy zatrzymanej pętli, bo inaczej najbliższa klatka i tak doda swoje dt.
+  window.__setTime = t => { czasSceny = t; };
   window.__dbg = { scene, renderer, camera, THREE, ctx };
   // __stats(n): rysuje jedną klatkę z hookami onBefore/AfterRender i zwraca {total, shadow, top:[{name, calls, tris}]}.
   // Hooki działają tylko w przebiegu głównym (WebGLShadowMap woła renderBufferDirect bez nich), więc total − suma = koszt przebiegu cieni.

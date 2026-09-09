@@ -2,6 +2,8 @@
 // Użycie: node render_scene.js <katalog_sceny> <plik_widoków.json> [nazwa_wyjscia]
 // Env: PORT (osobny na agenta/worktree), QUALITY=high|medium|low, DPR, SHOTW/SHOTH (px CSS), URLQUERY='?boxes=1', VIEWS_INLINE='[{...}]' (wtedy plik widoków = '-'), REPO.
 // Widok: {name, x, z, yaw, pitch} (kamera na 1.65 m, yaw 0 = -z) albo {name, x, z, yaw, ortho:{top:true,size}|{side:0..3,size,near}} (rzut z góry / elewacja).
+// Widok może mieć też {frames: [t, …]} — wtedy po zwykłym zrzucie powstają dodatkowe, w podanych chwilach zegara sceny (window.__setTime).
+// Pliki: <name>_k<indeks>_t<czas>.png. Do porównywania klatek animacji; wymaga sceny z __setTime (engine/src/app.js).
 // UWAGA: FPS to wydajność renderowania programowego na CPU serwera, NIE telefonu.
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const { spawn } = require('child_process');
@@ -55,6 +57,23 @@ const serve = () => fs.existsSync(HTTP_SERVER) ? spawn('/opt/node22/bin/node', [
       // calls/triangles bierzemy z tej klatki (dokładnie ta, którą widać na zrzucie); fps z pętli (SwiftShader — tylko orientacyjnie).
       const stats = await page.evaluate(() => window.__stats ? window.__stats(10) : null);
       results.push({ view: v.name, calls: stats?.total.calls ?? perf.calls, triangles: stats?.total.tris ?? perf.triangles, fps: +perf.fps.toFixed(1), stats });
+      // v.frames = [t, …] (sekundy): dodatkowe zrzuty tego samego widoku w USTALONYCH chwilach zegara sceny.
+      // Pętla jest już zatrzymana (__pause wyżej), a straż na wejściu loop() gwarantuje, że żadna zakolejkowana
+      // klatka nie dołoży swojego dt — dopiero to czyni sekwencję powtarzalną. Bez straży pierwszy zrzut serii
+      // wychodził z zegara ściennego (zmierzone: ta sama chwila t dawała dwa różne obrazy, maxDiff 84).
+      // Nazwa pliku bierze INDEKS, nie samo t: przy frames [0, 0.5, 0] dwa zrzuty t=0 nadpisywałyby się
+      // nawzajem i porównanie „ta sama chwila → maxDiff 0" porównywałoby plik sam ze sobą.
+      if (Array.isArray(v.frames) && v.frames.length) {
+        const maSetTime = await page.evaluate(() => typeof window.__setTime === 'function');
+        if (!maSetTime) throw new Error('widok ma pole frames, ale scena nie udostępnia window.__setTime — bez zegara sceny sekwencja nie jest powtarzalna');
+        for (let i = 0; i < v.frames.length; i++) {
+          const t = v.frames[i];
+          await page.evaluate(t => { window.__setTime(t); window.__renderOnce(); }, t);
+          const nazwa = `${v.name}_k${i}_t${String(t).replace('.', '_')}`;
+          await page.screenshot({ path: `${OUT}/${nazwa}.png`, timeout: 240000 });
+          results.push({ view: nazwa, klatka: i, t, ofView: v.name });
+        }
+      }
     }
     const transfer = await page.evaluate(() => performance.getEntriesByType('resource').reduce((a, r) => a + (r.transferSize || r.encodedBodySize || 0), 0));
     // sunDir: kierunek słońca ze sky.js (do lineup_rects.mjs); lineup: kolejność kluczy W.mat, gdy render z ?lineup=

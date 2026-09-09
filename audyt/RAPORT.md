@@ -347,6 +347,39 @@ w girlandach u góry kadru — czysty szum animacji). Powód: `rynek/app.js` to 
 katalog `rynek/`, nie `rynek/src/`. Bez `esbuild` render pokazuje starą wersję kodu i wygląda jak potwierdzenie.
 Dowód, że naprawa faktycznie weszła, to dopiero drugi diff: 35 689 pikseli w zakresie y 199–1049, czyli w obszarze wozu.
 
+### Etap 4 krok 1: powtarzalne klatki animacji (`frames: [t…]`)
+
+Bez tego animacji nie da się SPRAWDZIĆ, tylko obejrzeć: `render_scene.js` robił dokładnie jeden `__renderOnce()`
+na widok, a updatery dostawały czas z `performance.now()`, więc faza dowolnej animacji w zrzucie zależała od tego,
+jak długo trwało ładowanie. Dlatego wszystkie dotychczasowe rendery pomiarowe szły z `nosmoke=1&nosway=1&nowater=1`.
+
+**Zegar sceny.** `engine/src/app.js` liczy teraz `czasSceny` (rośnie o `dt` w pętli) zamiast `(now − t0)/1000`,
+a `window.__setTime(t)` ustawia go na wartość bezwzględną. Kontrakt updatera: `dt === 0` znaczy „przewiń na czas t",
+`dt > 0` znaczy „posuń o dt". Wszystkie 8 updaterów sceny było już napisanych jako funkcja `t`, nie jako akumulacja
+`dt`, więc `__setTime` steruje całą sceną bez zmian w modułach.
+
+**Straż na wejściu `loop()`.** `__pause()` ustawiał tylko flagę, a pętla sprawdzała ją DOPIERO NA KOŃCU — klatka
+zakolejkowana wcześniej przez `requestAnimationFrame` wykonywała się w całości już po `__renderOnce()`.
+Zmierzone bezpośrednio licznikiem `renderer.info.render.frame` przez 300 ms po `__pause()`:
+**bez straży 1 render, ze strażą 0**.
+
+**Kalibracja i to, czego nie udowodniła.** W obrębie jednego przebiegu ta sama chwila daje `maxDiff 0`, a `t = 0`
+kontra `t = 0,4` daje `maxDiff 174` przy 2,25 % pikseli — czyli sekwencja jest powtarzalna i naprawdę mierzy ruch.
+Między dwoma NIEZALEŻNYMI przebiegami przeglądarki ta sama chwila daje `maxDiff 19` przy `pctOver 0` (szum
+antyaliasingu). **Natomiast porównanie z wyłączoną strażą wyszło identycznie (`maxDiff 0`) i nie potwierdziło,
+że to straż odpowiada za powtarzalność.** Powód: w sekwencji harnessu między `__pause()` a pierwszym `__setTime`
+leży `page.screenshot()` widoku bazowego, i to on pochłania zbłąkaną klatkę. Straż zostaje, bo render po
+zatrzymaniu pętli jest błędem sam w sobie (posuwa `czasSceny` i rysuje z `dt > 0`), ale zasługa za powtarzalność
+należy się polu `frames`, nie jej. Zapis „straż naprawiła determinizm" byłby prawdopodobną historią zamiast pomiaru.
+
+**Czego to nie naprawia.** Zrzut BAZOWY widoku nadal ma losową fazę — powstaje po 3 s swobodnego biegu pętli.
+Dwa przebiegi ze strażą dają na nim `maxDiff 168` przy 0,72 % pikseli. To zachowanie sprzed zmiany; do porównań
+animacji służy teraz `frames`, a nie zrzut bazowy.
+
+**Nazwy plików biorą indeks, nie samo `t`:** `<widok>_k<indeks>_t<czas>.png`. Przy `frames: [0, 0.5, 0]` dwa zrzuty
+`t = 0` nadpisywałyby się nawzajem, a test „ta sama chwila → `maxDiff 0`" porównywałby plik sam ze sobą. Ten dokładnie
+błąd wykrył weryfikator w prototypie z rozpoznania: sześć wpisów w `results.json` przy czterech plikach PNG.
+
 ### Świadome ograniczenia
 
 - **Wariant inline (Artifact) nie dostaje modelu.** Strona jednoplikowa ma 15,41 MB z limitu 16 MB, a model z mapą AO to ok. 0,5 MB. Tam zostaje kram proceduralny; Pages i wersja lokalna mają model.
