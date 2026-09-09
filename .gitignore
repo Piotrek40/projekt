@@ -24,3 +24,4 @@ assets_src/blender/*.blend1
 # Etap 4 (NPC): artefakty uboczne buildu ciała — do repo idzie tylko .glb i skrypt
 __pycache__/
 rynek/assets/models/*.glb.gz
+audyt/testy/retarget/bundle.mjs
