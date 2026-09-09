@@ -27,8 +27,11 @@
 import * as THREE from 'three';
 
 // Mapa 22 stawów ACCAD na kości rigu game_engine z MPFB (konwencja Unreal).
-// ToSpine nie ma odpowiednika w celu (MPFB ma 3 segmenty kręgosłupa, ACCAD 4 wraz z ToSpine) — pomijamy go,
-// a Spine/Spine1 idą na spine_02/spine_03. spine_01 zostaje sterowany przez miednicę.
+// ToSpine ZOSTAJE NIEZMAPOWANE, i to jest decyzja podparta pomiarem, nie przeoczenie. Poza spoczynkowa ciała
+// ma barki 503 mm nad miednicą. Bez ToSpine animacja daje 501 mm — tułów zachowany co do 2 mm. Po dopisaniu
+// ToSpine → spine_01 wychodzi 394 mm, czyli tułów zgnieciony o 109 mm: trzy stawy celu dostają wtedy krzywiznę
+// czterech stawów źródła o innych długościach i kręgosłup zwija się w literę S. spine_01 zostaje w pozie
+// spoczynkowej i niesie go miednica.
 export const MAPA_ACCAD_MPFB = {
   Hips: 'pelvis', Spine: 'spine_02', Spine1: 'spine_03', Neck: 'neck_01', Head: 'head',
   LeftShoulder: 'clavicle_l', LeftArm: 'upperarm_l', LeftForeArm: 'lowerarm_l', LeftHand: 'hand_l',
@@ -328,4 +331,65 @@ export function ruchKorzeniaW(rk, t, out) {
   while (b - a > 1) { const m = (a + b) >> 1; if (czasy[m] <= t) a = m; else b = m; }
   const u = (t - czasy[a]) / (czasy[b] - czasy[a]);
   return out.set(xz[a * 2] + (xz[b * 2] - xz[a * 2]) * u, 0, xz[a * 2 + 1] + (xz[b * 2 + 1] - xz[a * 2 + 1]) * u);
+}
+
+/**
+ * Przyziemia klip: przesuwa pionowo ścieżkę korzenia tak, żeby NAJNIŻSZY WIERZCHOLEK SIATKI w całym klipie
+ * dotknął podłoża. Bez tego postać unosi się nad bruk — zmierzone przed poprawką: 3,4 mm przez cały cykl
+ * chodu, czyli stopa nigdy nie dotyka ziemi. Bierze się to stąd, że wysokość miednicy przenosimy ze źródła
+ * przez stosunek wysokości bioder, a długości goleni i stopy między szkieletami różnią się osobno.
+ *
+ * Mierzymy WIERZCHOŁKI, nie stawy: staw kostki leży kilka centymetrów nad podeszwą, więc jego wysokość nic
+ * nie mówi o kontakcie. Próbkujemy tylko wierzchołki należące do stóp — reszta siatki nigdy nie jest najniżej.
+ *
+ * @returns {{przesuniecie: number, przed: number}} przesunięcie w metrach i wysokość przed poprawką
+ */
+export function przyziem(klip, skin, korzenObj, { fps = 30, kosciStop = /foot|ball|toe/i } = {}) {
+  const i = klip.tracks.findIndex(t => t.name === `${korzenObj.name}.position`);
+  if (i < 0) throw new Error(`przyziem: klip "${klip.name}" nie ma ścieżki ${korzenObj.name}.position`);
+
+  const geo = skin.geometry, si = geo.attributes.skinIndex, sw = geo.attributes.skinWeight, poz = geo.attributes.position;
+  const stopy = new Set(skin.skeleton.bones.map((b, j) => kosciStop.test(b.name) ? j : -1).filter(j => j >= 0));
+  const idx = [];
+  for (let v = 0; v < poz.count; v++) {
+    for (const k of ['X', 'Y', 'Z', 'W']) {
+      if (sw[`get${k}`](v) > 0.5 && stopy.has(si[`get${k}`](v))) { idx.push(v); break; }
+    }
+  }
+  if (!idx.length) throw new Error('przyziem: nie znalazłem wierzchołków stóp — sprawdź wzorzec nazw kości');
+
+  // Aktualizujemy macierze od SZCZYTU hierarchii, nie od SkinnedMesh. W glTF kości są RODZEŃSTWEM siatki,
+  // a nie jej potomkami, więc skin.updateMatrixWorld(true) nie rusza szkieletu — pomiar wychodził wtedy
+  // identyczny przed i po przesunięciu ścieżki, co wyglądało jak „poprawka nie działa".
+  let szczyt = korzenObj; while (szczyt.parent) szczyt = szczyt.parent;
+  const mix = new THREE.AnimationMixer(szczyt);
+  const akcja = mix.clipAction(klip); akcja.play();
+  const v3 = new THREE.Vector3();
+  let minY = Infinity;
+  const N = Math.max(2, Math.round(klip.duration * fps) + 1);
+  for (let f = 0; f < N; f++) {
+    mix.setTime(Math.min(klip.duration - 1e-4, f / fps));
+    szczyt.updateMatrixWorld(true);
+    skin.skeleton.update();
+    for (const v of idx) {
+      v3.fromBufferAttribute(poz, v);
+      skin.applyBoneTransform(v, v3);
+      v3.applyMatrix4(skin.matrixWorld);
+      if (v3.y < minY) minY = v3.y;
+    }
+  }
+  akcja.stop(); mix.uncacheClip(klip);
+
+  // Przesunięcie w ŚWIECIE przeliczone do układu rodzica korzenia — tak samo jak w wydzielRuchKorzenia,
+  // bo kość Root jest obrócona o −90° wokół X i dodanie wektora świata wprost do pozycji lokalnej byłoby błędem.
+  const qRodzic = korzenObj.parent ? korzenObj.parent.getWorldQuaternion(new THREE.Quaternion()) : new THREE.Quaternion();
+  const dolLokalnie = new THREE.Vector3(0, -minY, 0).applyQuaternion(qRodzic.clone().invert());
+  const tr = klip.tracks[i], nowe = new Float32Array(tr.values.length);
+  for (let k = 0; k < tr.times.length; k++) {
+    nowe[k * 3] = tr.values[k * 3] + dolLokalnie.x;
+    nowe[k * 3 + 1] = tr.values[k * 3 + 1] + dolLokalnie.y;
+    nowe[k * 3 + 2] = tr.values[k * 3 + 2] + dolLokalnie.z;
+  }
+  klip.tracks[i] = new THREE.VectorKeyframeTrack(tr.name, tr.times, nowe);
+  return { przesuniecie: -minY, przed: minY };
 }

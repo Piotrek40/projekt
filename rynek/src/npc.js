@@ -15,7 +15,7 @@
 // kontrolerowi, który przesuwa cały obiekt. Pion miednicy ZOSTAJE w klipie — bez niego chód wygląda jak
 // sunięcie (zmierzone: cykl chodu ma 37,0 mm pionu miednicy przy normie 25–50 mm).
 import * as THREE from 'three';
-import { przygotuj, przenies, wydzielRuchKorzenia, ruchKorzeniaW, MAPA_ACCAD_MPFB } from '../../engine/src/retarget.js';
+import { przygotuj, przenies, przyziem, wydzielRuchKorzenia, ruchKorzeniaW, MAPA_ACCAD_MPFB } from '../../engine/src/retarget.js';
 import { check } from '../../engine/src/check.js';
 
 const KLIPY = ['idle_sway', 'idle_lookaround', 'idle_arms', 'walk_cycle', 'stand_to_walk', 'walk_to_stand'];
@@ -68,7 +68,13 @@ export async function buildNPC(W) {
     const nazwa = KLIPY[i], zrodlo = klipyGltf[i];
     const k = przenies({ zrodloRoot: zrodlo.scene, klip: zrodlo.animations[0], pary: przyg.pary, celRoot: cialoGltf.scene, skala: przyg.skala, fps: N.fps });
     k.name = nazwa;
-    ruchy[nazwa] = wydzielRuchKorzenia(k, przyg.pary.find(w => w.cs === 'pelvis').c);
+    // Przyziemienie PRZED wydzieleniem ruchu poziomego: wysokość miednicy przenosimy ze źródła przez stosunek
+    // wysokości bioder, a długości goleni i stopy różnią się osobno — bez korekty postać albo unosi się nad
+    // bruk, albo się w niego zapada. Zmierzone przed poprawką: chód +3,5 mm nad bruk, idle −10…−11 mm pod,
+    // klipy przejściowe −44 i −52 mm pod bruk.
+    const pelvisKosc = przyg.pary.find(w => w.cs === 'pelvis').c;
+    przyziem(k, skin, pelvisKosc, { fps: N.fps });
+    ruchy[nazwa] = wydzielRuchKorzenia(k, pelvisKosc);
     klipy[nazwa] = k;
   }
   // Prędkość chodu wynika z KLIPU, nie z konfiguracji — to on dyktuje tempo kontrolerowi, nie odwrotnie.

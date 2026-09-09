@@ -4,7 +4,7 @@
 // przeniesienie jest poprawne — nie mówią, czy chód wygląda jak chód.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { przygotuj, przenies, wydzielRuchKorzenia, MAPA_ACCAD_MPFB } from '../engine/src/retarget.js';
+import { przygotuj, przenies, przyziem, wydzielRuchKorzenia, MAPA_ACCAD_MPFB } from '../engine/src/retarget.js';
 
 const el = id => document.getElementById(id);
 const KLIPY = ['walk_cycle', 'idle_sway', 'idle_lookaround', 'idle_arms', 'stand_to_walk', 'walk_to_stand'];
@@ -61,6 +61,7 @@ const wczytaj = url => new Promise((res, rej) => loader.load(url, res, undefined
   for (let i = 0; i < KLIPY.length; i++) {
     const k = przenies({ zrodloRoot: zrodla[i].scene, klip: zrodla[i].animations[0], pary: przyg.pary, celRoot: cialo.scene, skala: przyg.skala, fps: 30 });
     k.name = KLIPY[i];
+    przyziem(k, skin, pelvis, { fps: 30 });   // najniższy wierzchołek stopy na wysokość podłogi
     ruchy[KLIPY[i]] = wydzielRuchKorzenia(k, pelvis);
     klipy[KLIPY[i]] = k;
   }

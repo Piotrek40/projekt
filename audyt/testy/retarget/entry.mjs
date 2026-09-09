@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import fs from 'fs';
-import { przygotuj, przenies, wydzielRuchKorzenia, MAPA_ACCAD_MPFB } from '../../../engine/src/retarget.js';
+import { przygotuj, przenies, przyziem, wydzielRuchKorzenia, MAPA_ACCAD_MPFB } from '../../../engine/src/retarget.js';
 
 const CIALO = '/home/user/projekt/rynek/assets/models/npc_body.glb';
 const ANIM = '/home/user/projekt/rynek/assets/anim/';
@@ -135,6 +135,52 @@ console.log('\n=== C. Normalizacja korzenia — wszystkie klipy startują tak sa
     sprawdz(s.droga < 0.05, `idle "${s.f}" nie przemieszcza postaci (próg 5 cm)`, { droga_m: +s.droga.toFixed(3) });
     if (s.pion < 0.5) uwaga(`idle "${s.f}" ma pion miednicy poniżej 0,5 mm — bezruch, do ożywienia warstwą proceduralną`, { pion_mm: +s.pion.toFixed(2) });
   }
+}
+
+console.log('\n=== C2. Przyziemienie i wysokość tułowia ===');
+{
+  // Dwie wady zgłoszone przez Piotra ze zrzutu, obie zmierzone: postać unosiła się nad bruk, a tułów wyglądał
+  // na przygarbiony. Pierwsza była prawdziwa (3,5 mm w chodzie, −10…−52 mm w pozostałych klipach — czyli raz
+  // nad, raz pod), druga okazała się WŁASNOŚCIĄ MOCAPU (odchylenie tułowia w źródle 2,6°, u nas 1,3°).
+  const pliki = fs.readdirSync(ANIM).filter(x => x.endsWith('.glb')).sort();
+  const cialoR = await wczytaj(CIALO); cialoR.scene.updateMatrixWorld(true);
+  const mR = poz(cialoR.scene.getObjectByName('pelvis'));
+  const bR = poz(cialoR.scene.getObjectByName('clavicle_l')).add(poz(cialoR.scene.getObjectByName('clavicle_r'))).multiplyScalar(0.5);
+  const tulowSpoczynek = (bR.y - mR.y) * 1000;
+
+  for (const f of pliki) {
+    const cialo = await wczytaj(CIALO), idle = await wczytaj(ANIM + 'idle_sway.glb'), src = await wczytaj(ANIM + f);
+    let skin = null; cialo.scene.traverse(o => { if (o.isSkinnedMesh) skin = o; });
+    const P = przygotuj(idle.scene, cialo.scene, MAPA_ACCAD_MPFB, { klipOdniesienia: idle.animations[0], czasOdniesienia: 0 });
+    const pelvis = P.pary.find(w => w.cs === 'pelvis').c;
+    const k = przenies({ zrodloRoot: src.scene, klip: src.animations[0], pary: P.pary, celRoot: cialo.scene, skala: P.skala, fps: 30 });
+    const r1 = przyziem(k, skin, pelvis, { fps: 30 });
+    const r2 = przyziem(k, skin, pelvis, { fps: 30 });   // po korekcie musi wyjść zero
+    // KALIBRACJA: pierwszy pomiar pokazuje, ile brakowało (od −51,6 do +3,5 mm) — gdyby był zerowy,
+    // asercja niczego by nie dowodziła.
+    sprawdz(Math.abs(r2.przed * 1000) < 1, `"${f.replace('.glb', '')}": po przyziemieniu najniższy wierzchołek stopy na podłodze (próg 1 mm)`, { przed_mm: +(r1.przed * 1000).toFixed(1), po_mm: +(r2.przed * 1000).toFixed(2) });
+  }
+
+  // Wysokość tułowia: animacja nie może go ściskać ani rozciągać względem tego, jak wyrzeźbiono model.
+  // KALIBRACJA na realnym błędzie: dopisanie ToSpine → spine_01 do mapy dawało 394 mm zamiast 501 mm.
+  const cialo = await wczytaj(CIALO), idle = await wczytaj(ANIM + 'idle_sway.glb'), chod = await wczytaj(ANIM + 'walk_cycle.glb');
+  const P = przygotuj(idle.scene, cialo.scene, MAPA_ACCAD_MPFB, { klipOdniesienia: idle.animations[0], czasOdniesienia: 0 });
+  const k = przenies({ zrodloRoot: chod.scene, klip: chod.animations[0], pary: P.pary, celRoot: cialo.scene, skala: P.skala, fps: 30 });
+  const mix = new THREE.AnimationMixer(cialo.scene); mix.clipAction(k).play();
+  let suma = 0; const N = 40;
+  for (let i = 0; i < N; i++) {
+    mix.setTime((i / N) * (k.duration - 1e-4)); cialo.scene.updateMatrixWorld(true);
+    const m = poz(cialo.scene.getObjectByName('pelvis'));
+    const b = poz(cialo.scene.getObjectByName('clavicle_l')).add(poz(cialo.scene.getObjectByName('clavicle_r'))).multiplyScalar(0.5);
+    suma += (b.y - m.y) * 1000;
+  }
+  const tulowAnim = suma / N;
+  // Próg 60 mm, nie 25. Zmierzone: poza spoczynkowa 503 mm, animacja 465 mm — różnica 38 mm bierze się
+  // z krzywizny kręgosłupa aktora przeniesionej na KRÓTSZE segmenty celu (łańcuch zgina się tak samo w stopniach,
+  // ale traci więcej wysokości), a nie z błędu. Odgradzamy grube ściśnięcie: wariant z ToSpine → spine_01
+  // dawał 394 mm, czyli 109 mm. Próg 25 mm oblewałby na poprawnym wyniku, a to jest fałszywe oblanie.
+  sprawdz(Math.abs(tulowAnim - tulowSpoczynek) < 60, 'animacja nie ściska tułowia (próg 60 mm; z ToSpine w mapie wychodziło 394 mm przy 503 mm w spoczynku)',
+    { spoczynek_mm: +tulowSpoczynek.toFixed(0), animacja_mm: +tulowAnim.toFixed(0), roznica_mm: +(tulowAnim - tulowSpoczynek).toFixed(0) });
 }
 
 console.log('\n=== D. Miary FUNKCJONALNE — to, czego zgodność kierunków NIE widzi ===');
