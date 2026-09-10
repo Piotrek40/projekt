@@ -135,7 +135,14 @@ export function przygotuj(zrodloRoot, celRoot, mapa = MAPA_ACCAD_MPFB, opcje = {
   // Ręce są wyjątkiem i dlatego domyślnie JE dopasowujemy: ciało MPFB ma pozę A (ramię 41,1° od pionu),
   // a mocap w pozie odniesienia trzyma ręce opuszczone. Bez dopasowania NPC chodziłby z rękami odstawionymi
   // o te ~40° na boki. Tam różnica jest różnicą POZY, a nie budowy szkieletu — i tylko wtedy dopasowanie pomaga.
-  const DOPASUJ = opcje.dopasuj ?? /clavicle|upperarm|lowerarm|hand/i;
+  // OBOJCZYK JEST POZA DOPASOWANIEM, i to jest ta sama lekcja co przy kręgosłupie: dopasowanie kierunków
+  // przenosi GEOMETRIĘ cudzego szkieletu, nie ruch. Obojczyk niesie staw barkowy, więc dopasowany do źródła
+  // opuszcza całe zaczepienie ręki. Zmierzone: model wyrzeźbiono z barkiem 106,4 mm poniżej szyi (obojczyk
+  // opada 10,0°, symetrycznie), a mocap ACCAD ma obojczyki opadające o 27,2° (L) i 42,4° (P) — po dopasowaniu
+  // bark siadał 159,0 mm (L) i 188,8 mm (P) poniżej szyi, czyli 53 i 82 mm za nisko, w dodatku krzywo.
+  // Ramię zostaje dopasowywane, bo jego KIERUNEK to realna informacja z nagrania; obojczyk dostaje samą
+  // ZMIANĘ względem pozy odniesienia, więc wzruszenie barkami z mocapu przechodzi, a proporcje zostają nasze.
+  const DOPASUJ = opcje.dopasuj ?? /upperarm|lowerarm|hand/i;
 
   // ---- KROK 1: dopasowanie pozy celu do POZY ODNIESIENIA źródła ----
   // Nie wystarczy zrównać KIERUNKÓW kości: kierunek ma 2 stopnie swobody, rotacja 3, a setFromUnitVectors

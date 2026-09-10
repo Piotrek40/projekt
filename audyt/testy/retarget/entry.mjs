@@ -43,7 +43,12 @@ console.log('=== A. Dopasowanie póz spoczynkowych (poza A ciała -> poza T moca
   // DOPASOWUJEMY TYLKO RĘCE. Reszta kości dostaje przeniesienie ZMIANY względem pozy odniesienia, przy
   // zachowaniu własnej geometrii — inaczej do torsu naszej postaci wchodzi 45,4° załamania z rozstawu
   // stawów szkieletu ACCAD. Ta asercja sprawdza więc tylko kości faktycznie dopasowywane.
-  sprawdz(dop.size >= 6 && [...dop].every(n => /clavicle|upperarm|lowerarm|hand/i.test(n)), 'dopasowywane są wyłącznie kości rąk', { dopasowane: [...dop] });
+  // OBOJCZYK WYPADŁ Z TEGO ZBIORU i to jest osobna, zmierzona decyzja. Obojczyk niesie staw barkowy, więc
+  // dopasowany do źródła opuszcza całe zaczepienie ręki: model wyrzeźbiono z barkiem 106,4 mm poniżej szyi,
+  // a z dopasowanym obojczykiem wychodziło 159,0 mm (L) i 188,8 mm (P) — 53 i 82 mm za nisko, do tego krzywo,
+  // bo mocap ACCAD ma obojczyki opadające o 27,2° i 42,4°. Zostają cztery kości: ramię i przedramię obu stron
+  // (dłoń nie ma zmapowanego dziecka, więc nie da się jej wyznaczyć kierunku — palce nie są w mapie).
+  sprawdz(dop.size === 4 && [...dop].every(n => /upperarm|lowerarm/i.test(n)), 'dopasowywane są wyłącznie ramiona i przedramiona (obojczyk NIE — patrz komentarz)', { dopasowane: [...dop] });
   sprawdz(przed > 60, 'kalibracja: przed dopasowaniem odchyłka rąk jest duża (inaczej test niczego nie dowodzi)', { maxPrzed: +przed.toFixed(1) });
   sprawdz(po < 0.5, 'po dopasowaniu kierunki kości RĄK pokrywają się (próg 0,5°)', { maxPo: +po.toFixed(3) });
   sprawdz(P.skala > 0.9 && P.skala < 1.1, 'skala ruchu korzenia z wysokości bioder w granicach 0,9–1,1', { skala: +P.skala.toFixed(4) });
@@ -202,6 +207,29 @@ console.log('\n=== C2. Przyziemienie i wysokość tułowia ===');
     zal += Math.acos(Math.max(-1, Math.min(1, u.dot(v)))) * 180 / Math.PI;
   }
   sprawdz(zal / N < 25, 'kręgosłup nie dostaje załamania z rozstawu stawów źródła (próg 25°; przy dopasowywaniu wszystkich kości wychodziło 45,4°, a poza spoczynkowa ciała ma 0,8°)', { srednie_zalamanie: +(zal / N).toFixed(1) });
+
+  // BARK — wada zgłoszona przez Piotra („ramiona jakby za nisko przyczepione do barków"). Ta sama rodzina co
+  // załamanie w pasie: dopasowanie kierunków przenosi geometrię cudzego szkieletu. Mierzymy, o ile staw
+  // barkowy zjeżdża pod szyję względem tego, jak wyrzeźbiono model.
+  const barkSpocz = [
+    (poz(cialoR.scene.getObjectByName('neck_01')).y - poz(cialoR.scene.getObjectByName('upperarm_l')).y) * 1000,
+    (poz(cialoR.scene.getObjectByName('neck_01')).y - poz(cialoR.scene.getObjectByName('upperarm_r')).y) * 1000,
+  ];
+  let barkL = 0, barkP = 0;
+  for (let i = 0; i < N; i++) {
+    mix.setTime((i / N) * (k.duration - 1e-4)); cialo.scene.updateMatrixWorld(true);
+    const sz = poz(cialo.scene.getObjectByName('neck_01'));
+    barkL += (sz.y - poz(cialo.scene.getObjectByName('upperarm_l')).y) * 1000;
+    barkP += (sz.y - poz(cialo.scene.getObjectByName('upperarm_r')).y) * 1000;
+  }
+  barkL /= N; barkP /= N;
+  const zjazd = Math.max(Math.abs(barkL - barkSpocz[0]), Math.abs(barkP - barkSpocz[1]));
+  sprawdz(zjazd < 25, 'ramię jest zaczepione tam, gdzie wyrzeźbiono bark (próg 25 mm; z dopasowywanym obojczykiem zjeżdżało o 53 mm w lewo i 82 mm w prawo)',
+    { spoczynek: barkSpocz.map(x => +x.toFixed(1)), animacja: [+barkL.toFixed(1), +barkP.toFixed(1)] });
+  // Asymetria barków to osobna wada: mocap ma ją własną (27,2° vs 42,4° opadu obojczyka) i dopasowanie
+  // przenosiło ją wprost, dając 30 mm różnicy między barkami na symetrycznym ciele.
+  sprawdz(Math.abs(barkL - barkP) < 20, 'barki nie rozjeżdżają się w pionie (próg 20 mm; z dopasowywanym obojczykiem różnica sięgała 29,8 mm)',
+    { roznica_mm: +Math.abs(barkL - barkP).toFixed(1) });
 
   sprawdz(Math.abs(tulowAnim - tulowSpoczynek) < 60, 'animacja nie ściska tułowia (próg 60 mm; z ToSpine w mapie wychodziło 394 mm przy 503 mm w spoczynku)',
     { spoczynek_mm: +tulowSpoczynek.toFixed(0), animacja_mm: +tulowAnim.toFixed(0), roznica_mm: +(tulowAnim - tulowSpoczynek).toFixed(0) });
