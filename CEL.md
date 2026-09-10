@@ -8,7 +8,14 @@
 
 ## 1. Czym to jest na końcu
 
-**DO USTALENIA Z PIOTREM.** Na razie wiadomo tylko tyle: gra 3D, którą Piotr otwiera linkiem na swoim telefonie z Androidem, chodzi swobodnie po świecie, rozgląda się i ogląda otoczenie z bliska. Grafika ma być tak blisko fotorealizmu, jak pozwala telefon. Co się w tym świecie dzieje poza chodzeniem — nieustalone.
+Gra 3D, w której Piotr chodzi swobodnie po świecie, rozgląda się i ogląda otoczenie z bliska.
+Grafika ma być tak blisko fotorealizmu, jak pozwala **laptop** (ThinkPad P53, Quadro RTX 5000, 16 GB VRAM).
+Świat ma żyć: kilkunastu mieszczan przy własnych zajęciach, którzy zauważają gracza i reagują.
+
+**Platforma docelowa: laptop** (zmiana z 2026-09-10, patrz §7). Telefon zostaje jako „niech działa jakoś",
+bez podejmowania pod niego jakichkolwiek decyzji projektowych.
+**Silnik docelowy: DO ROZSTRZYGNIĘCIA** — three.js (dziś) czy Godot (deklaracja Piotra z 2026-09-10).
+Rozstrzygnięcie ma zapaść po obejrzeniu TEJ SAMEJ sceny w obu, nie z góry.
 
 ## 2. Skala docelowa
 
@@ -111,3 +118,7 @@
 - 2026-09-10 — **Skala docelowa placu: kilkunastu mieszczan**, żyjących swoim zajęciem, którzy zauważają gracza i reagują (odwracają się, kłaniają, schodzą z drogi). Decyzja Piotra. Konsekwencja: kontroler zachowań i graf ruchu muszą być pisane od razu pod wielu NPC, a nie pod jednego.
 - 2026-09-10 — Powitanie: **ukłon z mocapu** (`Male2_D7_WalkToBow` + `D8_BowToReady`), nie machanie ręką. Powód: machania nie ma w całej 299-plikowej bibliotece — sprawdzone pomiarem, nie po nazwach (kandydaci na „gest w górę" to niemal wyłącznie sztuki walki). Ukłon do średniowiecznego rynku pasuje lepiej.
 - 2026-09-10 — Female1 do ponownego rozważenia jako źródło ruchu. Odrzucona w etapie 4 za proporcje nóg (udo/podudzie 1,22 wobec normy ~1,0), ale retarget po etapie 4 przenosi ZMIANĘ, nie geometrię źródła, więc powód mógł przestać obowiązywać. Ma 650 s materiału, w tym serię D (`Wait`, `ConversationGestures`, `Urban`) — najbogatszy materiał na „ludzi, którzy coś robią rękami". Do rozstrzygnięcia pomiarem.
+
+- 2026-09-10 — **PLATFORMA DOCELOWA TO LAPTOP, nie telefon.** Decyzja Piotra. Konsekwencje: znika budżet 700 k trójkątów i 250 draw calls, znika „koszt na piksel" jako waluta krytyczna, odblokowuje się postproces (okluzja, blask, głębia ostrości), cienie 4096 z kaskadami, KTX2 i InstancedMesh (oba były wyłączone WYŁĄCZNIE przez sterownik Xclipse 940). Problem „piętnastu NPC nie mieści się w budżecie" przestaje istnieć.
+- 2026-09-10 — Telefon: obejścia po nazwie GPU (JPG zamiast KTX2, `noinst`) ZOSTAJĄ, bo są już napisane i nic nie kosztują. Ale żadna nowa decyzja nie jest pod telefon podejmowana i żadna nowa rzecz nie musi przechodzić pomiaru na S24.
+- 2026-09-10 — Piotr zadeklarował chęć przejścia na **Godot / aplikację natywną**. NIE JEST TO JESZCZE ZAPISANE JAKO DECYZJA, bo koszt jest realny (ok. 9 400 linii JS do przepisania: `rynek/src` 3571, `engine/src` 1477, `npc_test` 615, `audyt/testy` 3718) i bo dwie pozostałe odpowiedzi Piotra z tej samej rozmowy zakładały pozostanie w three.js. Ustalenie: rozstrzygamy PATRZĄC — ta sama scena, te same zasoby (71 MB glTF przenosi się bez zmian), zrzut z three.js z odblokowanym postprocesem obok zrzutu z Godota z SDFGI. Dopiero wtedy decyzja.
