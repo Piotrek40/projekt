@@ -4,8 +4,12 @@ import * as THREE from 'three';
 import { createLoaders } from 'scene-loaders';
 import { setupSky } from './sky.js';
 import { loadPbrSet } from './materials.js';
+import { zbudujPostproces } from './post.js';
 
 const DEFAULT_QUALITY = {
+  // ultra: poziom laptopowy. Powstał po zmianie platformy docelowej z telefonu na laptop (CEL.md §7).
+  // Jako jedyny włącza postproces — telefon nigdy go sam nie wybierze, bo domyślną jakością jest „medium".
+  ultra:  { dpr: 2.0, shadow: 4096, shadowRadius: 2, aniso: 16, post: true },
   high:   { dpr: 2.0, shadow: 2048, shadowRadius: 3, aniso: 8 },
   medium: { dpr: 1.5, shadow: 1024, shadowRadius: 2, aniso: 4 },
   low:    { dpr: 1.0, shadow: 1024, shadowRadius: 1, aniso: 2 },
@@ -17,9 +21,10 @@ function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
 export async function createApp(opts) {
   const player = { eyeHeight: 1.65, radius: 0.35, speed: 2.4, lookSpeed: 0.0032, start: { x: 0, z: 0, yaw: 0 }, ...opts.player };
   const QUALITY = opts.quality || DEFAULT_QUALITY;
-  let qualityName = lsGet('quality') || 'medium';
-  if (!QUALITY[qualityName]) qualityName = 'medium';
-  let quality = QUALITY[qualityName];
+  // Domyślną jakość ustalamy DOPIERO PO wykryciu GPU (niżej) — nazwa karty jest znana dopiero po utworzeniu
+  // renderera, a to od niej zależy, czy urządzenie ma dostać poziom laptopowy, czy telefonowy.
+  let qualityName = lsGet('quality');
+  let quality = null;
 
   const canvas = document.getElementById('c');
   const flags = Object.fromEntries(new URLSearchParams(location.search)); // przełączniki diagnostyczne (?nosway=1 itd.)
@@ -32,7 +37,15 @@ export async function createApp(opts) {
   // Znane błędy sterowników (wynik bisekcji na urządzeniu): Samsung Xclipse przez ANGLE/Vulkan psuje InstancedMesh
   // po zmianie kolejności rysowania (wierzchołki zwykłych siatek dostają macierze instancji) i dekoduje KTX2 na czarno.
   { const gl = renderer.getContext(); const ext = gl.getExtension('WEBGL_debug_renderer_info'); const gpu = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
-    if (/Xclipse/i.test(gpu) && !flags.forceinst) flags.noinst = 'gpu'; flags.gpu = gpu; }
+    if (/Xclipse/i.test(gpu) && !flags.forceinst) flags.noinst = 'gpu'; flags.gpu = gpu;
+    // Poziom domyślny wg urządzenia. Laptop dostaje „ultra" bez klikania w HUD; telefon zostaje na „medium",
+    // bo po zmianie platformy docelowej (CEL.md §7) nie podejmujemy pod niego decyzji, ale ma dalej działać.
+    // Rozpoznanie po nazwie GPU, nie po szerokości okna — okno mówi o rozmiarze, nie o mocy.
+    const mobilne = /Adreno|Mali|PowerVR|Apple A\d|Xclipse|Immortalis/i.test(gpu);
+    flags.mobilne = mobilne || undefined;
+    if (!qualityName || !QUALITY[qualityName]) qualityName = opts.domyslnaJakosc ?? (mobilne ? 'medium' : 'ultra');
+    if (!QUALITY[qualityName]) qualityName = 'medium';
+    quality = QUALITY[qualityName]; }
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = opts.exposure ?? 1.0;
@@ -154,6 +167,28 @@ export async function createApp(opts) {
     camera.rotation.set(0, 0, 0, 'YXZ'); camera.rotation.y = state.yaw; camera.rotation.x = state.pitch;
   }
 
+  // ---------- postproces ----------
+  // Jedno miejsce decyzji „composer czy renderer". Pętla, __renderOnce i harness renderu wołają rysuj(),
+  // więc nie da się dodać ścieżki rysowania, która omija postproces — a to był realny błąd w tym projekcie
+  // (render kontrolny pokazywał co innego niż telefon, bo szedł inną drogą).
+  let post = null;
+  function rysuj() { if (post) post.rysuj(); else renderer.render(scene, renderCam); }
+  function przelaczPostproces(wlacz) {
+    if (wlacz && !post) {
+      // Flagi diagnostyczne ?gtao=0 / ?blask=0 / ?blask=<próg> — bez nich nie da się rozstrzygnąć, KTÓRY
+      // przebieg psuje obraz, a przy trzech przebiegach naraz zgadywanie jest bezwartościowe.
+      const u = { ...(opts.post || {}) };
+      if (flags.gtao !== undefined) u.gtao = { ...(u.gtao || {}), mieszanie: +flags.gtao };
+      if (flags.blask !== undefined) u.blask = { ...(u.blask || {}), moc: +flags.blask };
+      if (flags.progblasku !== undefined) u.blask = { ...(u.blask || {}), prog: +flags.progblasku };
+      post = zbudujPostproces(renderer, scene, renderCam, { ustawienia: u });
+      post.ustawKamere(renderCam);
+      const px = new THREE.Vector2(); renderer.getDrawingBufferSize(px); post.rozmiar(px.x, px.y);
+    } else if (!wlacz && post) { post.composer.dispose?.(); post = null; }
+    const el = document.getElementById('q');
+    if (el) el.title = post ? `postproces: ${post.diag.przejsc} przebiegi` : 'bez postprocesu';
+  }
+
   // ---------- jakość ----------
   function applyQuality(name) {
     qualityName = name; quality = QUALITY[name]; lsSet('quality', name);
@@ -162,6 +197,10 @@ export async function createApp(opts) {
     if (sun) { sun.shadow.mapSize.set(quality.shadow, quality.shadow); sun.shadow.radius = quality.shadowRadius; sun.shadow.map?.dispose(); sun.shadow.map = null; }
     const a = Math.min(quality.aniso, maxAniso);
     scene.traverse(o => { if (o.isMesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) for (const k of ['map', 'normalMap', 'aoMap', 'roughnessMap']) if (m?.[k]) m[k].anisotropy = a; });
+    // MIĘKKICH CIENI NIE WŁĄCZAMY PRZEZ PCFSoftShadowMap: w three r185 jest WYCOFANY i po cichu wraca do
+    // PCFShadowMap, wypisując ostrzeżenie, które ląduje w results.errors. Miękkość bierzemy z większej mapy
+    // (4096 zamiast 2048) i z shadow.radius — obie drogi działają i żadna nie brudzi błędów.
+    przelaczPostproces(flags.post ? true : (flags.nopost ? false : !!quality.post));
     const q = document.getElementById('q'); if (q) q.textContent = name;
     resize();
   }
@@ -169,6 +208,7 @@ export async function createApp(opts) {
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix();
+    if (post) { const px = new THREE.Vector2(); renderer.getDrawingBufferSize(px); post.rozmiar(px.x, px.y); }
     if (renderCam.isOrthographicCamera) { renderCam.left = -renderCam.top * w / h; renderCam.right = renderCam.top * w / h; renderCam.updateProjectionMatrix(); } // kadr ortho: wysokość stała, szerokość wg proporcji
   }
   window.addEventListener('resize', resize);
@@ -194,7 +234,7 @@ export async function createApp(opts) {
     czasSceny += dt;
     updatePlayer(dt);
     for (const u of ctx.updaters) { try { u(dt, czasSceny, state); } catch (e) { console.error('updater', e); } }
-    renderer.render(scene, renderCam);
+    rysuj();
     frames++; acc += dt; frameTimes.push(dt * 1000);
     if (acc >= 1) {
       frameTimes.sort((a, b) => a - b);
@@ -208,10 +248,10 @@ export async function createApp(opts) {
   }
   // hooki testowe (headless)
   // v.ortho = {top:true,size,x,z} albo {side:0..3,size,near}: widok diagnostyczny kamerą ortograficzną (cienie tylko w promieniu shadowExtent od x/z)
-  window.__setView = v => { state.x = v.x; state.z = v.z; state.yaw = v.yaw; state.pitch = v.pitch ?? 0; renderCam = v.ortho ? orthoCam(v.ortho) : camera; };
+  window.__setView = v => { state.x = v.x; state.z = v.z; state.yaw = v.yaw; state.pitch = v.pitch ?? 0; renderCam = v.ortho ? orthoCam(v.ortho) : camera; post?.ustawKamere(renderCam); };
   window.__pause = () => { window.__paused = true; };
   window.__resume = () => { if (window.__paused) { window.__paused = false; last = performance.now(); requestAnimationFrame(loop); } };
-  window.__renderOnce = () => { updatePlayer(0); for (const u of ctx.updaters) u(0, czasSceny, state); renderer.render(scene, renderCam); };
+  window.__renderOnce = () => { updatePlayer(0); for (const u of ctx.updaters) u(0, czasSceny, state); rysuj(); };
   // __setTime(t): ustawia zegar sceny na t sekund. Kontrakt dla updaterów animacji — dt === 0 znaczy
   // „przewiń na czas bezwzględny t", dt > 0 znaczy „posuń o dt". Sam __setTime nie rysuje; po nim woła się
   // __renderOnce(). Działa tylko przy zatrzymanej pętli, bo inaczej najbliższa klatka i tak doda swoje dt.
