@@ -14,8 +14,7 @@ Grafika ma być tak blisko fotorealizmu, jak pozwala **laptop** (ThinkPad P53, Q
 
 **Platforma docelowa: laptop** (zmiana z 2026-09-10, patrz §7). Telefon zostaje jako „niech działa jakoś",
 bez podejmowania pod niego jakichkolwiek decyzji projektowych.
-**Silnik docelowy: DO ROZSTRZYGNIĘCIA** — three.js (dziś) czy Godot (deklaracja Piotra z 2026-09-10).
-Rozstrzygnięcie ma zapaść po obejrzeniu TEJ SAMEJ sceny w obu, nie z góry.
+**Silnik docelowy: three.js** (decyzja 2026-09-10, patrz §7). Postać aplikacji z pulpitu — powłoka Tauri.
 
 ## 2. Skala docelowa
 
@@ -81,7 +80,7 @@ Rozstrzygnięcie ma zapaść po obejrzeniu TEJ SAMEJ sceny w obu, nie z góry.
 
 ## 6. Stan bieżący
 
-- **Etap:** 5 — zachowania NPC (plan zapisany wyżej, kod jeszcze nie ruszony). Etap 4 zamknięty.
+- **Etap:** 5 — zachowania NPC. Przed nim wchodzi etap 4b: odblokowanie wyglądu po zmianie platformy na laptop (postproces, cienie 4096, KTX2, wypalone światło z Cycles, powłoka Tauri).
 - **Ostatnio powstało (etap 3):** model `kram_sukiennik.glb` z Blendera (symulacja tkaniny wypieczona w geometrię + AO 2048², `assets_blender/kram_sukiennik.py`), przebudowana ciesiołka kramów (belki, zastrzały, lada bez szpary), cień kontaktowy pod każdym kramem, splot sukna z mapy AO, chorągwie z pełnym herbem, koła wozu w płaszczyźnie jazdy.
 - **Ostatnio powstało (etap 2):** Etap 2 rynku (wieża, paleta, fontanna, zieleń, girlandy, panorama, role kramów, UI) — https://piotrek40.github.io/projekt/rynek/ i Artifact (15,4 MB z limitu 16 MB); narzędzia weryfikacji (`engine/src/check.js`, `?top/?side/?boxes/?lineup/?roles`, `audyt/testy/geo_test.sh`, `audyt/testy/tools/*`), 17 nowych zasobów CC0 (`audyt/research/zasoby_etap2.md`), `rynek/PROMPT.md`.
 - **Pomiar (SwiftShader, 824×1830, high):** start_plac 117 draw / 578 k tri w HUD (limit 250 / 700 k), errors [] we wszystkich widokach. FPS z SwiftShader nie jest miarą telefonu.
@@ -121,4 +120,10 @@ Rozstrzygnięcie ma zapaść po obejrzeniu TEJ SAMEJ sceny w obu, nie z góry.
 
 - 2026-09-10 — **PLATFORMA DOCELOWA TO LAPTOP, nie telefon.** Decyzja Piotra. Konsekwencje: znika budżet 700 k trójkątów i 250 draw calls, znika „koszt na piksel" jako waluta krytyczna, odblokowuje się postproces (okluzja, blask, głębia ostrości), cienie 4096 z kaskadami, KTX2 i InstancedMesh (oba były wyłączone WYŁĄCZNIE przez sterownik Xclipse 940). Problem „piętnastu NPC nie mieści się w budżecie" przestaje istnieć.
 - 2026-09-10 — Telefon: obejścia po nazwie GPU (JPG zamiast KTX2, `noinst`) ZOSTAJĄ, bo są już napisane i nic nie kosztują. Ale żadna nowa decyzja nie jest pod telefon podejmowana i żadna nowa rzecz nie musi przechodzić pomiaru na S24.
-- 2026-09-10 — Piotr zadeklarował chęć przejścia na **Godot / aplikację natywną**. NIE JEST TO JESZCZE ZAPISANE JAKO DECYZJA, bo koszt jest realny (ok. 9 400 linii JS do przepisania: `rynek/src` 3571, `engine/src` 1477, `npc_test` 615, `audyt/testy` 3718) i bo dwie pozostałe odpowiedzi Piotra z tej samej rozmowy zakładały pozostanie w three.js. Ustalenie: rozstrzygamy PATRZĄC — ta sama scena, te same zasoby (71 MB glTF przenosi się bez zmian), zrzut z three.js z odblokowanym postprocesem obok zrzutu z Godota z SDFGI. Dopiero wtedy decyzja.
+- 2026-09-10 — **ZOSTAJEMY W three.js.** Piotr poprosił o decyzję i o wzięcie jej na siebie, przy jawnym założeniu, że grę realnie buduje Claude. Rozważane: three.js, Godot, Unreal.
+  - **Przesądziła pętla weryfikacji.** Dziś Claude renderuje dowolny widok i dowolną klatkę animacji bez Piotra i sprawdza 60 liczbowych asercji — tak znaleziono i naprawiono załamanie w pasie, ślizg stóp i opuszczone barki. Godot w `--headless` wyłącza całe renderowanie (renderowanie poza ekranem to wciąż otwarta propozycja, nie funkcja).
+  - **Fotorealizm w NIERUCHOMYM świecie bierze się z wypalonego światła, nie z GI w czasie rzeczywistym.** Rynek się nie zmienia; Blender Cycles (już w potoku) daje lepsze światło niż real-time GI. Ta droga była zablokowana wyłącznie przez telefon. SDFGI odpowiada na problem, którego ten projekt nie ma.
+  - **Argument PRZECIW, rozważony i odrzucony:** Godot ma wbudowane siatki nawigacji, omijanie agentów i drzewa stanów animacji — dokładnie to, czego potrzebuje etap 5. Rozbraja go płaskość placu: szukanie drogi wokół siedmiu kramów nie jest warte oddania pętli weryfikacji i miesiąca przepisywania.
+  - **Unreal odrzucony niezależnie od powyższego:** `.uasset` i `.umap` są binarne, Blueprinty też — Claude nie jest w stanie ich napisać, a warsztat Unreala zakłada człowieka klikającego w edytorze. W tym projekcie takiej osoby nie ma. Do tego Quadro RTX 5000 to Turing z 2018 i istnieje nierozwiązane zgłoszenie o Lumenie na dokładnie tej karcie. Licencja NIE była argumentem (darmowy do 1 mln USD).
+  - **Warunki powrotu do tej decyzji:** cykl dnia i nocy, pogoda, ruchome źródła światła albo wiele wnętrz. Wtedy dynamiczne GI zaczyna zarabiać na swój koszt i Godot wygrywa. Rozstrzygać wtedy obrazkiem, nie deklaracją.
+  - **Czego świadomie NIE dostajemy:** geometrii klasy Nanite, mgły wolumetrycznej z pudełka, wyglądu „real-time GI".
