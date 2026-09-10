@@ -89,7 +89,9 @@ export async function buildNPC(W) {
     // jeszcze pełne przemieszczenie, czyli w świecie, w którym „stopa stoi w miejscu" znaczy to, co powinno.
     zablokujStopy(k, skin, pelvisKosc);
     odsunRece(k, skin, pelvisKosc);
-    ruchy[nazwa] = wydzielRuchKorzenia(k, pelvisKosc);
+    // Klipy stojące zostawiamy samowystarczalne: ich poziomy ruch korzenia to kołysanie ciężaru nad
+    // nieruchomymi stopami, a nie przemieszczenie. Wycięcie go dawało stopy jeżdżące po bruku.
+    ruchy[nazwa] = wydzielRuchKorzenia(k, pelvisKosc, { wydziel: !nazwa.startsWith('idle') });
     klipy[nazwa] = k;
   }
   // Prędkość chodu wynika z KLIPU, nie z konfiguracji — to on dyktuje tempo kontrolerowi, nie odwrotnie.

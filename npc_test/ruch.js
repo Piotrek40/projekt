@@ -69,7 +69,9 @@ const wczytaj = url => new Promise((res, rej) => loader.load(url, res, undefined
     przyziem(k, skin, pelvis, { fps: 30 });   // najniższy wierzchołek stopy na wysokość podłogi
     diagStopy[KLIPY[i]] = zablokujStopy(k, skin, pelvis);   // pion miednicy per klatka + IK blokujące poślizg
     diagRece[KLIPY[i]] = odsunRece(k, skin, pelvis);        // ramię odchylone tak, by dłoń wyszła z biodra
-    ruchy[KLIPY[i]] = wydzielRuchKorzenia(k, pelvis);
+    // Klipy stojące zostawiamy samowystarczalne: ich poziomy ruch korzenia to kołysanie ciężaru nad
+    // nieruchomymi stopami, a nie przemieszczenie. Wycięcie go dawało stopy jeżdżące po bruku.
+    ruchy[KLIPY[i]] = wydzielRuchKorzenia(k, pelvis, { wydziel: !KLIPY[i].startsWith('idle') });
     klipy[KLIPY[i]] = k;
   }
 

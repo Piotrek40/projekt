@@ -351,13 +351,15 @@ console.log('\n=== E. Blokada stóp: lewitacja, ślizg, prześwit (wady zgłoszo
     przyziem(k, skin, pelvis, { fps: 30 });
     const ds = zablokujStopy(k, skin, pelvis, { przebiegi: true });
     const dr = odsunRece(k, skin, pelvis);
-    const rk = wydzielRuchKorzenia(k, pelvis);
+    // Klipy stojące zostają samowystarczalne — patrz asercja o kołysaniu niżej.
+    const rk = wydzielRuchKorzenia(k, pelvis, { wydziel: !nazwa.startsWith('idle') });
 
     const czasy = k.tracks.find(t => t.name === 'pelvis.position').times, N = czasy.length;
     const mix = new THREE.AnimationMixer(szczyt), akcja = mix.clipAction(k); akcja.play();
     const off = new THREE.Vector3();
     const wysoko = [], mied = [], poprz = [null, null];
     let maxSlizg = 0, minPrzeswit = Infinity, najglebiej = 0, klatekWTulowiu = 0, najnizej = 0;
+    const pudlo = [[Infinity, -Infinity], [Infinity, -Infinity]];   // wychylenie plamy styku BEZ ruchu korzenia
     // idle_lookaround ma 479 klatek; kolizję rąk (otoczka na 2171 wierzchołkach) liczymy co czwartą,
     // bo test ma się mieścić w kilkudziesięciu sekundach, a ręka nie wskakuje w biodro na jedną klatkę.
     const coIle = N > 200 ? 4 : 1;
@@ -374,6 +376,12 @@ console.log('\n=== E. Blokada stóp: lewitacja, ślizg, prześwit (wady zgłoszo
         mn = Math.min(mn, m); najnizej = Math.min(najnizej, m * 1000);
         const teraz = new Map();
         p.forEach((v, j) => { if (v.y < m + 0.012) teraz.set(STOPY[n][j], [v.x + off.x, v.z + off.z]); });
+        if (n === 0) {
+          const s2 = p.filter(v => v.y < m + 0.01);
+          const cx = s2.reduce((q, v) => q + v.x, 0) / s2.length, cz2 = s2.reduce((q, v) => q + v.z, 0) / s2.length;
+          pudlo[0][0] = Math.min(pudlo[0][0], cx); pudlo[0][1] = Math.max(pudlo[0][1], cx);
+          pudlo[1][0] = Math.min(pudlo[1][0], cz2); pudlo[1][1] = Math.max(pudlo[1][1], cz2);
+        }
         if (poprz[n] && i > 0) {
           let sx = 0, sz = 0, c = 0;
           for (const [v, q] of teraz) { const r = poprz[n].get(v); if (r) { sx += q[0] - r[0]; sz += q[1] - r[1]; c++; } }
@@ -414,6 +422,17 @@ console.log('\n=== E. Blokada stóp: lewitacja, ślizg, prześwit (wady zgłoszo
     sprawdz(klatekWTulowiu === 0, `"${nazwa}": ręka nie wchodzi w tułów ani w udo (0 klatek; przed poprawką idle_sway miał 282 z 282, zanurzenie 48,3 mm)`, { klatek: klatekWTulowiu, najglebiej_mm: +najglebiej.toFixed(1) });
     sprawdz(szarp < 8, `"${nazwa}": miednica nie szarpie w pionie (próg 8 mm/klatkę²; korekta bez wygładzania dawała 19,67)`, { szarpniecie: +szarp.toFixed(2), kolysanie_mm: +kol.toFixed(1) });
     sprawdz(dr.maxKat.every(x => x < 12), `"${nazwa}": odsunięcie ręki jest małą poprawką (próg 12°; zmierzone maksimum 10,05° w idle_sway)`, { kat_st: dr.maxKat });
+    if (nazwa.startsWith('idle')) {
+      // KLIP STOJĄCY MUSI BYĆ SAMOWYSTARCZALNY. Poziomy ruch korzenia w klipie stojącym to KOŁYSANIE —
+      // miednica przenosi ciężar nad nieruchomymi stopami — a nie przemieszczenie. Kiedy wydzielaliśmy go do
+      // kontrolera (tak jak w klipach chodu), klip sam w sobie stawał się błędny: miednica stoi, a nogi
+      // wykonują kołysanie za nią, czyli stopy jeżdżą po podłodze. W scenie kontroler to oddawał i wyglądało
+      // dobrze, ale w podglądzie i w każdym innym odtwarzaczu widać było „prosto stojącą osobę na falach".
+      // Ta asercja mierzy stopę BEZ doliczania czegokolwiek z zewnątrz: dla idle_sway przed poprawką
+      // wychodziło 150,5 mm wychylenia, po poprawce 28,9.
+      const wychylenie = Math.max(pudlo[0][1] - pudlo[0][0], pudlo[1][1] - pudlo[1][0]) * 1000;
+      sprawdz(wychylenie < 50, `"${nazwa}": klip stojący nie rusza stopą sam z siebie (próg 50 mm; z wydzielaniem ruchu korzenia idle_sway dawał 150,5 mm)`, { wychylenie_mm: +wychylenie.toFixed(1) });
+    }
     if (petlowy) {
       // Klipy ACCAD to wycinki nagrania, nie zaprojektowane pętle. Zmierzone skoki na szwie PRZED domknięciem:
       // idle_sway 11,75° (dłoń prawa), idle_arms 5,05°, idle_lookaround 3,54° — przy LoopRepeat postać

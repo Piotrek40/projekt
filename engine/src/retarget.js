@@ -320,7 +320,7 @@ export function przenies({ zrodloRoot, klip, pary, celRoot, korzen = 'pelvis', s
  * @param {THREE.Object3D} korzenObj kość korzenia CELU (potrzebna dla rotacji jej rodzica)
  * @returns {{czasy: Float32Array, xz: Float32Array, droga: number}} przemieszczenie w ŚWIECIE, względem chwili 0
  */
-export function wydzielRuchKorzenia(klip, korzenObj) {
+export function wydzielRuchKorzenia(klip, korzenObj, { wydziel = true } = {}) {
   const i = klip.tracks.findIndex(t => t.name === `${korzenObj.name}.position`);
   if (i < 0) throw new Error(`wydzielRuchKorzenia: klip "${klip.name}" nie ma ścieżki ${korzenObj.name}.position`);
   const tr = klip.tracks[i], czasy = tr.times, v = tr.values, n = czasy.length;
@@ -344,6 +344,14 @@ export function wydzielRuchKorzenia(klip, korzenObj) {
     bezXZ[k * 3 + 2] = p0.z + gora.z * wysokosc;
     if (k) droga += Math.hypot(xz[k * 2] - xz[(k - 1) * 2], xz[k * 2 + 1] - xz[(k - 1) * 2 + 1]);
   }
+  // KLIPY, KTÓRE NIGDZIE NIE IDĄ, MUSZĄ ZOSTAĆ SAMOWYSTARCZALNE. W klipie stojącym poziomy ruch korzenia to
+  // nie przemieszczenie, tylko KOŁYSANIE: miednica przenosi ciężar nad nieruchomymi stopami. Wydzielenie go do
+  // kontrolera sprawia, że klip sam w sobie jest błędny — miednica stoi, a nogi wykonują kołysanie za nią,
+  // czyli stopy jeżdżą po podłodze. W scenie kontroler to oddaje i wygląda dobrze, ale każdy inny odtwarzacz
+  // (podgląd, edytor, test) pokazuje wadę. Zmierzone na idle_sway: wycinamy 51 x 181 mm, a stopa bez oddania
+  // tego z powrotem wychyla się 37 x 151 mm. Dlatego dla klipów bez przemieszczenia zostawiamy ścieżkę w spokoju
+  // i zwracamy zerowy ruch — kontroler nie ma wtedy czego dokładać.
+  if (!wydziel) return { czasy, xz: new Float32Array(n * 2), droga: 0, drogaWKlipie: droga };
   klip.tracks[i] = new THREE.VectorKeyframeTrack(tr.name, czasy, bezXZ);
   return { czasy, xz, droga };
 }
@@ -539,10 +547,25 @@ function obrocNaKierunek(obj, stary, nowy) {
 function ikNoga(udoO, golenO, stopaO, delta, l1, l2) {
   const H = swiatP(udoO), K = swiatP(golenO), A = swiatP(stopaO);
   const qStopy = swiatQ(stopaO);
+  const maxD = (l1 + l2) * 0.9995, minD = Math.abs(l1 - l2) + 1e-4;
+  // CEL POZA ZASIĘGIEM: poświęcamy PION, nie poziom. Skrócenie wektora H→T po prostu (tak było wcześniej)
+  // ścina obie składowe naraz, więc razem z niedosiężnym milimetrem pionu ginie część blokady poziomej —
+  // a to właśnie poziom widać jako ślizganie się stopy. W staniu noga jest wyprostowana w 99,8%, więc
+  // dzieje się to często: w idle_sway 96 klatek na 282. Najpierw więc zmniejszamy pionową część korekty
+  // (dwudzielnie, bo zależność jest monotoniczna), a poziomą ruszamy dopiero, gdy sam poziom nie mieści się
+  // w zasięgu nogi.
   const T = A.clone().add(delta);
+  if (T.distanceTo(H) > maxD && Math.abs(delta.y) > 1e-6) {
+    let lo = 0, hi = 1;
+    for (let it = 0; it < 12; it++) {
+      const m = (lo + hi) / 2;
+      T.set(A.x + delta.x, A.y + delta.y * m, A.z + delta.z);
+      if (T.distanceTo(H) > maxD) hi = m; else lo = m;
+    }
+    T.set(A.x + delta.x, A.y + delta.y * lo, A.z + delta.z);
+  }
   const os = T.clone().sub(H);
   const zadane = os.length();
-  const maxD = (l1 + l2) * 0.9995, minD = Math.abs(l1 - l2) + 1e-4;
   const d = Math.min(maxD, Math.max(minD, zadane));
   if (zadane < 1e-6) return 1;
   os.divideScalar(zadane);
