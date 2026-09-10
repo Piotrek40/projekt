@@ -44,6 +44,29 @@
 - **Test eskalacji:** tak — nowa lokacja to nowe `CONFIG` (rozmiar placu, ziarno, paleta, role kramów, liczba girland, wież w oddali) plus te same moduły; ograniczenie: pierzeje nadal osiowe (kolizje `addRect`), a wieża i kompozycja startu są dostrojone do jednego kadru — inne miasto wymaga przeliczenia kompozycji.
 - **Jak to powstało:** `rynek/PROMPT.md` (protokół przestrzenny i kolorystyczny) + 15 motywów wykonanych przez agentów w dwóch torach, scalenie, dwie rundy krytyki (reżyseria, geometria, budżet) i poprawki. Raporty motywów: `audyt/raporty/etap2_*.md`.
 
+### Etap 3 — realizm jednego fragmentu (2026-09-08/09, częściowo)
+- **Widać:** kram sukiennika z modelu Blendera (symulacja tkaniny wypieczona w geometrię, AO 2048²), przebudowana ciesiołka kramów, cień kontaktowy pod kramem, chorągwie z pełnym herbem, koła wozu w płaszczyźnie jazdy.
+- **Nie ruszone:** elewacja i bruk z pierwotnego zadania etapu, szyby okienne, węgarki, mozaika bruku.
+
+### Etap 4 — NPC z mocapu, ruch jak u człowieka (2026-09-09/10, zrobione)
+- **Widać:** nagi mieszczanin na rynku — stoi, przenosi ciężar, rozgląda się, rusza, idzie 1,196 m/s, zatrzymuje się, odwraca głowę za graczem. Podgląd z bliska: https://piotrek40.github.io/projekt/npc_test/ruch.html
+- **Zakazy etapu:** żadnego klipu bez licencji zezwalającej na utwory zależne; żadnej poprawki animacji „na oko" (każda ma pomiar przed i po); żaden krok potoku nie może być liczony w czasie gry — wszystko przy ładowaniu; `results.errors` puste.
+- **Test eskalacji:** tak — potok `przygotuj → przenies → zapetlij → przyziem → zablokujStopy → odsunRece → wydzielRuchKorzenia` jest niezależny od liczby klipów i od tego, który to klip. Nowy klip to wpis w tablicy, nie nowy kod. Ograniczenie: `przygotuj` liczy pozę odniesienia raz, na klipie Male1 — klipy innego aktora (np. ukłon z Male2) będą wymagały własnej pozy odniesienia.
+- **Co powstało:** `engine/src/retarget.js` (1097 linii) — przeniesienie mocapu, domknięcie pętli, przyziemienie, blokada stóp z IK dwukostnym, odsunięcie rąk od tułowia; `rynek/src/npc.js` — maszyna stanów i kontroler; `npc_test/ruch.html` — podgląd; 60 asercji w `audyt/testy/retarget_test.sh`.
+- **Wady znalezione ze zrzutów Piotra i naprawione (każda z pomiarem):** załamanie w pasie 45,4 → 12,1°; stopy nad brukiem mediana 12,3 → 1,9 mm; dłoń w tułowiu 48,3 mm przez 282/282 klatek → 0 klatek; skok na szwie pętli 11,75 → 0,24°; kołysanie przenoszone na stopy 150,5 → 33,7 mm; bark 53 i 82 mm za nisko → 0,7 i 11,5 mm.
+- **Wspólna przyczyna trzech z nich:** dopasowywanie KIERUNKÓW kości przenosi geometrię cudzego szkieletu, nie ruch. Dopasowywane są dziś wyłącznie ramię i przedramię; wszystko inne dostaje przeniesienie ZMIANY względem pozy odniesienia.
+- **Zostaje:** skóra (ciało ma jednolity kolor, zero tekstur), oddech i mruganie (w mocapie ich nie ma — zmierzone 1,2 mm ruchu głowy w klipie stojącym), faza lotu 0,13 s na cykl chodu (jest w samym nagraniu).
+
+### Etap 5 — zachowania NPC (plan, 2026-09-10)
+- **Ma być widać:** kilkunastu mieszczan, każdy przy swoim zajęciu — ktoś przenosi skrzynię przez plac, ktoś stoi przy kramie, ktoś przechodzi i skręca w ulicę. Kiedy podejdziesz, przerywają zajęcie, odwracają się i kłaniają. Kiedy wejdziesz komuś w drogę, schodzi z niej.
+- **Zakazy etapu:**
+  - Żadnej ręcznie wypisanej listy „NPC nr 3 idzie do punktu B i tam macha". Trasa i zajęcie wynikają z reguł i z tego, co jest na placu.
+  - Żadnego przejścia między klipami wpisanego ręcznie — graf ruchu powstaje z POMIARU (poza końcowa klipu A vs początkowa klipu B, ta sama stopa podporowa).
+  - Żadnego skręcania przez obracanie obiektu w miejscu, gdy w bibliotece jest klip skrętu. Kąt dobierany po ZMIERZONEJ wartości, nie po nazwie pliku.
+  - Liczba postaci jest parametrem `CONFIG`, nigdy liczbą w kodzie.
+  - Klip innego aktora niż Male1 wchodzi dopiero po zmierzeniu, że przenosi się tak samo czysto (te same asercje co etap 4).
+- **Test eskalacji:** do rozstrzygnięcia przed pierwszą linią kodu — czy ten sam kontroler obsłuży kilkunastu NPC po zmianie parametru. Wąskie gardło NIE jest animacyjne, tylko rysunkowe: scena bez ludzi to 583 k trójkątów przy limicie 700 k, więc na ludzi zostaje 117 k, czyli 7,8 k na postać przy piętnastu — a ciało ma 26,8 k. Wniosek: potrzebny jest wariant uproszczony ciała (redukcja o 71%) albo mniej postaci. Do zmierzenia na telefonie, nie do zgadnięcia.
+
 ## 5. Reguły zamiast danych
 
 - Pozycje obiektów: dziś z konfiguracji. Docelowo do ustalenia, czy świat ma być układany ręcznie (autor związany regułami skali i licencji), czy generowany z ziarna.
@@ -51,7 +74,7 @@
 
 ## 6. Stan bieżący
 
-- **Etap:** 3 — realizm jednego fragmentu (kram sukiennika z modelu Blendera + poprawki zgłaszane ze zrzutów z telefonu). Elewacja i bruk z zadania jeszcze nie ruszone.
+- **Etap:** 5 — zachowania NPC (plan zapisany wyżej, kod jeszcze nie ruszony). Etap 4 zamknięty.
 - **Ostatnio powstało (etap 3):** model `kram_sukiennik.glb` z Blendera (symulacja tkaniny wypieczona w geometrię + AO 2048², `assets_blender/kram_sukiennik.py`), przebudowana ciesiołka kramów (belki, zastrzały, lada bez szpary), cień kontaktowy pod każdym kramem, splot sukna z mapy AO, chorągwie z pełnym herbem, koła wozu w płaszczyźnie jazdy.
 - **Ostatnio powstało (etap 2):** Etap 2 rynku (wieża, paleta, fontanna, zieleń, girlandy, panorama, role kramów, UI) — https://piotrek40.github.io/projekt/rynek/ i Artifact (15,4 MB z limitu 16 MB); narzędzia weryfikacji (`engine/src/check.js`, `?top/?side/?boxes/?lineup/?roles`, `audyt/testy/geo_test.sh`, `audyt/testy/tools/*`), 17 nowych zasobów CC0 (`audyt/research/zasoby_etap2.md`), `rynek/PROMPT.md`.
 - **Pomiar (SwiftShader, 824×1830, high):** start_plac 117 draw / 578 k tri w HUD (limit 250 / 700 k), errors [] we wszystkich widokach. FPS z SwiftShader nie jest miarą telefonu.
@@ -80,3 +103,11 @@
 - 2026-09-08 — Kolory sceny wyłącznie jako OKLCH w `CONFIG.paletteOKLCH` (hex przez `oklch()`), tinty liczone z mnożnika tekstury i sprawdzane sondą na zrzucie. Powód: tint mnoży teksturę, a AgX kompresuje jasność i chromę — dobór „na oko" dawał czarne belki i mleczną wodę.
 - 2026-09-08 — Każda cecha ma flagę URL `?no<cecha>=1` i asercję `check()`; render pomiarowy zawsze z `?noui=1&nosmoke=1&nosway=1&nowater=1`. Powód: bisekcja na telefonie i porównywalność zrzutów.
 - 2026-09-08 — Po pomiarze na S24: budżet sceny liczymy w DWÓCH walutach, nie jednej. Geometria (draw calls, trójkąty) jest tania — 151/250 draw i 347 k/700 k tri przy p95 na sufitie. Kosztem krytycznym jest praca NA PIKSEL: alfa-test, przezroczystość, overdraw, DoubleSide. Powód: jedyny zmierzony kadr ponad sufitem 60 Hz (p95 20,5 ms) to ten z koroną lipy na cały ekran — przy MNIEJSZEJ geometrii niż kadr, który sufit trzymał.
+
+- 2026-09-09 — Ruch NPC: mocap ACCAD Open Motion Project, licencja CC BY 3.0 (jedyne z rozważanych źródeł dające naraz otwartą licencję, użycie komercyjne i utwory zależne). Atrybucja OBOWIĄZKOWA, także na ekranie „Zasoby" w grze — treść w `Piotrek40/Postac/ATRYBUCJA.md`.
+- 2026-09-09 — Retarget własny, nie `SkeletonUtils.retargetClip`. Powód: ten ostatni ustawia rotacje światowe bez kompensacji różnicy póz spoczynkowych (zmierzone 51° na barku) i rzuca TypeError na klipach bez siatki.
+- 2026-09-10 — **Osobne repozytorium `Piotrek40/Postac`** na źródła postaci: 299 plików BVH, archiwa źródłowe, zmierzony katalog, narzędzia, ciało. Powód: przez cztery etapy materiał źródłowy leżał wyłącznie w katalogu roboczym kontenera i znikał razem z sesją — w repozytorium było sześć gotowych klipów, ale nie materiał, z którego dało by się wyciąć siódmy.
+- 2026-09-10 — Wybór klipu mocap jest ZAPYTANIEM do zmierzonego katalogu, nie wyszukiwaniem po nazwie. Powód: nazwy w tym zbiorze kłamią — `Male1_A1_Stand` kończy się odejściem 0,87 m/s, `WalkTurnLeft90` skręca o 102,7°, `WalkTurnRight90` o −82,5°.
+- 2026-09-10 — **Skala docelowa placu: kilkunastu mieszczan**, żyjących swoim zajęciem, którzy zauważają gracza i reagują (odwracają się, kłaniają, schodzą z drogi). Decyzja Piotra. Konsekwencja: kontroler zachowań i graf ruchu muszą być pisane od razu pod wielu NPC, a nie pod jednego.
+- 2026-09-10 — Powitanie: **ukłon z mocapu** (`Male2_D7_WalkToBow` + `D8_BowToReady`), nie machanie ręką. Powód: machania nie ma w całej 299-plikowej bibliotece — sprawdzone pomiarem, nie po nazwach (kandydaci na „gest w górę" to niemal wyłącznie sztuki walki). Ukłon do średniowiecznego rynku pasuje lepiej.
+- 2026-09-10 — Female1 do ponownego rozważenia jako źródło ruchu. Odrzucona w etapie 4 za proporcje nóg (udo/podudzie 1,22 wobec normy ~1,0), ale retarget po etapie 4 przenosi ZMIANĘ, nie geometrię źródła, więc powód mógł przestać obowiązywać. Ma 650 s materiału, w tym serię D (`Wait`, `ConversationGestures`, `Urban`) — najbogatszy materiał na „ludzi, którzy coś robią rękami". Do rozstrzygnięcia pomiarem.
